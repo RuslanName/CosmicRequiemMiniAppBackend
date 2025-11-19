@@ -19,6 +19,7 @@ api.interceptors.response.use(
         window.location.href = loginPath;
       }
     }
+    console.error('API Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
 );

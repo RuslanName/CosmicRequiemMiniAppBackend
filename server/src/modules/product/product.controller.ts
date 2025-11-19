@@ -1,14 +1,17 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody, ApiCookieAuth } from '@nestjs/swagger';
 import { ProductService } from './product.service';
 import { Product } from './product.entity';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { UpdateProductDto } from './dtos/update-product.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { CacheTTL, CacheKey, InvalidateCache } from '../../common/decorators/cache.decorator';
+import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 
 @ApiTags('Product')
 @Controller('products')
+@UseGuards(AdminJwtAuthGuard)
+@ApiCookieAuth()
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 

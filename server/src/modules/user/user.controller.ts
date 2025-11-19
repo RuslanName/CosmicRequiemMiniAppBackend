@@ -26,6 +26,7 @@ export class UserController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить текущего аутентифицированного пользователя' })
   @ApiResponse({ status: 200, description: 'Возвращает текущего пользователя с силой' })
   async findMe(@Request() req): Promise<User & { strength: number; referral_link?: string }> {

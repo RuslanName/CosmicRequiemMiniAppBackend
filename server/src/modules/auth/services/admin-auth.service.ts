@@ -41,7 +41,7 @@ export class AdminAuthService {
 
         const token = this.jwtService.sign(payload, {
             secret: ENV.JWT_ADMIN_SECRET,
-            expiresIn: '8h',
+            expiresIn: ENV.JWT_ADMIN_EXPIRES_IN,
         });
 
         return { token, admin };

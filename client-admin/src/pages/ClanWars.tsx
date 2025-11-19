@@ -35,14 +35,16 @@ const ClanWars = () => {
         }
       }
       const response = await clanWarsApi.getAll({ page, limit });
-      setWars(response.data);
-      setTotal(response.total);
+      setWars(response?.data || []);
+      setTotal(response?.total || 0);
     } catch (err: any) {
       if (err.response?.status === 404 && searchIdValue) {
         setWars([]);
         setTotal(0);
       } else {
         setError(err.response?.data?.message || 'Ошибка загрузки войн');
+        setWars([]);
+        setTotal(0);
       }
     } finally {
       setLoading(false);

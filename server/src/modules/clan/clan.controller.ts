@@ -124,6 +124,8 @@ export class ClanController {
   }
 
   @Get('rating')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('clan:rating')
   @ApiOperation({ 

@@ -35,14 +35,16 @@ const UserGuards = () => {
         }
       }
       const response = await userGuardsApi.getAll({ page, limit });
-      setGuards(response.data);
-      setTotal(response.total);
+      setGuards(response?.data || []);
+      setTotal(response?.total || 0);
     } catch (err: any) {
       if (err.response?.status === 404 && searchIdValue) {
         setGuards([]);
         setTotal(0);
       } else {
         setError(err.response?.data?.message || 'Ошибка загрузки стражей');
+        setGuards([]);
+        setTotal(0);
       }
     } finally {
       setLoading(false);

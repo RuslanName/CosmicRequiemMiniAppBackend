@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: frontend-builder
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://api.kosmo-requiem.ru}
     container_name: cosmic-requiem-admin-init
     command: sh -c "mkdir -p /admin-dist && cp -r /app/dist/* /admin-dist/ && ls -la /admin-dist"
     volumes:

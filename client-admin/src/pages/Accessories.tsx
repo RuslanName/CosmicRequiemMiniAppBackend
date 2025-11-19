@@ -36,14 +36,16 @@ const Accessories = () => {
         }
       }
       const response = await accessoriesApi.getAll({ page, limit });
-      setAccessories(response.data);
-      setTotal(response.total);
+      setAccessories(response?.data || []);
+      setTotal(response?.total || 0);
     } catch (err: any) {
       if (err.response?.status === 404 && searchIdValue) {
         setAccessories([]);
         setTotal(0);
       } else {
         setError(err.response?.data?.message || 'Ошибка загрузки аксессуаров');
+        setAccessories([]);
+        setTotal(0);
       }
     } finally {
       setLoading(false);

@@ -37,14 +37,16 @@ const Settings = () => {
         return;
       }
       const response = await settingsApi.getAll({ page, limit });
-      setSettings(response.data);
-      setTotal(response.total);
+      setSettings(response?.data || []);
+      setTotal(response?.total || 0);
     } catch (err: any) {
       if (err.response?.status === 404 && searchKeyValue) {
         setSettings([]);
         setTotal(0);
       } else {
         setError(err.response?.data?.message || 'Ошибка загрузки настроек');
+        setSettings([]);
+        setTotal(0);
       }
     } finally {
       setLoading(false);

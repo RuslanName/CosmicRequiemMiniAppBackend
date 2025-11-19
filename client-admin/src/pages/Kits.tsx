@@ -37,14 +37,16 @@ const Kits = () => {
         }
       }
       const response = await kitsApi.getAll({ page, limit });
-      setKits(response.data);
-      setTotal(response.total);
+      setKits(response?.data || []);
+      setTotal(response?.total || 0);
     } catch (err: any) {
       if (err.response?.status === 404 && searchIdValue) {
         setKits([]);
         setTotal(0);
       } else {
         setError(err.response?.data?.message || 'Ошибка загрузки наборов');
+        setKits([]);
+        setTotal(0);
       }
     } finally {
       setLoading(false);

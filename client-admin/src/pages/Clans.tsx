@@ -37,14 +37,16 @@ const Clans = () => {
         }
       }
       const response = await clansApi.getAll({ page, limit });
-      setClans(response.data);
-      setTotal(response.total);
+      setClans(response?.data || []);
+      setTotal(response?.total || 0);
     } catch (err: any) {
       if (err.response?.status === 404 && searchIdValue) {
         setClans([]);
         setTotal(0);
       } else {
         setError(err.response?.data?.message || 'Ошибка загрузки кланов');
+        setClans([]);
+        setTotal(0);
       }
     } finally {
       setLoading(false);

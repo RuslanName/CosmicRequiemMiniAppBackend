@@ -6,6 +6,7 @@ export * from './accessories.types';
 export * from './kits.types';
 export * from './admins.types';
 export * from './settings.types';
+export * from './products.types';
 
 export interface PaginationParams {
   page?: number;

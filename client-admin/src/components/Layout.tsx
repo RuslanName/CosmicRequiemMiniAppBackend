@@ -12,6 +12,7 @@ const Layout = () => {
     { path: '/user-guards', label: 'Стражи пользователей' },
     { path: '/clans', label: 'Кланы' },
     { path: '/clan-wars', label: 'Клановые войны' },
+    { path: '/products', label: 'Продукты' },
     { path: '/accessories', label: 'Аксессуары' },
     { path: '/kits', label: 'Наборы' },
     { path: '/admins', label: 'Администраторы' },

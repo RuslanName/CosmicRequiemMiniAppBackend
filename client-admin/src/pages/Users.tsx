@@ -35,14 +35,16 @@ const Users = () => {
         }
       }
       const response = await usersApi.getAll({ page, limit });
-      setUsers(response.data);
-      setTotal(response.total);
+      setUsers(response?.data || []);
+      setTotal(response?.total || 0);
     } catch (err: any) {
       if (err.response?.status === 404 && searchIdValue) {
         setUsers([]);
         setTotal(0);
       } else {
         setError(err.response?.data?.message || 'Ошибка загрузки пользователей');
+        setUsers([]);
+        setTotal(0);
       }
     } finally {
       setLoading(false);
