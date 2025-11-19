@@ -1,10 +1,12 @@
-export enum ProductType {
-  NICKNAME_COLOR = 'nickname_color',
-  NICKNAME_ICON = 'nickname_icon',
-  AVATAR_FRAME = 'avatar_frame',
-  GUARD = 'guard',
-  SHIELD = 'shield',
-}
+export const ProductType = {
+  NICKNAME_COLOR: 'nickname_color',
+  NICKNAME_ICON: 'nickname_icon',
+  AVATAR_FRAME: 'avatar_frame',
+  GUARD: 'guard',
+  SHIELD: 'shield',
+} as const;
+
+export type ProductType = typeof ProductType[keyof typeof ProductType];
 
 export const ProductTypeLabels: Record<ProductType, string> = {
   [ProductType.NICKNAME_COLOR]: 'Цвет ника',
