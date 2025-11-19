@@ -22,4 +22,4 @@ export const ENV = {
     CLUSTER_ENABLED: process.env.CLUSTER_ENABLED !== 'false',
     CLUSTER_WORKERS: process.env.CLUSTER_WORKERS || undefined,
     ALLOWED_ORIGINS: getAllowedOrigins(),
-} as const;
+};

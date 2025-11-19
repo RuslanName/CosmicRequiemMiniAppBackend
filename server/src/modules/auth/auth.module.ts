@@ -19,7 +19,7 @@ import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
     PassportModule,
     JwtModule.register({
       secret: ENV.JWT_SECRET,
-      signOptions: { expiresIn: ENV.JWT_EXPIRES_IN },
+      signOptions: { expiresIn: ENV.JWT_EXPIRES_IN as any },
       global: true,
     }),
   ],
