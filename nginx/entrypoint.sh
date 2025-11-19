@@ -73,9 +73,12 @@ else
     echo "Nginx will work in HTTP-only mode until certificates are obtained."
 fi
 
-if [ -f /docker-entrypoint.sh ]; then
-    exec /docker-entrypoint.sh nginx -g 'daemon off;'
-else
+nginx -t
+if [ $? -eq 0 ]; then
+    echo "Nginx configuration test passed. Starting nginx..."
     exec nginx -g 'daemon off;'
+else
+    echo "Nginx configuration test failed!"
+    exit 1
 fi
 
