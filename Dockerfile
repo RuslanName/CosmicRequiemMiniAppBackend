@@ -1,34 +1,40 @@
-FROM node:22-alpine AS builder
+# Backend builder
+FROM node:20-alpine AS backend-builder
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY tsconfig*.json ./
-COPY nest-cli.json ./
+COPY server/package*.json ./
+RUN npm ci
 
-RUN npm ci && npm cache clean --force
-
-COPY . .
-
+COPY server/ ./
 RUN npm run build
 
-FROM node:22-alpine AS production
+# Frontend admin builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
-RUN apk add --no-cache dumb-init
+COPY client-admin/package*.json ./
+RUN npm ci
 
-ENV NODE_ENV=production
+COPY client-admin/ ./
+RUN npm run build
 
-COPY package*.json ./
+# Production
+FROM node:20-alpine AS production
 
-RUN npm ci --only=production && npm cache clean --force
+WORKDIR /app
 
-COPY --from=builder /app/dist ./dist
+# Copy backend
+COPY server/package*.json ./
+RUN npm ci --only=production
+
+COPY --from=backend-builder /app/dist ./dist
+
+# Copy frontend admin build
+COPY --from=frontend-builder /app/dist ./admin-dist
 
 EXPOSE 5000
 
-USER node
-
-CMD ["dumb-init", "node", "dist/main"]
+CMD ["node", "dist/main.js"]
 
