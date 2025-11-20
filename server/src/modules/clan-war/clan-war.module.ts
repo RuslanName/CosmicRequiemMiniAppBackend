@@ -12,6 +12,6 @@ import { UserGuard } from '../user-guard/user-guard.entity';
   imports: [TypeOrmModule.forFeature([ClanWar, StolenItem, User, UserGuard])],
   controllers: [ClanWarController],
   providers: [ClanWarService, ClanWarSchedulerService],
-  exports: [ClanWarService]
+  exports: [ClanWarService],
 })
 export class ClanWarModule {}

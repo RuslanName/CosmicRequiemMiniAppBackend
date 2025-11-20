@@ -25,7 +25,7 @@ export class ClanWarSchedulerService {
   @Cron('0 */5 * * * *')
   async completeExpiredWars() {
     const now = new Date();
-    
+
     const expiredWars = await this.clanWarRepository.find({
       where: {
         end_time: LessThan(now),
@@ -62,22 +62,25 @@ export class ClanWarSchedulerService {
       }
     }
 
-    const winnerStatus = clan1StolenCount > clan2StolenCount
-      ? ClanWarStatus.WON_BY_CLAN_1
-      : clan2StolenCount > clan1StolenCount
-      ? ClanWarStatus.WON_BY_CLAN_2
-      : ClanWarStatus.WON_BY_CLAN_1;
+    const winnerStatus =
+      clan1StolenCount > clan2StolenCount
+        ? ClanWarStatus.WON_BY_CLAN_1
+        : clan2StolenCount > clan1StolenCount
+          ? ClanWarStatus.WON_BY_CLAN_2
+          : ClanWarStatus.WON_BY_CLAN_1;
 
     war.status = winnerStatus;
     await this.clanWarRepository.save(war);
 
-    const winnerClanId = winnerStatus === ClanWarStatus.WON_BY_CLAN_1
-      ? war.clan_1.id
-      : war.clan_2.id;
+    const winnerClanId =
+      winnerStatus === ClanWarStatus.WON_BY_CLAN_1
+        ? war.clan_1.id
+        : war.clan_2.id;
 
-    const loserClanId = winnerStatus === ClanWarStatus.WON_BY_CLAN_1
-      ? war.clan_2.id
-      : war.clan_1.id;
+    const loserClanId =
+      winnerStatus === ClanWarStatus.WON_BY_CLAN_1
+        ? war.clan_2.id
+        : war.clan_1.id;
 
     for (const item of stolenItems) {
       const thiefClanId = item.thief.clan?.id;
@@ -115,4 +118,3 @@ export class ClanWarSchedulerService {
     }
   }
 }
-

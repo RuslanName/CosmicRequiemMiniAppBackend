@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { userGuardsApi, type UserGuard, type CreateUserGuardDto, type UpdateUserGuardDto } from '../api/user-guards.api';
 import Modal from '../components/Modal';
+import UserSelect from '../components/UserSelect';
 import '../components/Table.css';
 
 const UserGuards = () => {
@@ -247,15 +248,12 @@ const UserGuards = () => {
               <option value="true">Да</option>
             </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">ID пользователя</label>
-            <input
-              className="form-input"
-              type="number"
-              value={(formData as any).user_id || ''}
-              onChange={(e) => setFormData({ ...formData, user_id: parseInt(e.target.value) || 0 })}
-            />
-          </div>
+          <UserSelect
+            value={(formData as any).user_id}
+            onChange={(id) => setFormData({ ...formData, user_id: id })}
+            label="Пользователь"
+            required={true}
+          />
           {error && <div className="error-message">{error}</div>}
           <div className="form-actions">
             <button className="btn btn-secondary" onClick={handleClose}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { clansApi, type Clan, type CreateClanDto, type UpdateClanDto } from '../api/clans.api';
 import { ClanStatus, ClanStatusLabels } from '../enums';
 import Modal from '../components/Modal';
+import UserSelect from '../components/UserSelect';
 import '../components/Table.css';
 
 const Clans = () => {
@@ -165,6 +166,7 @@ const Clans = () => {
           <tr>
             <th>ID</th>
             <th>Название</th>
+            <th>Изображение</th>
             <th>Макс. участников</th>
             <th>ID лидера</th>
             <th>Статус</th>
@@ -176,6 +178,15 @@ const Clans = () => {
             <tr key={clan.id}>
               <td>{clan.id}</td>
               <td>{clan.name}</td>
+              <td>
+                {clan.image_path && (
+                  <img 
+                    src={`http://localhost:5000/${clan.image_path}`} 
+                    alt={clan.name}
+                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                  />
+                )}
+              </td>
               <td>{clan.max_members}</td>
               <td>{clan.leader_id || '-'}</td>
               <td>{ClanStatusLabels[clan.status as ClanStatus] || clan.status}</td>
@@ -242,15 +253,12 @@ const Clans = () => {
               onChange={(e) => setFormData({ ...formData, max_members: parseInt(e.target.value) || 50 })}
             />
           </div>
-          <div className="form-group">
-            <label className="form-label">ID лидера</label>
-            <input
-              className="form-input"
-              type="number"
-              value={(formData as any).leader_id || ''}
-              onChange={(e) => setFormData({ ...formData, leader_id: parseInt(e.target.value) || 0 })}
-            />
-          </div>
+          <UserSelect
+            value={(formData as any).leader_id}
+            onChange={(id) => setFormData({ ...formData, leader_id: id })}
+            label="Лидер клана"
+            required={true}
+          />
           <div className="form-group">
             <label className="form-label">Статус</label>
             <select

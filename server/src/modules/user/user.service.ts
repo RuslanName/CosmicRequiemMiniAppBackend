@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -8,6 +12,12 @@ import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/setting-key.enum';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { ENV } from '../../config/constants';
+import { UserBoostService } from '../user-boost/user-boost.service';
+import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
+import { UserBoostStatus } from '../user-boost/enums/user-boost-status.enum';
+import { UserAccessoryService } from '../user-accessory/user-accessory.service';
+import { UserAccessory } from '../user-accessory/user-accessory.entity';
+import { UserBoost } from '../user-boost/user-boost.entity';
 
 @Injectable()
 export class UserService {
@@ -16,6 +26,8 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
+    private readonly userBoostService: UserBoostService,
+    private readonly userAccessoryService: UserAccessoryService,
   ) {}
 
   private calculateUserPower(guards: UserGuard[]): number {
@@ -27,7 +39,9 @@ export class UserService {
     return guards ? guards.length : 0;
   }
 
-  private transformUserForResponse(user: User): User & { referral_link?: string } {
+  private transformUserForResponse(
+    user: User,
+  ): User & { referral_link?: string } {
     const transformed: any = { ...user };
     if (user.referral_link_id) {
       transformed.referral_link = `${ENV.VK_APP_URL}/?start=ref_${user.referral_link_id}`;
@@ -36,7 +50,14 @@ export class UserService {
     return transformed;
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: (User & { strength: number; referral_link?: string })[]; total: number; page: number; limit: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{
+    data: (User & { strength: number; referral_link?: string })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -46,7 +67,7 @@ export class UserService {
       take: limit,
     });
 
-    const dataWithStrength = data.map(user => {
+    const dataWithStrength = data.map((user) => {
       const transformed = this.transformUserForResponse(user);
       return {
         ...transformed,
@@ -62,7 +83,9 @@ export class UserService {
     };
   }
 
-  async findOne(id: number): Promise<User & { strength: number; referral_link?: string }> {
+  async findOne(
+    id: number,
+  ): Promise<User & { strength: number; referral_link?: string }> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['clan', 'guards'],
@@ -79,7 +102,9 @@ export class UserService {
     };
   }
 
-  async findMe(userId: number): Promise<User & { strength: number; referral_link?: string }> {
+  async findMe(
+    userId: number,
+  ): Promise<User & { strength: number; referral_link?: string }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan', 'guards'],
@@ -110,7 +135,14 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async training(userId: number): Promise<{ user: User; training_cost: number; power_increase: number; new_power: number }> {
+  async training(
+    userId: number,
+  ): Promise<{
+    user: User;
+    training_cost: number;
+    power_increase: number;
+    new_power: number;
+  }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -120,10 +152,23 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const trainingCooldown = Settings[SettingKey.TRAINING_COOLDOWN];
+    // Проверяем активные бусты
+    const activeBoosts = await this.userBoostService.findActiveByUserId(userId);
+    const cooldownHalvingBoost = activeBoosts.find(
+      (b) => b.type === UserBoostType.COOLDOWN_HALVING,
+    );
+
+    let trainingCooldown = Settings[SettingKey.TRAINING_COOLDOWN];
+    if (cooldownHalvingBoost) {
+      trainingCooldown = trainingCooldown / 2;
+      // Завершаем буст после использования
+      await this.userBoostService.complete(cooldownHalvingBoost.id);
+    }
 
     if (user.last_training_time) {
-      const cooldownEndTime = new Date(user.last_training_time.getTime() + trainingCooldown);
+      const cooldownEndTime = new Date(
+        user.last_training_time.getTime() + trainingCooldown,
+      );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException('Training cooldown is still active');
       }
@@ -144,11 +189,14 @@ export class UserService {
     }
 
     const base_power_increase = Math.max(
-      3 + (guards_count * 0.5),
-      current_power * 0.1
+      3 + guards_count * 0.5,
+      current_power * 0.1,
     );
 
-    const random_bonus_chance = Math.min(3, guards_count * (current_power * 0.001));
+    const random_bonus_chance = Math.min(
+      3,
+      guards_count * (current_power * 0.001),
+    );
     const random_value = Math.random() * 100;
     let random_bonus = 0;
 
@@ -157,7 +205,9 @@ export class UserService {
     }
 
     const total_power_increase = Math.round(base_power_increase + random_bonus);
-    const powerIncreasePerGuard = Math.round(total_power_increase / guards_count);
+    const powerIncreasePerGuard = Math.round(
+      total_power_increase / guards_count,
+    );
 
     for (const guard of user.guards) {
       guard.strength = Number(guard.strength) + powerIncreasePerGuard;
@@ -188,7 +238,9 @@ export class UserService {
     };
   }
 
-  async contract(userId: number): Promise<{ user: User; contract_income: number }> {
+  async contract(
+    userId: number,
+  ): Promise<{ user: User; contract_income: number }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -198,10 +250,26 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const contractCooldown = Settings[SettingKey.CONTRACT_COOLDOWN];
+    // Проверяем активные бусты
+    const activeBoosts = await this.userBoostService.findActiveByUserId(userId);
+    const cooldownHalvingBoost = activeBoosts.find(
+      (b) => b.type === UserBoostType.COOLDOWN_HALVING,
+    );
+    const rewardDoublingBoost = activeBoosts.find(
+      (b) => b.type === UserBoostType.REWARD_DOUBLING,
+    );
+
+    let contractCooldown = Settings[SettingKey.CONTRACT_COOLDOWN];
+    if (cooldownHalvingBoost) {
+      contractCooldown = contractCooldown / 2;
+      // Завершаем буст после использования
+      await this.userBoostService.complete(cooldownHalvingBoost.id);
+    }
 
     if (user.last_contract_time) {
-      const cooldownEndTime = new Date(user.last_contract_time.getTime() + contractCooldown);
+      const cooldownEndTime = new Date(
+        user.last_contract_time.getTime() + contractCooldown,
+      );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException('Contract cooldown is still active');
       }
@@ -211,7 +279,14 @@ export class UserService {
 
     const training_cost = Math.round(10 * Math.pow(1 + current_power, 1.2));
 
-    const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
+    let contract_income = Math.max(Math.round(training_cost * 0.55), 6);
+
+    // Применяем удвоение награды
+    if (rewardDoublingBoost) {
+      contract_income = contract_income * 2;
+      // Завершаем буст после использования
+      await this.userBoostService.complete(rewardDoublingBoost.id);
+    }
 
     user.money = Number(user.money) + contract_income;
     user.last_contract_time = new Date();
@@ -236,5 +311,63 @@ export class UserService {
       last_login_at: new Date(),
     });
     return await this.userRepository.save(user);
+  }
+
+  async getRating(
+    paginationDto: PaginationDto,
+  ): Promise<{
+    data: (User & { strength: number })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.userRepository.findAndCount({
+      relations: ['guards'],
+      skip,
+      take: limit,
+    });
+
+    const dataWithStrength = data
+      .map((user) => ({
+        ...user,
+        strength: this.calculateUserPower(user.guards || []),
+      }))
+      .sort((a, b) => b.strength - a.strength);
+
+    return {
+      data: dataWithStrength,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async getUserBoosts(userId: number): Promise<UserBoost[]> {
+    return this.userBoostService.findByUserId(userId);
+  }
+
+  async getUserAccessories(userId: number): Promise<UserAccessory[]> {
+    return this.userAccessoryService.findByUserId(userId);
+  }
+
+  async getEquippedAccessories(userId: number): Promise<UserAccessory[]> {
+    return this.userAccessoryService.findEquippedByUserId(userId);
+  }
+
+  async equipAccessory(
+    userId: number,
+    accessoryId: number,
+  ): Promise<UserAccessory> {
+    return this.userAccessoryService.equip(userId, accessoryId);
+  }
+
+  async unequipAccessory(
+    userId: number,
+    accessoryId: number,
+  ): Promise<UserAccessory> {
+    return this.userAccessoryService.unequip(userId, accessoryId);
   }
 }

@@ -1,17 +1,21 @@
 import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAdminDto {
-    @IsNumber()
-    user_id: number;
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  user_id: number;
 
-    @IsString()
-    username: string;
+  @ApiProperty({ example: 'admin' })
+  @IsString()
+  username: string;
 
-    @IsString()
-    password: string;
+  @ApiProperty({ example: 'password123' })
+  @IsString()
+  password: string;
 
-    @IsBoolean()
-    @IsOptional()
-    is_system_admin?: boolean;
+  @ApiProperty({ example: false, required: false })
+  @IsBoolean()
+  @IsOptional()
+  is_system_admin?: boolean;
 }
-

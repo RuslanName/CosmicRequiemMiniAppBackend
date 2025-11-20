@@ -1,4 +1,4 @@
 export enum ClanStatus {
-    ACTIVE = 'active',
-    DISBANDED = 'disbanded'
+  ACTIVE = 'active',
+  DISBANDED = 'disbanded',
 }

@@ -1,5 +1,30 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody, ApiBearerAuth, ApiCookieAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBody,
+  ApiBearerAuth,
+  ApiCookieAuth,
+  ApiConsumes,
+} from '@nestjs/swagger';
+import { Express } from 'express';
 import { KitService } from './kit.service';
 import { Kit } from './kit.entity';
 import { CreateKitDto } from './dtos/create-kit.dto';
@@ -8,7 +33,11 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PurchaseKitDto } from './dtos/purchase-kit.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
-import { CacheTTL, CacheKey, InvalidateCache } from '../../common/decorators/cache.decorator';
+import {
+  CacheTTL,
+  CacheKey,
+  InvalidateCache,
+} from '../../common/decorators/cache.decorator';
 
 @ApiTags('Kit')
 @Controller('kits')
@@ -20,14 +49,27 @@ export class KitController {
   @ApiCookieAuth()
   @CacheTTL(180)
   @CacheKey('kit:list')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить все наборы с пагинацией',
-    description: 'Возвращает список всех доступных наборов с поддержкой пагинации. Каждый набор содержит несколько продуктов, которые будут применены при покупке.'
+    description:
+      'Возвращает список всех доступных наборов с поддержкой пагинации. Каждый набор содержит несколько продуктов, которые будут применены при покупке.',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Номер страницы (по умолчанию 1)', example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Количество элементов на странице (по умолчанию 10)', example: 10 })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Номер страницы (по умолчанию 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Количество элементов на странице (по умолчанию 10)',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
     description: 'Список наборов успешно возвращен',
     schema: {
       example: {
@@ -38,19 +80,21 @@ export class KitController {
             currency: 'virtual',
             price: 5000,
             status: 'in_stock',
-            products: [
+            item_templates: [
               { id: 1, type: 'nickname_color', value: 'red' },
-              { id: 2, type: 'guard', value: '100' }
-            ]
-          }
+              { id: 2, type: 'guard', value: '100' },
+            ],
+          },
         ],
         total: 20,
         page: 1,
-        limit: 10
-      }
-    }
+        limit: 10,
+      },
+    },
   })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
+  async findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
     return this.kitService.findAll(paginationDto);
   }
 
@@ -59,13 +103,14 @@ export class KitController {
   @ApiCookieAuth()
   @CacheTTL(300)
   @CacheKey('kit::id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Получить набор по ID',
-    description: 'Возвращает полную информацию о наборе по его идентификатору, включая все продукты, входящие в набор.'
+    description:
+      'Возвращает полную информацию о наборе по его идентификатору, включая все продукты, входящие в набор.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID набора', example: 1 })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Набор успешно возвращен',
     schema: {
       example: {
@@ -79,19 +124,19 @@ export class KitController {
             id: 1,
             name: 'Red Nickname',
             type: 'nickname_color',
-            value: 'red'
+            value: 'red',
           },
           {
             id: 2,
             name: 'Strong Guard',
             type: 'guard',
-            value: '100'
-          }
+            value: '100',
+          },
         ],
         created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z'
-      }
-    }
+        updated_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Набор не найден' })
   async findOne(@Param('id') id: string): Promise<Kit> {
@@ -101,21 +146,75 @@ export class KitController {
   @Post()
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
   @InvalidateCache('kit:list')
-  @ApiOperation({ summary: 'Создать новый набор' })
+  @ApiOperation({
+    summary: 'Создать новый набор',
+    description:
+      'Создает новый набор. Изображение загружается через multipart/form-data.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'Premium Kit' },
+        currency: { type: 'string', example: 'virtual' },
+        price: { type: 'number', example: 5000 },
+        status: { type: 'string', example: 'in_stock' },
+        item_template_ids: {
+          type: 'array',
+          items: { type: 'number' },
+          example: [1, 2, 3],
+        },
+        image: { type: 'string', format: 'binary' },
+      },
+      required: ['name', 'currency', 'price', 'item_template_ids', 'image'],
+    },
+  })
   @ApiResponse({ status: 201, description: 'Возвращает созданный набор' })
-  async create(@Body() createKitDto: CreateKitDto): Promise<Kit> {
-    return this.kitService.create(createKitDto);
+  async create(
+    @Body() createKitDto: CreateKitDto,
+    @UploadedFile() image: Express.Multer.File,
+  ): Promise<Kit> {
+    return this.kitService.create(createKitDto, image);
   }
 
   @Patch(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
   @InvalidateCache('kit::id', 'kit:list')
-  @ApiOperation({ summary: 'Обновить набор' })
+  @ApiOperation({
+    summary: 'Обновить набор',
+    description:
+      'Обновляет информацию о наборе. Изображение опционально, загружается через multipart/form-data.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'Premium Kit' },
+        currency: { type: 'string', example: 'virtual' },
+        price: { type: 'number', example: 5000 },
+        status: { type: 'string', example: 'in_stock' },
+        item_template_ids: {
+          type: 'array',
+          items: { type: 'number' },
+          example: [1, 2, 3],
+        },
+        image: { type: 'string', format: 'binary' },
+      },
+    },
+  })
   @ApiResponse({ status: 200, description: 'Возвращает обновленный набор' })
-  async update(@Param('id') id: string, @Body() updateKitDto: UpdateKitDto): Promise<Kit> {
-    return this.kitService.update(+id, updateKitDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateKitDto: UpdateKitDto,
+    @UploadedFile() image?: Express.Multer.File,
+  ): Promise<Kit> {
+    return this.kitService.update(+id, updateKitDto, image);
   }
 
   @Delete(':id')
@@ -131,33 +230,37 @@ export class KitController {
   @Post('purchase')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Купить набор',
-    description: 'Покупает набор продуктов за виртуальную валюту. Обрабатывает все продукты в наборе: GUARD - создает стражей, SHIELD - продлевает щит (с проверкой кулдауна), NICKNAME_COLOR/NICKNAME_ICON/AVATAR_FRAME - сохраняет в профиль и создает UserAccessory.'
+    description:
+      'Покупает набор продуктов за виртуальную валюту. Обрабатывает все продукты в наборе: GUARD - создает стражей, SHIELD - создает UserBoost и продлевает щит (с проверкой кулдауна), NICKNAME_COLOR/NICKNAME_ICON/AVATAR_FRAME - сохраняет в профиль и создает UserAccessory.',
   })
-  @ApiBody({
-    schema: {
-      example: {
-        kit_id: 1
-      }
-    }
-  })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiBody({ type: PurchaseKitDto })
+  @ApiResponse({
+    status: 200,
     description: 'Набор успешно куплен',
     schema: {
       example: {
-        user: { id: 1, money: 5000, nickname_color: 'red', shield_end_time: '2024-01-02T08:00:00.000Z' },
+        user: {
+          id: 1,
+          money: 5000,
+          nickname_color: 'red',
+          shield_end_time: '2024-01-02T08:00:00.000Z',
+        },
         created_guards: [
-          { id: 10, name: 'Guard #1234567890', strength: 50, is_first: false }
+          { id: 10, name: 'Guard #1234567890', strength: 50, is_first: false },
         ],
         user_accessories: [
-          { id: 1, name: 'Premium Kit', product: { type: 'nickname_color' } }
-        ]
-      }
-    }
+          { id: 1, name: 'Premium Kit', product: { type: 'nickname_color' } },
+        ],
+      },
+    },
   })
-  @ApiResponse({ status: 400, description: 'Недостаточно средств, набор недоступен, кулдаун на покупку щита активен' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Недостаточно средств, набор недоступен, кулдаун на покупку щита активен',
+  })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Набор или пользователь не найден' })
   async purchase(@Request() req, @Body() purchaseKitDto: PurchaseKitDto) {

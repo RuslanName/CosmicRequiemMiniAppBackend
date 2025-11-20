@@ -9,4 +9,3 @@ export class SettingSchedulerService {
     await reloadSettings();
   }
 }
-

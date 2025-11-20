@@ -1,5 +1,20 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiCookieAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiCookieAuth,
+} from '@nestjs/swagger';
 import { UserGuardService } from './user-guard.service';
 import { UserGuard } from './user-guard.entity';
 import { CreateUserGuardDto } from './dtos/create-user-guard.dto';
@@ -16,8 +31,18 @@ export class UserGuardController {
 
   @Get()
   @ApiOperation({ summary: 'Получить всех стражей с пагинацией' })
-  @ApiResponse({ status: 200, description: 'Возвращает список стражей с пагинацией' })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<{ data: UserGuard[]; total: number; page: number; limit: number }> {
+  @ApiResponse({
+    status: 200,
+    description: 'Возвращает список стражей с пагинацией',
+  })
+  async findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<{
+    data: UserGuard[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     return this.userGuardService.findAll(paginationDto);
   }
 
@@ -31,14 +56,19 @@ export class UserGuardController {
   @Post()
   @ApiOperation({ summary: 'Создать нового стража' })
   @ApiResponse({ status: 201, description: 'Возвращает созданного стража' })
-  async create(@Body() createUserGuardDto: CreateUserGuardDto): Promise<UserGuard> {
+  async create(
+    @Body() createUserGuardDto: CreateUserGuardDto,
+  ): Promise<UserGuard> {
     return this.userGuardService.create(createUserGuardDto);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить стража' })
   @ApiResponse({ status: 200, description: 'Возвращает обновленного стража' })
-  async update(@Param('id') id: string, @Body() updateUserGuardDto: UpdateUserGuardDto): Promise<UserGuard> {
+  async update(
+    @Param('id') id: string,
+    @Body() updateUserGuardDto: UpdateUserGuardDto,
+  ): Promise<UserGuard> {
     return this.userGuardService.update(+id, updateUserGuardDto);
   }
 
@@ -49,4 +79,3 @@ export class UserGuardController {
     return this.userGuardService.remove(+id);
   }
 }
-

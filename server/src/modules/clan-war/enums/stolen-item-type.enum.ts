@@ -1,4 +1,4 @@
 export enum StolenItemType {
-    MONEY = 'money',
-    GUARD = 'guard'
+  MONEY = 'money',
+  GUARD = 'guard',
 }

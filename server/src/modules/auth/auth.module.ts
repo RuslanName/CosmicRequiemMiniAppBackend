@@ -24,12 +24,7 @@ import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
     }),
   ],
   controllers: [AuthController, AdminAuthController],
-  providers: [
-    AuthService,
-    AdminAuthService,
-    JwtStrategy,
-    AdminJwtStrategy,
-  ],
+  providers: [AuthService, AdminAuthService, JwtStrategy, AdminJwtStrategy],
   exports: [JwtModule, AdminAuthService],
 })
 export class AuthModule {}

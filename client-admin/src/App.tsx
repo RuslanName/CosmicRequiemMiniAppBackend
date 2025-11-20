@@ -7,8 +7,8 @@ import Users from './pages/Users';
 import UserGuards from './pages/UserGuards';
 import Clans from './pages/Clans';
 import ClanWars from './pages/ClanWars';
-import Accessories from './pages/Accessories';
-import Products from './pages/Products';
+import ShopItems from './pages/ShopItems';
+import ItemTemplates from './pages/ItemTemplates';
 import Kits from './pages/Kits';
 import Admins from './pages/Admins';
 import Settings from './pages/Settings';
@@ -35,8 +35,8 @@ function App() {
             <Route path="user-guards" element={<UserGuards />} />
             <Route path="clans" element={<Clans />} />
             <Route path="clan-wars" element={<ClanWars />} />
-            <Route path="products" element={<Products />} />
-            <Route path="accessories" element={<Accessories />} />
+            <Route path="item-templates" element={<ItemTemplates />} />
+            <Route path="shop-items" element={<ShopItems />} />
             <Route path="kits" element={<Kits />} />
             <Route path="admins" element={<Admins />} />
             <Route path="settings" element={<Settings />} />

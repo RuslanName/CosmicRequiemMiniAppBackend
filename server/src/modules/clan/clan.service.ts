@@ -1,23 +1,29 @@
-import {BadRequestException, Injectable, NotFoundException} from '@nestjs/common';
-import {InjectRepository} from '@nestjs/typeorm';
-import {In, MoreThan, Repository} from 'typeorm';
-import {Clan} from './entities/clan.entity';
-import {CreateClanDto} from './dtos/create-clan.dto';
-import {UpdateClanDto} from './dtos/update-clan.dto';
-import {PaginationDto} from '../../common/dtos/pagination.dto';
-import {ClanWar} from '../clan-war/entities/clan-war.entity';
-import {Settings} from '../../config/setting.config';
-import {SettingKey} from '../setting/setting-key.enum';
-import {ClanWarStatus} from '../clan-war/enums/clan-war-status.enum';
-import {User} from '../user/user.entity';
-import {UserGuard} from '../user-guard/user-guard.entity';
-import {StolenItem} from '../clan-war/entities/stolen-item.entity';
-import {StolenItemType} from '../clan-war/enums/stolen-item-type.enum';
-import {ClanApplication} from './entities/clan-application.entity';
-import {ClanApplicationStatus} from './enums/clan-application.enum';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, MoreThan, Repository } from 'typeorm';
+import { Clan } from './entities/clan.entity';
+import { CreateClanDto } from './dtos/create-clan.dto';
+import { UpdateClanDto } from './dtos/update-clan.dto';
+import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { ClanWar } from '../clan-war/entities/clan-war.entity';
+import { Settings } from '../../config/setting.config';
+import { SettingKey } from '../setting/setting-key.enum';
+import { ClanWarStatus } from '../clan-war/enums/clan-war-status.enum';
+import { User } from '../user/user.entity';
+import { UserGuard } from '../user-guard/user-guard.entity';
+import { StolenItem } from '../clan-war/entities/stolen-item.entity';
+import { StolenItemType } from '../clan-war/enums/stolen-item-type.enum';
+import { ClanApplication } from './entities/clan-application.entity';
+import { ClanApplicationStatus } from './enums/clan-application.enum';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Express } from 'express';
+import { UserBoostService } from '../user-boost/user-boost.service';
+import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 
 @Injectable()
 export class ClanService {
@@ -34,6 +40,7 @@ export class ClanService {
     private readonly stolenItemRepository: Repository<StolenItem>,
     @InjectRepository(ClanApplication)
     private readonly clanApplicationRepository: Repository<ClanApplication>,
+    private readonly userBoostService: UserBoostService,
   ) {}
 
   private calculateUserPower(guards: UserGuard[]): number {
@@ -45,7 +52,9 @@ export class ClanService {
     return guards ? guards.length : 0;
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: Clan[]; total: number; page: number; limit: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: Clan[]; total: number; page: number; limit: number }> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -104,7 +113,10 @@ export class ClanService {
     }
   }
 
-  async create(createClanDto: CreateClanDto, image: Express.Multer.File): Promise<Clan> {
+  async create(
+    createClanDto: CreateClanDto,
+    image: Express.Multer.File,
+  ): Promise<Clan> {
     const imagePath = await this.saveClanImage(image);
     const clan = this.clanRepository.create({
       ...createClanDto,
@@ -113,7 +125,11 @@ export class ClanService {
     return this.clanRepository.save(clan);
   }
 
-  async update(id: number, updateClanDto: UpdateClanDto, image?: Express.Multer.File): Promise<Clan> {
+  async update(
+    id: number,
+    updateClanDto: UpdateClanDto,
+    image?: Express.Multer.File,
+  ): Promise<Clan> {
     const clan = await this.clanRepository.findOne({
       where: { id },
       relations: ['members', 'leader'],
@@ -128,7 +144,10 @@ export class ClanService {
         await this.deleteClanImage(clan.image_path);
       }
       const imagePath = await this.saveClanImage(image);
-      updateClanDto = { ...updateClanDto, image_path: imagePath } as UpdateClanDto;
+      updateClanDto = {
+        ...updateClanDto,
+        image_path: imagePath,
+      } as UpdateClanDto;
     }
 
     Object.assign(clan, updateClanDto);
@@ -169,15 +188,14 @@ export class ClanService {
     const clanWarCooldown = Settings[SettingKey.CLAN_WAR_COOLDOWN];
 
     const lastWar = await this.clanWarRepository.findOne({
-      where: [
-        { clan_1_id: myClan.id },
-        { clan_2_id: myClan.id },
-      ],
+      where: [{ clan_1_id: myClan.id }, { clan_2_id: myClan.id }],
       order: { end_time: 'DESC' },
     });
 
     if (lastWar) {
-      const cooldownEndTime = new Date(lastWar.end_time.getTime() + clanWarCooldown);
+      const cooldownEndTime = new Date(
+        lastWar.end_time.getTime() + clanWarCooldown,
+      );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException('Clan war cooldown is still active');
       }
@@ -236,15 +254,14 @@ export class ClanService {
     const clanWarDuration = Settings[SettingKey.CLAN_WAR_DURATION];
 
     const lastWar = await this.clanWarRepository.findOne({
-      where: [
-        { clan_1_id: myClan.id },
-        { clan_2_id: myClan.id },
-      ],
+      where: [{ clan_1_id: myClan.id }, { clan_2_id: myClan.id }],
       order: { end_time: 'DESC' },
     });
 
     if (lastWar) {
-      const cooldownEndTime = new Date(lastWar.end_time.getTime() + clanWarCooldown);
+      const cooldownEndTime = new Date(
+        lastWar.end_time.getTime() + clanWarCooldown,
+      );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException('Clan war cooldown is still active');
       }
@@ -264,7 +281,9 @@ export class ClanService {
     });
 
     if (activeWarsCount >= maxClanWarsCount) {
-      throw new BadRequestException('Target clan has reached maximum active wars');
+      throw new BadRequestException(
+        'Target clan has reached maximum active wars',
+      );
     }
 
     const startTime = new Date();
@@ -303,8 +322,8 @@ export class ClanService {
       return [];
     }
 
-    const enemyClanIds = activeWars.map(war => 
-      war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id
+    const enemyClanIds = activeWars.map((war) =>
+      war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id,
     );
 
     return await this.userRepository.find({
@@ -313,7 +332,10 @@ export class ClanService {
     });
   }
 
-  async attackEnemy(userId: number, targetUserId: number): Promise<{
+  async attackEnemy(
+    userId: number,
+    targetUserId: number,
+  ): Promise<{
     win_chance: number;
     is_win: boolean;
     stolen_money: number;
@@ -334,16 +356,52 @@ export class ClanService {
       throw new NotFoundException('Attacker or defender not found');
     }
 
+    // Проверяем и завершаем истекшие SHIELD бусты у защитника
+    await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
+      targetUserId,
+      defender.shield_end_time || null,
+    );
+
+    // Проверяем активный SHIELD буст у защитника
+    const defenderActiveBoosts =
+      await this.userBoostService.findActiveByUserId(targetUserId);
+    const defenderShieldBoost = defenderActiveBoosts.find(
+      (b) => b.type === UserBoostType.SHIELD,
+    );
+
+    // Проверяем shield_end_time (для обратной совместимости и проверки времени)
     if (defender.shield_end_time && defender.shield_end_time > new Date()) {
       throw new BadRequestException('Cannot attack user with active shield');
     }
 
+    // Если есть активный SHIELD буст, но shield_end_time истек, завершаем буст
+    if (
+      defenderShieldBoost &&
+      (!defender.shield_end_time || defender.shield_end_time <= new Date())
+    ) {
+      await this.userBoostService.complete(defenderShieldBoost.id);
+    }
+
     attacker.shield_end_time = undefined;
 
-    const attackCooldown = Settings[SettingKey.ATTACK_COOLDOWN];
+    // Проверяем активные бусты у атакующего
+    const attackerActiveBoosts =
+      await this.userBoostService.findActiveByUserId(userId);
+    const cooldownHalvingBoost = attackerActiveBoosts.find(
+      (b) => b.type === UserBoostType.COOLDOWN_HALVING,
+    );
+
+    let attackCooldown = Settings[SettingKey.ATTACK_COOLDOWN];
+    if (cooldownHalvingBoost) {
+      attackCooldown = attackCooldown / 2;
+      // Завершаем буст после использования
+      await this.userBoostService.complete(cooldownHalvingBoost.id);
+    }
 
     if (attacker.last_attack_time) {
-      const cooldownEndTime = new Date(attacker.last_attack_time.getTime() + attackCooldown);
+      const cooldownEndTime = new Date(
+        attacker.last_attack_time.getTime() + attackCooldown,
+      );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException('Attack cooldown is still active');
       }
@@ -359,8 +417,16 @@ export class ClanService {
 
     const activeWar = await this.clanWarRepository.findOne({
       where: [
-        { clan_1_id: attacker.clan.id, clan_2_id: defender.clan.id, status: ClanWarStatus.IN_PROGRESS },
-        { clan_1_id: defender.clan.id, clan_2_id: attacker.clan.id, status: ClanWarStatus.IN_PROGRESS },
+        {
+          clan_1_id: attacker.clan.id,
+          clan_2_id: defender.clan.id,
+          status: ClanWarStatus.IN_PROGRESS,
+        },
+        {
+          clan_1_id: defender.clan.id,
+          clan_2_id: attacker.clan.id,
+          status: ClanWarStatus.IN_PROGRESS,
+        },
       ],
     });
 
@@ -371,10 +437,16 @@ export class ClanService {
     const attacker_power = this.calculateUserPower(attacker.guards || []);
     const attacker_guards = this.getGuardsCount(attacker.guards || []);
     const defender_power = this.calculateUserPower(defender.guards || []);
-    const capturableDefenderGuards = defender.guards ? defender.guards.filter(guard => !guard.is_first) : [];
+    const capturableDefenderGuards = defender.guards
+      ? defender.guards.filter((guard) => !guard.is_first)
+      : [];
     const defender_guards = capturableDefenderGuards.length;
 
-    if (attacker_guards === 0 || !defender.guards || defender.guards.length === 0) {
+    if (
+      attacker_guards === 0 ||
+      !defender.guards ||
+      defender.guards.length === 0
+    ) {
       throw new BadRequestException('Attacker or defender has no guards');
     }
 
@@ -382,14 +454,24 @@ export class ClanService {
       throw new BadRequestException('Defender has no capturable guards');
     }
 
-    const win_chance = Math.min(75, Math.max(25, (attacker_power * attacker_guards) / (defender_power * defender_guards) * 100));
+    const win_chance = Math.min(
+      75,
+      Math.max(
+        25,
+        ((attacker_power * attacker_guards) /
+          (defender_power * defender_guards)) *
+          100,
+      ),
+    );
     const is_win = Math.random() * 100 < win_chance;
 
     const stolen_items: StolenItem[] = [];
 
     if (is_win) {
-      const stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
-      
+      const stolen_money = Math.round(
+        defender.money * 0.15 * (win_chance / 100),
+      );
+
       if (stolen_money > 0) {
         defender.money = Number(defender.money) - stolen_money;
         attacker.money = Number(attacker.money) + stolen_money;
@@ -406,12 +488,20 @@ export class ClanService {
         stolen_items.push(moneyItem);
       }
 
-      const captured_guards = Math.round(defender_guards * 0.08 * (win_chance / 100));
-      
-      if (captured_guards > 0 && defender.guards && defender.guards.length > 0) {
-        const capturableGuards = defender.guards.filter(guard => !guard.is_first);
+      const captured_guards = Math.round(
+        defender_guards * 0.08 * (win_chance / 100),
+      );
+
+      if (
+        captured_guards > 0 &&
+        defender.guards &&
+        defender.guards.length > 0
+      ) {
+        const capturableGuards = defender.guards.filter(
+          (guard) => !guard.is_first,
+        );
         const guardsToCapture = capturableGuards.slice(0, captured_guards);
-        
+
         for (const guard of guardsToCapture) {
           guard.user = attacker;
           await this.userGuardRepository.save(guard);
@@ -477,7 +567,10 @@ export class ClanService {
     return user;
   }
 
-  async createApplication(userId: number, clanId: number): Promise<ClanApplication> {
+  async createApplication(
+    userId: number,
+    clanId: number,
+  ): Promise<ClanApplication> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan'],
@@ -518,7 +611,9 @@ export class ClanService {
 
     const clanJoinCooldown = Settings[SettingKey.CLAN_JOIN_COOLDOWN];
     if (user.clan_leave_time) {
-      const cooldownEndTime = new Date(user.clan_leave_time.getTime() + clanJoinCooldown);
+      const cooldownEndTime = new Date(
+        user.clan_leave_time.getTime() + clanJoinCooldown,
+      );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException('Clan join cooldown is still active');
       }
@@ -546,7 +641,10 @@ export class ClanService {
     });
   }
 
-  async acceptApplication(userId: number, applicationId: number): Promise<ClanApplication> {
+  async acceptApplication(
+    userId: number,
+    applicationId: number,
+  ): Promise<ClanApplication> {
     const clan = await this.getLeaderClan(userId);
 
     const application = await this.clanApplicationRepository.findOne({
@@ -574,7 +672,9 @@ export class ClanService {
 
     const clanJoinCooldown = Settings[SettingKey.CLAN_JOIN_COOLDOWN];
     if (user.clan_leave_time) {
-      const cooldownEndTime = new Date(user.clan_leave_time.getTime() + clanJoinCooldown);
+      const cooldownEndTime = new Date(
+        user.clan_leave_time.getTime() + clanJoinCooldown,
+      );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException('Clan join cooldown is still active');
       }
@@ -589,7 +689,10 @@ export class ClanService {
       throw new NotFoundException('Clan not found');
     }
 
-    if (updatedClan.members && updatedClan.members.length >= updatedClan.max_members) {
+    if (
+      updatedClan.members &&
+      updatedClan.members.length >= updatedClan.max_members
+    ) {
       throw new BadRequestException('Clan is full');
     }
 
@@ -602,7 +705,10 @@ export class ClanService {
     return application;
   }
 
-  async rejectApplication(userId: number, applicationId: number): Promise<ClanApplication> {
+  async rejectApplication(
+    userId: number,
+    applicationId: number,
+  ): Promise<ClanApplication> {
     const clan = await this.getLeaderClan(userId);
 
     const application = await this.clanApplicationRepository.findOne({
@@ -654,7 +760,41 @@ export class ClanService {
     });
   }
 
-  async getClanRating(paginationDto?: PaginationDto): Promise<{ data: (Omit<Clan, 'combineWars'> & { wins: number; losses: number; rating: number })[]; total: number; page: number; limit: number }> {
+  async getAllWars(clanId: number): Promise<ClanWar[]> {
+    return await this.clanWarRepository.find({
+      where: [{ clan_1_id: clanId }, { clan_2_id: clanId }],
+      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async getClanMembers(clanId: number): Promise<User[]> {
+    const clan = await this.clanRepository.findOne({
+      where: { id: clanId },
+    });
+
+    if (!clan) {
+      throw new NotFoundException('Clan not found');
+    }
+
+    return await this.userRepository.find({
+      where: { clan_id: clanId },
+      relations: ['guards'],
+    });
+  }
+
+  async getClanRating(
+    paginationDto?: PaginationDto,
+  ): Promise<{
+    data: (Omit<Clan, 'combineWars'> & {
+      wins: number;
+      losses: number;
+      rating: number;
+    })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
 
@@ -701,8 +841,12 @@ export class ClanService {
           wins,
           losses,
           rating,
-        } as Omit<Clan, 'combineWars'> & { wins: number; losses: number; rating: number };
-      })
+        } as Omit<Clan, 'combineWars'> & {
+          wins: number;
+          losses: number;
+          rating: number;
+        };
+      }),
     );
 
     clansWithRating.sort((a, b) => {

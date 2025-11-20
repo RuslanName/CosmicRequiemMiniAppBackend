@@ -1,22 +1,34 @@
-import { IsString, IsNumber, IsArray, IsEnum, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsArray,
+  IsEnum,
+  IsOptional,
+} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 import { Currency } from '../../../common/enums/currency.enum';
-import { AccessoryStatus } from '../../accessory/enums/accessory-status.enum';
+import { ShopItemStatus } from '../../shop-item/enums/shop-item-status.enum';
 
 export class CreateKitDto {
+  @ApiProperty({ example: 'Премиум набор' })
   @IsString()
   name: string;
 
+  @ApiProperty({ example: 'virtual', enum: Currency })
   @IsEnum(Currency)
   currency: Currency;
 
+  @ApiProperty({ example: 5000 })
   @IsNumber()
   price: number;
 
+  @ApiProperty({ example: 'in_stock', enum: ShopItemStatus, required: false })
   @IsOptional()
-  @IsEnum(AccessoryStatus)
-  status?: AccessoryStatus;
+  @IsEnum(ShopItemStatus)
+  status?: ShopItemStatus;
 
+  @ApiProperty({ example: [1, 2, 3], type: [Number] })
   @IsArray()
   @IsNumber({}, { each: true })
-  product_ids: number[];
+  item_template_ids: number[];
 }

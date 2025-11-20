@@ -3,8 +3,9 @@ export interface Kit {
   name: string;
   currency: string;
   price: number;
+  image_path: string;
   status: string;
-  products?: any[];
+  item_templates?: any[];
   created_at: string;
   updated_at: string;
 }
@@ -14,7 +15,7 @@ export interface CreateKitDto {
   currency: string;
   price: number;
   status?: string;
-  product_ids: number[];
+  item_template_ids: number[];
 }
 
 export interface UpdateKitDto {
@@ -22,6 +23,7 @@ export interface UpdateKitDto {
   currency?: string;
   price?: number;
   status?: string;
-  product_ids?: number[];
+  item_template_ids?: number[];
+  image_path?: string;
 }
 

@@ -1,47 +1,50 @@
 import {
-    Column,
-    CreateDateColumn,
-    Entity,
-    JoinTable,
-    ManyToMany,
-    PrimaryGeneratedColumn,
-    UpdateDateColumn
-} from "typeorm";
-import {Currency} from "../../common/enums/currency.enum";
-import {AccessoryStatus} from "../accessory/enums/accessory-status.enum";
-import {Product} from "../product/product.entity";
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Currency } from '../../common/enums/currency.enum';
+import { ShopItemStatus } from '../shop-item/enums/shop-item-status.enum';
+import { ItemTemplate } from '../item-template/item-template.entity';
 
 @Entity()
 export class Kit {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({ type: 'varchar' })
-    name: string;
+  @Column({ type: 'varchar' })
+  name: string;
 
-    @Column({
-        type: 'enum',
-        enum: Currency
-    })
-    currency: Currency;
+  @Column({
+    type: 'enum',
+    enum: Currency,
+  })
+  currency: Currency;
 
-    @Column({ type: 'bigint' })
-    price: number;
+  @Column({ type: 'bigint' })
+  price: number;
 
-    @Column({
-        type: 'enum',
-        enum: AccessoryStatus,
-        default: AccessoryStatus.IN_STOCK
-    })
-    status: AccessoryStatus;
+  @Column({ type: 'varchar' })
+  image_path: string;
 
-    @ManyToMany(() => Product)
-    @JoinTable({ name: 'kit_products' })
-    products: Product[];
+  @Column({
+    type: 'enum',
+    enum: ShopItemStatus,
+    default: ShopItemStatus.IN_STOCK,
+  })
+  status: ShopItemStatus;
 
-    @CreateDateColumn()
-    created_at: Date;
+  @ManyToMany(() => ItemTemplate)
+  @JoinTable({ name: 'kit_item_templates' })
+  item_templates: ItemTemplate[];
 
-    @UpdateDateColumn()
-    updated_at: Date;
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
 }

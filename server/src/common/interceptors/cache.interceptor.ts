@@ -112,4 +112,3 @@ export class CacheInterceptor implements NestInterceptor {
     return `cache:${controller}:${handler}${paramsStr}${queryStr}`;
   }
 }
-

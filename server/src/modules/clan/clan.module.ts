@@ -8,13 +8,22 @@ import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { ClanApplication } from './entities/clan-application.entity';
+import { UserBoostModule } from '../user-boost/user-boost.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Clan, ClanWar, User, UserGuard, StolenItem, ClanApplication]),
+    TypeOrmModule.forFeature([
+      Clan,
+      ClanWar,
+      User,
+      UserGuard,
+      StolenItem,
+      ClanApplication,
+    ]),
+    UserBoostModule,
   ],
   controllers: [ClanController],
   providers: [ClanService],
-  exports: [ClanService]
+  exports: [ClanService],
 })
 export class ClanModule {}

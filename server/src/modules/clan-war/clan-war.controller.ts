@@ -1,5 +1,19 @@
-import { Controller, Get, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiCookieAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiCookieAuth,
+} from '@nestjs/swagger';
 import { ClanWarService } from './services/clan-war.service';
 import { ClanWar } from './entities/clan-war.entity';
 import { UpdateClanWarDto } from './dtos/update-clan-war.dto';
@@ -15,8 +29,13 @@ export class ClanWarController {
 
   @Get()
   @ApiOperation({ summary: 'Получить все войны с пагинацией' })
-  @ApiResponse({ status: 200, description: 'Возвращает список войн с пагинацией' })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<{ data: ClanWar[]; total: number; page: number; limit: number }> {
+  @ApiResponse({
+    status: 200,
+    description: 'Возвращает список войн с пагинацией',
+  })
+  async findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<{ data: ClanWar[]; total: number; page: number; limit: number }> {
     return this.clanWarService.findAll(paginationDto);
   }
 
@@ -30,7 +49,10 @@ export class ClanWarController {
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить войну' })
   @ApiResponse({ status: 200, description: 'Возвращает обновленную войну' })
-  async update(@Param('id') id: string, @Body() updateClanWarDto: UpdateClanWarDto): Promise<ClanWar> {
+  async update(
+    @Param('id') id: string,
+    @Body() updateClanWarDto: UpdateClanWarDto,
+  ): Promise<ClanWar> {
     return this.clanWarService.update(+id, updateClanWarDto);
   }
 

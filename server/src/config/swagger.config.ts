@@ -7,11 +7,10 @@ export const setupSwagger = (app: INestApplication): void => {
     .setDescription('Документация API для Cosmic Requiem Mini App Backend')
     .setVersion('1.0')
     .build();
-  
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
     customSiteTitle: 'Cosmic Requiem API',
     customCss: '.swagger-ui .topbar { display: none }',
   });
 };
-

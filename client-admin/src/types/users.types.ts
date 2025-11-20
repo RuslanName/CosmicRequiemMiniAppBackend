@@ -7,9 +7,6 @@ export interface User {
   avatar_url: string;
   birthday_date?: string;
   money: number;
-  nickname_color?: string;
-  nickname_icon?: string;
-  avatar_frame?: string;
   shield_end_time?: string;
   last_shield_purchase_time?: string;
   last_training_time?: string;

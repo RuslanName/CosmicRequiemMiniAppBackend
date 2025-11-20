@@ -13,7 +13,9 @@ export class ClanWarService {
     private readonly clanWarRepository: Repository<ClanWar>,
   ) {}
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: ClanWar[]; total: number; page: number; limit: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: ClanWar[]; total: number; page: number; limit: number }> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -49,7 +51,10 @@ export class ClanWarService {
     return this.clanWarRepository.save(clanWar);
   }
 
-  async update(id: number, updateClanWarDto: UpdateClanWarDto): Promise<ClanWar> {
+  async update(
+    id: number,
+    updateClanWarDto: UpdateClanWarDto,
+  ): Promise<ClanWar> {
     const clanWar = await this.clanWarRepository.findOne({
       where: { id },
       relations: ['clan_1', 'clan_2'],

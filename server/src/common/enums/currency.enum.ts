@@ -1,5 +1,4 @@
 export enum Currency {
-    VOICES = 'voices',
-    VIRTUAL = 'virtual'
+  VOICES = 'voices',
+  VIRTUAL = 'virtual',
 }
-

@@ -15,4 +15,3 @@ export class CreateUserGuardDto {
   @IsNumber()
   user_id: number;
 }
-

@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './modules/app.module';
 import { setupCors } from './config/origin.config';
 import { setupSwagger } from './config/swagger.config';
-import { ENV } from "./config/constants";
+import { ENV } from './config/constants';
 import { initSettings } from './config/setting.config';
 import { SettingService } from './modules/setting/services/setting.service';
 import { setupCluster } from './config/cluster.config';
@@ -29,10 +29,12 @@ async function bootstrap() {
 
   await initSettings(settingService);
   await initAdmin(adminService, userService);
-  
+
   const port = ENV.PORT ?? 5000;
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port} (PID: ${process.pid})`);
+  console.log(
+    `Application is running on: http://localhost:${port} (PID: ${process.pid})`,
+  );
 }
 
 setupCluster(bootstrap);

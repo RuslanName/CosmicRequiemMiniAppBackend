@@ -1,42 +1,49 @@
 import {
-    Column,
-    CreateDateColumn,
-    Entity,
-    ManyToOne,
-    PrimaryGeneratedColumn
-} from "typeorm";
-import {User} from "../user/user.entity";
-import {Accessory} from "../accessory/accessory.entity";
-import {Currency} from "../../common/enums/currency.enum";
-import {Product} from "../product/product.entity";
+  Column,
+  CreateDateColumn,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { User } from '../user/user.entity';
+import { ShopItem } from '../shop-item/shop-item.entity';
+import { Currency } from '../../common/enums/currency.enum';
+import { ItemTemplate } from '../item-template/item-template.entity';
+import { UserAccessoryStatus } from './enums/user-accessory-status.enum';
 
 @Entity()
 export class UserAccessory {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({ type: 'varchar' })
-    name: string;
+  @Column({ type: 'varchar' })
+  name: string;
 
-    @Column({
-        type: 'enum',
-        enum: Currency
-    })
-    currency: Currency;
+  @Column({
+    type: 'enum',
+    enum: Currency,
+  })
+  currency: Currency;
 
-    @Column({ type: 'bigint' })
-    price: number;
+  @Column({ type: 'bigint' })
+  price: number;
 
-    @ManyToOne(() => User)
-    user: User;
+  @Column({
+    type: 'enum',
+    enum: UserAccessoryStatus,
+    default: UserAccessoryStatus.UNEQUIPPED,
+  })
+  status: UserAccessoryStatus;
 
-    @ManyToOne(() => Product)
-    product: Product;
+  @ManyToOne(() => User, (user) => user.accessories)
+  user: User;
 
-    @ManyToOne(() => Accessory, { nullable: true })
-    accessory?: Accessory;
+  @ManyToOne(() => ItemTemplate)
+  item_template: ItemTemplate;
 
-    @CreateDateColumn()
-    created_at: Date;
+  @ManyToOne(() => ShopItem, { nullable: true })
+  shop_item?: ShopItem;
+
+  @CreateDateColumn()
+  created_at: Date;
 }
-

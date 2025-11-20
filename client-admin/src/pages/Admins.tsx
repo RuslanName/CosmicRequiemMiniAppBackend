@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminsApi, type Admin, type CreateAdminDto, type UpdateAdminDto } from '../api/admins.api';
 import Modal from '../components/Modal';
+import UserSelect from '../components/UserSelect';
 import '../components/Table.css';
 
 const Admins = () => {
@@ -221,15 +222,12 @@ const Admins = () => {
         title={isCreateMode ? 'Создать администратора' : 'Редактировать администратора'}
       >
         <div>
-          <div className="form-group">
-            <label className="form-label">ID пользователя</label>
-            <input
-              className="form-input"
-              type="number"
-              value={(formData as any).user_id || ''}
-              onChange={(e) => setFormData({ ...formData, user_id: parseInt(e.target.value) || 0 })}
-            />
-          </div>
+          <UserSelect
+            value={(formData as any).user_id}
+            onChange={(id) => setFormData({ ...formData, user_id: id })}
+            label="Пользователь"
+            required={true}
+          />
           <div className="form-group">
             <label className="form-label">Имя пользователя</label>
             <input

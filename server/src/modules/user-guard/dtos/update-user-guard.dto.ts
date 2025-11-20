@@ -17,4 +17,3 @@ export class UpdateUserGuardDto {
   @IsNumber()
   user_id?: number;
 }
-

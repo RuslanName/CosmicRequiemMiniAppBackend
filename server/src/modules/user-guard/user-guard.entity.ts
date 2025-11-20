@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { User } from '../user/user.entity';
 
 @Entity()
@@ -18,7 +26,7 @@ export class UserGuard {
   @Column({ type: 'int' })
   user_id: number;
 
-  @ManyToOne(() => User, user => user.guards)
+  @ManyToOne(() => User, (user) => user.guards)
   @JoinColumn({ name: 'user_id' })
   user: User;
 
@@ -28,4 +36,3 @@ export class UserGuard {
   @UpdateDateColumn()
   updated_at: Date;
 }
-

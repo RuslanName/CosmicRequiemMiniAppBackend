@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { User } from '../../user/user.entity';
 import { StolenItemType } from '../enums/stolen-item-type.enum';
 import { ClanWar } from './clan-war.entity';
@@ -26,7 +34,7 @@ export class StolenItem {
   @Column({ type: 'int' })
   clan_war_id: number;
 
-  @ManyToOne(() => ClanWar, clanWar => clanWar.stolen_items)
+  @ManyToOne(() => ClanWar, (clanWar) => clanWar.stolen_items)
   @JoinColumn({ name: 'clan_war_id' })
   clan_war: ClanWar;
 
@@ -36,4 +44,3 @@ export class StolenItem {
   @UpdateDateColumn()
   updated_at: Date;
 }
-

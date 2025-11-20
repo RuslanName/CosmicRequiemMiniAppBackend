@@ -5,8 +5,8 @@ const cluster = require('cluster');
 
 export const CLUSTER_CONFIG = {
   enabled: ENV.CLUSTER_ENABLED,
-  workers: ENV.CLUSTER_WORKERS 
-    ? parseInt(ENV.CLUSTER_WORKERS, 10) 
+  workers: ENV.CLUSTER_WORKERS
+    ? parseInt(ENV.CLUSTER_WORKERS, 10)
     : os.cpus().length,
 };
 
@@ -30,7 +30,9 @@ export function setupCluster(bootstrap: () => Promise<void>): void {
     }
 
     cluster.on('exit', (worker, code, signal) => {
-      console.log(`Worker ${worker.process.pid} died (code: ${code}, signal: ${signal}). Restarting...`);
+      console.log(
+        `Worker ${worker.process.pid} died (code: ${code}, signal: ${signal}). Restarting...`,
+      );
       const newWorker = cluster.fork();
       console.log(`Worker ${newWorker.process.pid} restarted`);
     });
@@ -47,4 +49,3 @@ export function setupCluster(bootstrap: () => Promise<void>): void {
     bootstrap();
   }
 }
-

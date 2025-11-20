@@ -1,10 +1,27 @@
-import { Controller, Get, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiCookieAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiCookieAuth,
+} from '@nestjs/swagger';
 import { SettingService } from './services/setting.service';
 import { Setting } from './setting.entity';
 import { UpdateSettingDto } from './dtos/update-setting.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
-import { CacheTTL, CacheKey, InvalidateCache } from '../../common/decorators/cache.decorator';
+import {
+  CacheTTL,
+  CacheKey,
+  InvalidateCache,
+} from '../../common/decorators/cache.decorator';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 
 @ApiTags('Setting')
@@ -18,8 +35,13 @@ export class SettingController {
   @CacheTTL(3600)
   @CacheKey('setting:list')
   @ApiOperation({ summary: 'Получить все настройки с пагинацией' })
-  @ApiResponse({ status: 200, description: 'Возвращает список настроек с пагинацией' })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<{ data: Setting[]; total: number; page: number; limit: number }> {
+  @ApiResponse({
+    status: 200,
+    description: 'Возвращает список настроек с пагинацией',
+  })
+  async findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<{ data: Setting[]; total: number; page: number; limit: number }> {
     return this.settingService.findAll(paginationDto);
   }
 
@@ -51,7 +73,10 @@ export class SettingController {
   @InvalidateCache('setting::id', 'setting:key:*', 'setting:list')
   @ApiOperation({ summary: 'Обновить настройку' })
   @ApiResponse({ status: 200, description: 'Возвращает обновленную настройку' })
-  async update(@Param('id') id: string, @Body() updateSettingDto: UpdateSettingDto): Promise<Setting> {
+  async update(
+    @Param('id') id: string,
+    @Body() updateSettingDto: UpdateSettingDto,
+  ): Promise<Setting> {
     return this.settingService.update(+id, updateSettingDto);
   }
 }

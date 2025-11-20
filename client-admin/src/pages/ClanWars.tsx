@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { clanWarsApi, type ClanWar, type UpdateClanWarDto } from '../api/clan-wars.api';
 import { ClanWarStatus, ClanWarStatusLabels } from '../enums';
 import Modal from '../components/Modal';
+import ClanSelect from '../components/ClanSelect';
 import '../components/Table.css';
 
 const ClanWars = () => {
@@ -142,8 +143,8 @@ const ClanWars = () => {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Клан 1 ID</th>
-            <th>Клан 2 ID</th>
+            <th>ID первого клана</th>
+            <th>ID второго клана</th>
             <th>Начало</th>
             <th>Конец</th>
             <th>Статус</th>
@@ -200,24 +201,18 @@ const ClanWars = () => {
 
       <Modal isOpen={isModalOpen} onClose={handleClose} title="Редактировать войну">
         <div>
-          <div className="form-group">
-            <label className="form-label">ID клана 1</label>
-            <input
-              className="form-input"
-              type="number"
-              value={formData.clan_1_id || ''}
-              onChange={(e) => setFormData({ ...formData, clan_1_id: parseInt(e.target.value) || undefined })}
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">ID клана 2</label>
-            <input
-              className="form-input"
-              type="number"
-              value={formData.clan_2_id || ''}
-              onChange={(e) => setFormData({ ...formData, clan_2_id: parseInt(e.target.value) || undefined })}
-            />
-          </div>
+          <ClanSelect
+            value={formData.clan_1_id}
+            onChange={(id) => setFormData({ ...formData, clan_1_id: id })}
+            label="Клан 1"
+            required={false}
+          />
+          <ClanSelect
+            value={formData.clan_2_id}
+            onChange={(id) => setFormData({ ...formData, clan_2_id: id })}
+            label="Клан 2"
+            required={false}
+          />
           <div className="form-group">
             <label className="form-label">Время начала</label>
             <input

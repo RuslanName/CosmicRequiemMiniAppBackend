@@ -13,7 +13,14 @@ export class UserGuardService {
     private readonly userGuardRepository: Repository<UserGuard>,
   ) {}
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: UserGuard[]; total: number; page: number; limit: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{
+    data: UserGuard[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -53,7 +60,10 @@ export class UserGuardService {
     return this.userGuardRepository.save(userGuard);
   }
 
-  async update(id: number, updateUserGuardDto: UpdateUserGuardDto): Promise<UserGuard> {
+  async update(
+    id: number,
+    updateUserGuardDto: UpdateUserGuardDto,
+  ): Promise<UserGuard> {
     const userGuard = await this.userGuardRepository.findOne({
       where: { id },
       relations: ['user'],
@@ -81,4 +91,3 @@ export class UserGuardService {
     await this.userGuardRepository.remove(userGuard);
   }
 }
-

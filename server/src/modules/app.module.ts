@@ -10,13 +10,14 @@ import { UserGuardModule } from './user-guard/user-guard.module';
 import { ClanModule } from './clan/clan.module';
 import { SettingModule } from './setting/setting.module';
 import { ClanWarModule } from './clan-war/clan-war.module';
-import { AccessoryModule } from './accessory/accessory.module';
+import { ShopItemModule } from './shop-item/shop-item.module';
 import { AuthModule } from './auth/auth.module';
 import { CommonModule } from '../common/common.module';
-import { KitModule } from "./kit/kit.module";
-import { ProductModule } from "./product/product.module";
+import { KitModule } from './kit/kit.module';
+import { ItemTemplateModule } from './item-template/item-template.module';
 import { AdminModule } from './admin/admin.module';
-import {AppController} from "./app.controller";
+import { UserBoostModule } from './user-boost/user-boost.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import {AppController} from "./app.controller";
 
     RedisModule.forRoot({
       type: 'single',
-      url: redisConfig.password 
+      url: redisConfig.password
         ? `redis://:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}`
         : `redis://${redisConfig.host}:${redisConfig.port}`,
       options: {
@@ -40,16 +41,17 @@ import {AppController} from "./app.controller";
     }),
 
     CommonModule,
-    AccessoryModule,
+    ShopItemModule,
     AuthModule,
     AdminModule,
     ClanModule,
     ClanWarModule,
     KitModule,
-    ProductModule,
+    ItemTemplateModule,
     SettingModule,
     UserModule,
     UserGuardModule,
+    UserBoostModule,
   ],
   controllers: [AppController],
 })

@@ -54,6 +54,9 @@
   font-size: 14px;
   font-weight: 500;
   transition: all 0.3s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .btn-primary {
@@ -188,6 +191,9 @@ tbody tr:last-child td {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .pagination-btn:hover:not(:disabled) {
@@ -205,3 +211,150 @@ tbody tr:last-child td {
   border-color: #3498db;
 }
 
+@media (max-width: 1024px) {
+  .table-title {
+    font-size: 22px;
+  }
+
+  th, td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  .table-container {
+    border-radius: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-header {
+    padding: 20px 15px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .table-title {
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .search-container {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .search-input {
+    flex: 1;
+    min-width: 150px;
+  }
+
+  table {
+    min-width: 600px;
+  }
+
+  th, td {
+    padding: 10px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .actions {
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .actions .btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  .pagination {
+    padding: 15px;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .pagination-info {
+    text-align: center;
+    width: 100%;
+  }
+
+  .pagination-controls {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pagination-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-header {
+    padding: 15px 10px;
+  }
+
+  .table-title {
+    font-size: 18px;
+  }
+
+  .search-input {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  table {
+    min-width: 500px;
+  }
+
+  th, td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .actions .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-width: 90px;
+  }
+
+  .pagination {
+    padding: 12px;
+  }
+
+  .pagination-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .table-title {
+    font-size: 16px;
+  }
+
+  table {
+    min-width: 450px;
+  }
+
+  th, td {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .actions .btn {
+    padding: 5px 10px;
+    font-size: 11px;
+    min-width: 80px;
+  }
+}

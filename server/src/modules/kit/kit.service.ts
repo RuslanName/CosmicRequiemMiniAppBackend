@@ -1,41 +1,54 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Kit } from './kit.entity';
 import { CreateKitDto } from './dtos/create-kit.dto';
 import { UpdateKitDto } from './dtos/update-kit.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
-import { Product } from '../product/product.entity';
+import { ItemTemplate } from '../item-template/item-template.entity';
 import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
-import { ProductType } from '../product/enums/product-type.enum';
+import { ProductType } from '../item-template/enums/product-type.enum';
 import { Currency } from '../../common/enums/currency.enum';
-import { AccessoryStatus } from '../accessory/enums/accessory-status.enum';
+import { ShopItemStatus } from '../shop-item/enums/shop-item-status.enum';
 import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/setting-key.enum';
+import { UserBoost } from '../user-boost/user-boost.entity';
+import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
+import { Express } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class KitService {
   constructor(
     @InjectRepository(Kit)
     private readonly kitRepository: Repository<Kit>,
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
+    @InjectRepository(ItemTemplate)
+    private readonly itemTemplateRepository: Repository<ItemTemplate>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
     @InjectRepository(UserAccessory)
     private readonly userAccessoryRepository: Repository<UserAccessory>,
+    @InjectRepository(UserBoost)
+    private readonly userBoostRepository: Repository<UserBoost>,
   ) {}
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.kitRepository.findAndCount({
-      relations: ['products'],
+      relations: ['item_templates'],
       skip,
       take: limit,
     });
@@ -51,7 +64,7 @@ export class KitService {
   async findOne(id: number): Promise<Kit> {
     const kit = await this.kitRepository.findOne({
       where: { id },
-      relations: ['products'],
+      relations: ['item_templates'],
     });
 
     if (!kit) {
@@ -61,46 +74,91 @@ export class KitService {
     return kit;
   }
 
-  async create(createKitDto: CreateKitDto): Promise<Kit> {
-    const products = await this.productRepository.find({
-      where: { id: In(createKitDto.product_ids) },
-    });
-
-    if (products.length !== createKitDto.product_ids.length) {
-      throw new NotFoundException('Some products not found');
+  private async saveKitImage(file: Express.Multer.File): Promise<string> {
+    if (!file) {
+      throw new BadRequestException('Image file is required');
     }
 
+    const uploadDir = path.join(process.cwd(), 'data', 'kit-images');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const fileExtension = path.extname(file.originalname);
+    const fileName = `kit-${Date.now()}${fileExtension}`;
+    const filePath = path.join(uploadDir, fileName);
+
+    fs.writeFileSync(filePath, file.buffer);
+
+    return path.join('data', 'kit-images', fileName).replace(/\\/g, '/');
+  }
+
+  private async deleteKitImage(imagePath: string): Promise<void> {
+    if (imagePath && imagePath.startsWith('data/kit-images/')) {
+      const fullPath = path.join(process.cwd(), imagePath);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    }
+  }
+
+  async create(
+    createKitDto: CreateKitDto,
+    image: Express.Multer.File,
+  ): Promise<Kit> {
+    const itemTemplates = await this.itemTemplateRepository.find({
+      where: { id: In(createKitDto.item_template_ids) },
+    });
+
+    if (itemTemplates.length !== createKitDto.item_template_ids.length) {
+      throw new NotFoundException('Some item templates not found');
+    }
+
+    const imagePath = await this.saveKitImage(image);
     const kit = this.kitRepository.create({
       name: createKitDto.name,
       currency: createKitDto.currency,
       price: createKitDto.price,
       status: createKitDto.status,
-      products,
+      image_path: imagePath,
+      item_templates: itemTemplates,
     });
 
     return this.kitRepository.save(kit);
   }
 
-  async update(id: number, updateKitDto: UpdateKitDto): Promise<Kit> {
+  async update(
+    id: number,
+    updateKitDto: UpdateKitDto,
+    image?: Express.Multer.File,
+  ): Promise<Kit> {
     const kit = await this.kitRepository.findOne({
       where: { id },
-      relations: ['products'],
+      relations: ['item_templates'],
     });
 
     if (!kit) {
       throw new NotFoundException(`Kit with ID ${id} not found`);
     }
 
-    if (updateKitDto.product_ids) {
-      const products = await this.productRepository.find({
-        where: { id: In(updateKitDto.product_ids) },
+    if (image) {
+      if (kit.image_path) {
+        await this.deleteKitImage(kit.image_path);
+      }
+      const imagePath = await this.saveKitImage(image);
+      updateKitDto = { ...updateKitDto, image_path: imagePath } as UpdateKitDto;
+    }
+
+    if (updateKitDto.item_template_ids) {
+      const itemTemplates = await this.itemTemplateRepository.find({
+        where: { id: In(updateKitDto.item_template_ids) },
       });
 
-      if (products.length !== updateKitDto.product_ids.length) {
-        throw new NotFoundException('Some products not found');
+      if (itemTemplates.length !== updateKitDto.item_template_ids.length) {
+        throw new NotFoundException('Some item templates not found');
       }
 
-      kit.products = products;
+      kit.item_templates = itemTemplates;
     }
 
     Object.assign(kit, {
@@ -108,6 +166,7 @@ export class KitService {
       currency: updateKitDto.currency,
       price: updateKitDto.price,
       status: updateKitDto.status,
+      image_path: updateKitDto.image_path,
     });
 
     return this.kitRepository.save(kit);
@@ -120,10 +179,22 @@ export class KitService {
       throw new NotFoundException(`Kit with ID ${id} not found`);
     }
 
+    if (kit.image_path) {
+      await this.deleteKitImage(kit.image_path);
+    }
+
     await this.kitRepository.remove(kit);
   }
 
-  async purchase(userId: number, kitId: number): Promise<{ user: User; created_guards: UserGuard[]; user_accessories: UserAccessory[] }> {
+  async purchase(
+    userId: number,
+    kitId: number,
+  ): Promise<{
+    user: User;
+    created_guards: UserGuard[];
+    user_accessories: UserAccessory[];
+    user_boosts: UserBoost[];
+  }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -134,14 +205,14 @@ export class KitService {
 
     const kit = await this.kitRepository.findOne({
       where: { id: kitId },
-      relations: ['products'],
+      relations: ['item_templates'],
     });
 
     if (!kit) {
       throw new NotFoundException('Kit not found');
     }
 
-    if (kit.status !== AccessoryStatus.IN_STOCK) {
+    if (kit.status !== ShopItemStatus.IN_STOCK) {
       throw new BadRequestException('Kit is not available');
     }
 
@@ -156,8 +227,9 @@ export class KitService {
 
     const createdGuards: UserGuard[] = [];
     const userAccessories: UserAccessory[] = [];
+    const userBoosts: UserBoost[] = [];
 
-    for (const product of kit.products) {
+    for (const product of kit.item_templates) {
       if (product.type === ProductType.GUARD) {
         const guardStrength = parseInt(product.value, 10);
         const guard = this.userGuardRepository.create({
@@ -169,54 +241,51 @@ export class KitService {
         const createdGuard = await this.userGuardRepository.save(guard);
         createdGuards.push(createdGuard);
       } else if (product.type === ProductType.SHIELD) {
-        const purchaseShieldCooldown = Settings[SettingKey.PURCHASE_SHIELD_COOLDOWN];
+        const purchaseShieldCooldown =
+          Settings[SettingKey.PURCHASE_SHIELD_COOLDOWN];
         if (user.last_shield_purchase_time) {
-          const cooldownEndTime = new Date(user.last_shield_purchase_time.getTime() + purchaseShieldCooldown);
+          const cooldownEndTime = new Date(
+            user.last_shield_purchase_time.getTime() + purchaseShieldCooldown,
+          );
           if (cooldownEndTime > new Date()) {
-            throw new BadRequestException('Shield purchase cooldown is still active');
+            throw new BadRequestException(
+              'Shield purchase cooldown is still active',
+            );
           }
         }
 
         const shieldHours = parseInt(product.value, 10);
         const now = new Date();
-        const shieldEndTime = user.shield_end_time && user.shield_end_time > now
-          ? new Date(user.shield_end_time.getTime() + shieldHours * 60 * 60 * 1000)
-          : new Date(now.getTime() + shieldHours * 60 * 60 * 1000);
-        
+        const shieldEndTime =
+          user.shield_end_time && user.shield_end_time > now
+            ? new Date(
+                user.shield_end_time.getTime() + shieldHours * 60 * 60 * 1000,
+              )
+            : new Date(now.getTime() + shieldHours * 60 * 60 * 1000);
+
         user.shield_end_time = shieldEndTime;
         user.last_shield_purchase_time = now;
-      } else if (product.type === ProductType.NICKNAME_COLOR) {
-        user.nickname_color = product.value;
+
+        const userBoost = this.userBoostRepository.create({
+          type: UserBoostType.SHIELD,
+          user,
+        });
+        const createdBoost = await this.userBoostRepository.save(userBoost);
+        userBoosts.push(createdBoost);
+      } else if (
+        product.type === ProductType.NICKNAME_COLOR ||
+        product.type === ProductType.NICKNAME_ICON ||
+        product.type === ProductType.AVATAR_FRAME
+      ) {
         const userAccessory = this.userAccessoryRepository.create({
           name: kit.name,
           currency: kit.currency,
           price: kit.price,
           user,
-          product,
+          item_template: product,
         });
-        const createdUserAccessory = await this.userAccessoryRepository.save(userAccessory);
-        userAccessories.push(createdUserAccessory);
-      } else if (product.type === ProductType.NICKNAME_ICON) {
-        user.nickname_icon = product.value;
-        const userAccessory = this.userAccessoryRepository.create({
-          name: kit.name,
-          currency: kit.currency,
-          price: kit.price,
-          user,
-          product,
-        });
-        const createdUserAccessory = await this.userAccessoryRepository.save(userAccessory);
-        userAccessories.push(createdUserAccessory);
-      } else if (product.type === ProductType.AVATAR_FRAME) {
-        user.avatar_frame = product.value;
-        const userAccessory = this.userAccessoryRepository.create({
-          name: kit.name,
-          currency: kit.currency,
-          price: kit.price,
-          user,
-          product,
-        });
-        const createdUserAccessory = await this.userAccessoryRepository.save(userAccessory);
+        const createdUserAccessory =
+          await this.userAccessoryRepository.save(userAccessory);
         userAccessories.push(createdUserAccessory);
       } else {
         const userAccessory = this.userAccessoryRepository.create({
@@ -224,14 +293,20 @@ export class KitService {
           currency: kit.currency,
           price: kit.price,
           user,
-          product,
+          item_template: product,
         });
-        const createdUserAccessory = await this.userAccessoryRepository.save(userAccessory);
+        const createdUserAccessory =
+          await this.userAccessoryRepository.save(userAccessory);
         userAccessories.push(createdUserAccessory);
       }
     }
 
     await this.userRepository.save(user);
-    return { user, created_guards: createdGuards, user_accessories: userAccessories };
+    return {
+      user,
+      created_guards: createdGuards,
+      user_accessories: userAccessories,
+      user_boosts: userBoosts,
+    };
   }
 }
