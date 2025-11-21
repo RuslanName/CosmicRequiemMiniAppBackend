@@ -35,9 +35,7 @@ export class UserGuardController {
     status: 200,
     description: 'Возвращает список стражей с пагинацией',
   })
-  async findAll(
-    @Query() paginationDto: PaginationDto,
-  ): Promise<{
+  async findAll(@Query() paginationDto: PaginationDto): Promise<{
     data: UserGuard[];
     total: number;
     page: number;

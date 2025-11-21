@@ -9,6 +9,8 @@ export interface Clan {
   leader_id?: number;
   leader?: any;
   members?: any[];
+  referral_link?: string;
+  referral_link_id?: string;
 }
 
 export interface CreateClanDto {

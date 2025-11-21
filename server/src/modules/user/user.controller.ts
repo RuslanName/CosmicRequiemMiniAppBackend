@@ -49,9 +49,7 @@ export class UserController {
     status: 200,
     description: 'Возвращает список пользователей с пагинацией',
   })
-  async findAll(
-    @Query() paginationDto: PaginationDto,
-  ): Promise<{
+  async findAll(@Query() paginationDto: PaginationDto): Promise<{
     data: (User & { strength: number; referral_link?: string })[];
     total: number;
     page: number;
@@ -132,9 +130,7 @@ export class UserController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async training(
-    @Request() req,
-  ): Promise<{
+  async training(@Request() req): Promise<{
     user: User;
     training_cost: number;
     power_increase: number;
@@ -194,9 +190,7 @@ export class UserController {
     status: 200,
     description: 'Возвращает рейтинг пользователей',
   })
-  async getRating(
-    @Query() paginationDto: PaginationDto,
-  ): Promise<{
+  async getRating(@Query() paginationDto: PaginationDto): Promise<{
     data: (User & { strength: number })[];
     total: number;
     page: number;

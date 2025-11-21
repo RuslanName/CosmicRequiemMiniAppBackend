@@ -24,6 +24,7 @@ import * as path from 'path';
 import { Express } from 'express';
 import { UserBoostService } from '../user-boost/user-boost.service';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
+import { ENV } from '../../config/constants';
 
 @Injectable()
 export class ClanService {
@@ -52,9 +53,25 @@ export class ClanService {
     return guards ? guards.length : 0;
   }
 
+  private transformClanForResponse(
+    clan: Clan,
+  ): Clan & { referral_link?: string } {
+    const transformed: any = { ...clan };
+    if (clan.referral_link_id) {
+      transformed.referral_link = `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`;
+      delete transformed.referral_link_id;
+    }
+    return transformed;
+  }
+
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<{ data: Clan[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: (Clan & { referral_link?: string })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -64,15 +81,19 @@ export class ClanService {
       take: limit,
     });
 
+    const transformedData = data.map((clan) =>
+      this.transformClanForResponse(clan),
+    );
+
     return {
-      data,
+      data: transformedData,
       total,
       page,
       limit,
     };
   }
 
-  async findOne(id: number): Promise<Clan> {
+  async findOne(id: number): Promise<Clan & { referral_link?: string }> {
     const clan = await this.clanRepository.findOne({
       where: { id },
       relations: ['members', 'leader'],
@@ -82,7 +103,7 @@ export class ClanService {
       throw new NotFoundException(`Clan with ID ${id} not found`);
     }
 
-    return clan;
+    return this.transformClanForResponse(clan);
   }
 
   private async saveClanImage(file: Express.Multer.File): Promise<string> {
@@ -116,20 +137,21 @@ export class ClanService {
   async create(
     createClanDto: CreateClanDto,
     image: Express.Multer.File,
-  ): Promise<Clan> {
+  ): Promise<Clan & { referral_link?: string }> {
     const imagePath = await this.saveClanImage(image);
     const clan = this.clanRepository.create({
       ...createClanDto,
       image_path: imagePath,
     });
-    return this.clanRepository.save(clan);
+    const savedClan = await this.clanRepository.save(clan);
+    return this.transformClanForResponse(savedClan);
   }
 
   async update(
     id: number,
     updateClanDto: UpdateClanDto,
     image?: Express.Multer.File,
-  ): Promise<Clan> {
+  ): Promise<Clan & { referral_link?: string }> {
     const clan = await this.clanRepository.findOne({
       where: { id },
       relations: ['members', 'leader'],
@@ -151,7 +173,8 @@ export class ClanService {
     }
 
     Object.assign(clan, updateClanDto);
-    return this.clanRepository.save(clan);
+    const savedClan = await this.clanRepository.save(clan);
+    return this.transformClanForResponse(savedClan);
   }
 
   async remove(id: number): Promise<void> {
@@ -341,6 +364,7 @@ export class ClanService {
     stolen_money: number;
     captured_guards: number;
     stolen_items: StolenItem[];
+    attack_cooldown_end: Date;
   }> {
     const attacker = await this.userRepository.findOne({
       where: { id: userId },
@@ -521,17 +545,26 @@ export class ClanService {
       attacker.last_attack_time = new Date();
       await this.userRepository.save(attacker);
 
+      const attackCooldownEnd = new Date(
+        new Date().getTime() + attackCooldown,
+      );
+
       return {
         win_chance,
         is_win: true,
         stolen_money: stolen_money || 0,
         captured_guards: captured_guards || 0,
         stolen_items,
+        attack_cooldown_end: attackCooldownEnd,
       };
     }
 
     attacker.last_attack_time = new Date();
     await this.userRepository.save(attacker);
+
+    const attackCooldownEnd = new Date(
+      new Date().getTime() + attackCooldown,
+    );
 
     return {
       win_chance,
@@ -539,6 +572,7 @@ export class ClanService {
       stolen_money: 0,
       captured_guards: 0,
       stolen_items: [],
+      attack_cooldown_end: attackCooldownEnd,
     };
   }
 
@@ -732,7 +766,9 @@ export class ClanService {
     return this.clanApplicationRepository.save(application);
   }
 
-  async getUserClan(userId: number): Promise<Clan> {
+  async getUserClan(
+    userId: number,
+  ): Promise<Clan & { referral_link?: string }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan', 'clan.leader', 'clan.members'],
@@ -746,7 +782,7 @@ export class ClanService {
       throw new NotFoundException('User is not in a clan');
     }
 
-    return user.clan;
+    return this.transformClanForResponse(user.clan);
   }
 
   async getActiveWars(clanId: number): Promise<ClanWar[]> {
@@ -783,9 +819,7 @@ export class ClanService {
     });
   }
 
-  async getClanRating(
-    paginationDto?: PaginationDto,
-  ): Promise<{
+  async getClanRating(paginationDto?: PaginationDto): Promise<{
     data: (Omit<Clan, 'combineWars'> & {
       wins: number;
       losses: number;

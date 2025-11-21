@@ -1,10 +1,11 @@
-import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, Min } from 'class-validator';
 
 export class CreateUserGuardDto {
   @IsString()
   name: string;
 
   @IsNumber()
+  @Min(0)
   @IsOptional()
   strength?: number;
 

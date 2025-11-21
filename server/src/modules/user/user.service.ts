@@ -152,7 +152,6 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    // Проверяем активные бусты
     const activeBoosts = await this.userBoostService.findActiveByUserId(userId);
     const cooldownHalvingBoost = activeBoosts.find(
       (b) => b.type === UserBoostType.COOLDOWN_HALVING,
@@ -161,7 +160,6 @@ export class UserService {
     let trainingCooldown = Settings[SettingKey.TRAINING_COOLDOWN];
     if (cooldownHalvingBoost) {
       trainingCooldown = trainingCooldown / 2;
-      // Завершаем буст после использования
       await this.userBoostService.complete(cooldownHalvingBoost.id);
     }
 
@@ -230,17 +228,22 @@ export class UserService {
 
     const new_power = this.calculateUserPower(updatedUser.guards);
 
+    const trainingCooldownEnd = new Date(
+      new Date().getTime() + trainingCooldown,
+    );
+
     return {
       user: updatedUser,
       training_cost,
       power_increase: total_power_increase,
       new_power,
+      training_cooldown_end: trainingCooldownEnd,
     };
   }
 
   async contract(
     userId: number,
-  ): Promise<{ user: User; contract_income: number }> {
+  ): Promise<{ user: User; contract_income: number; contract_cooldown_end: Date }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -250,7 +253,6 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    // Проверяем активные бусты
     const activeBoosts = await this.userBoostService.findActiveByUserId(userId);
     const cooldownHalvingBoost = activeBoosts.find(
       (b) => b.type === UserBoostType.COOLDOWN_HALVING,
@@ -262,7 +264,6 @@ export class UserService {
     let contractCooldown = Settings[SettingKey.CONTRACT_COOLDOWN];
     if (cooldownHalvingBoost) {
       contractCooldown = contractCooldown / 2;
-      // Завершаем буст после использования
       await this.userBoostService.complete(cooldownHalvingBoost.id);
     }
 
@@ -281,10 +282,8 @@ export class UserService {
 
     let contract_income = Math.max(Math.round(training_cost * 0.55), 6);
 
-    // Применяем удвоение награды
     if (rewardDoublingBoost) {
       contract_income = contract_income * 2;
-      // Завершаем буст после использования
       await this.userBoostService.complete(rewardDoublingBoost.id);
     }
 
@@ -293,9 +292,14 @@ export class UserService {
 
     await this.userRepository.save(user);
 
+    const contractCooldownEnd = new Date(
+      new Date().getTime() + contractCooldown,
+    );
+
     return {
       user,
       contract_income,
+      contract_cooldown_end: contractCooldownEnd,
     };
   }
 

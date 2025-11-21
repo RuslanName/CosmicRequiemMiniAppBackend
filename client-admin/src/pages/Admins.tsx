@@ -67,23 +67,32 @@ const Admins = () => {
   const handleCreate = () => {
     setIsCreateMode(true);
     setEditingAdmin(null);
-    setFormData({ user_id: 0, username: '', password: '', is_system_admin: false });
+    setFormData({ user_id: 0, username: '', password: '' });
     setIsModalOpen(true);
   };
 
   const handleEdit = (admin: Admin) => {
+    if (admin.is_system_admin) {
+      setError('Невозможно редактировать системного администратора');
+      return;
+    }
+
     setIsCreateMode(false);
     setEditingAdmin(admin);
     setFormData({
       user_id: admin.user_id,
       username: admin.username,
       password: '',
-      is_system_admin: admin.is_system_admin,
     });
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, isSystemAdmin: boolean) => {
+    if (isSystemAdmin) {
+      setError('Невозможно удалить системного администратора');
+      return;
+    }
+
     if (!confirm('Вы уверены, что хотите удалить этого администратора?')) return;
 
     try {
@@ -166,7 +175,7 @@ const Admins = () => {
             <th>ID</th>
             <th>ID пользователя</th>
             <th>Имя пользователя</th>
-            <th>Системный админ</th>
+            <th>Тип</th>
             <th>Действия</th>
           </tr>
         </thead>
@@ -176,13 +185,36 @@ const Admins = () => {
               <td>{admin.id}</td>
               <td>{admin.user_id}</td>
               <td>{admin.username}</td>
-              <td>{admin.is_system_admin ? 'Да' : 'Нет'}</td>
+              <td>
+                {admin.is_system_admin && (
+                  <span style={{ 
+                    padding: '4px 8px', 
+                    background: '#ffc107', 
+                    color: '#000', 
+                    borderRadius: '4px', 
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}>
+                    СИСТЕМНЫЙ
+                  </span>
+                )}
+              </td>
               <td>
                 <div className="actions">
-                  <button className="btn btn-primary" onClick={() => handleEdit(admin)}>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => handleEdit(admin)}
+                    disabled={admin.is_system_admin}
+                    style={{ opacity: admin.is_system_admin ? 0.5 : 1, cursor: admin.is_system_admin ? 'not-allowed' : 'pointer' }}
+                  >
                     Редактировать
                   </button>
-                  <button className="btn btn-danger" onClick={() => handleDelete(admin.id)}>
+                  <button 
+                    className="btn btn-danger" 
+                    onClick={() => handleDelete(admin.id, admin.is_system_admin)}
+                    disabled={admin.is_system_admin}
+                    style={{ opacity: admin.is_system_admin ? 0.5 : 1, cursor: admin.is_system_admin ? 'not-allowed' : 'pointer' }}
+                  >
                     Удалить
                   </button>
                 </div>
@@ -245,17 +277,6 @@ const Admins = () => {
               value={(formData as any).password || ''}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Системный администратор</label>
-            <select
-              className="form-select"
-              value={(formData as any).is_system_admin ? 'true' : 'false'}
-              onChange={(e) => setFormData({ ...formData, is_system_admin: e.target.value === 'true' })}
-            >
-              <option value="false">Нет</option>
-              <option value="true">Да</option>
-            </select>
           </div>
           {error && <div className="error-message">{error}</div>}
           <div className="form-actions">

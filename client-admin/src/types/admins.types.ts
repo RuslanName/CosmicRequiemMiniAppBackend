@@ -13,13 +13,11 @@ export interface CreateAdminDto {
   user_id: number;
   username: string;
   password: string;
-  is_system_admin?: boolean;
 }
 
 export interface UpdateAdminDto {
   user_id?: number;
   username?: string;
   password?: string;
-  is_system_admin?: boolean;
 }
 

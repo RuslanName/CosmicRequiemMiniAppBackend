@@ -16,9 +16,4 @@ export class UpdateAdminDto {
   @IsString()
   @IsOptional()
   password?: string;
-
-  @ApiProperty({ example: false, required: false })
-  @IsBoolean()
-  @IsOptional()
-  is_system_admin?: boolean;
 }

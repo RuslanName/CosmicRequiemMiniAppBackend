@@ -55,7 +55,7 @@ export class ClanController {
   @CacheTTL(60)
   @CacheKey('clan:list')
   @ApiOperation({
-    summary: 'Получить все кланы с пагинацией',
+    summary: 'Получить все кланы с пагинацией (Админка)',
     description:
       'Возвращает список всех кланов с поддержкой пагинации. Можно указать параметры page и limit для управления количеством результатов.',
   })
@@ -96,7 +96,51 @@ export class ClanController {
   })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<{ data: Clan[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: (Clan & { referral_link?: string })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    return this.clanService.findAll(paginationDto);
+  }
+
+  @Get('list')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('clan:public-list')
+  @ApiOperation({
+    summary: 'Получить список кланов для Mini App',
+    description:
+      'Возвращает список всех кланов с поддержкой пагинации для Mini App.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Номер страницы (по умолчанию 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Количество элементов на странице (по умолчанию 10)',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Успешно возвращен список кланов',
+  })
+  async getClansList(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<{
+    data: (Clan & { referral_link?: string })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     return this.clanService.findAll(paginationDto);
   }
 
@@ -128,7 +172,7 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
-  async getMyClan(@Request() req): Promise<Clan> {
+  async getMyClan(@Request() req): Promise<Clan & { referral_link?: string }> {
     return this.clanService.getUserClan(req.user.id);
   }
 
@@ -230,9 +274,7 @@ export class ClanController {
       },
     },
   })
-  async getClanRating(
-    @Query() paginationDto?: PaginationDto,
-  ): Promise<{
+  async getClanRating(@Query() paginationDto?: PaginationDto): Promise<{
     data: (Omit<Clan, 'combineWars'> & {
       wins: number;
       losses: number;
@@ -273,7 +315,9 @@ export class ClanController {
     },
   })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async findOne(@Param('id') id: string): Promise<Clan> {
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<Clan & { referral_link?: string }> {
     return this.clanService.findOne(+id);
   }
 
@@ -361,7 +405,7 @@ export class ClanController {
   async create(
     @Body() createClanDto: CreateClanDto,
     @UploadedFile() image: Express.Multer.File,
-  ): Promise<Clan> {
+  ): Promise<Clan & { referral_link?: string }> {
     return this.clanService.create(createClanDto, image);
   }
 
@@ -392,7 +436,7 @@ export class ClanController {
     @Param('id') id: string,
     @Body() updateClanDto: UpdateClanDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<Clan> {
+  ): Promise<Clan & { referral_link?: string }> {
     return this.clanService.update(+id, updateClanDto, image);
   }
 

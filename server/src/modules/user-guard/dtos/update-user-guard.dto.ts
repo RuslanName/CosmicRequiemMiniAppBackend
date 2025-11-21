@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsBoolean, Min } from 'class-validator';
 
 export class UpdateUserGuardDto {
   @IsOptional()
@@ -7,6 +7,7 @@ export class UpdateUserGuardDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   strength?: number;
 
   @IsOptional()

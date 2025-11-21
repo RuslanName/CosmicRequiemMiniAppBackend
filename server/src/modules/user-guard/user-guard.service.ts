@@ -13,9 +13,7 @@ export class UserGuardService {
     private readonly userGuardRepository: Repository<UserGuard>,
   ) {}
 
-  async findAll(
-    paginationDto: PaginationDto,
-  ): Promise<{
+  async findAll(paginationDto: PaginationDto): Promise<{
     data: UserGuard[];
     total: number;
     page: number;

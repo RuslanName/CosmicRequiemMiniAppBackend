@@ -25,8 +25,7 @@ export async function initAdmin(
     if (!user) {
       user = await userService.create({
         vk_id: Number(adminVkId),
-        first_name: 'Admin',
-        last_name: 'System',
+        first_name: 'System',
         sex: 0,
         avatar_url: '',
       });

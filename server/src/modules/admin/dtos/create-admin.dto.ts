@@ -13,9 +13,4 @@ export class CreateAdminDto {
   @ApiProperty({ example: 'password123' })
   @IsString()
   password: string;
-
-  @ApiProperty({ example: false, required: false })
-  @IsBoolean()
-  @IsOptional()
-  is_system_admin?: boolean;
 }

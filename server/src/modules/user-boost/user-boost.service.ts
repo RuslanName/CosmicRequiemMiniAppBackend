@@ -15,9 +15,7 @@ export class UserBoostService {
     private readonly userBoostRepository: Repository<UserBoost>,
   ) {}
 
-  async findAll(
-    paginationDto: PaginationDto,
-  ): Promise<{
+  async findAll(paginationDto: PaginationDto): Promise<{
     data: UserBoost[];
     total: number;
     page: number;

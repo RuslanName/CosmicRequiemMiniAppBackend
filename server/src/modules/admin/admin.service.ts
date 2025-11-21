@@ -78,9 +78,10 @@ export class AdminService {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const admin = this.adminRepository.create({
-      ...rest,
+      user_id: createAdminDto.user_id,
+      username: createAdminDto.username,
       password_hash: passwordHash,
-      is_system_admin: rest.is_system_admin ?? false,
+      is_system_admin: false,
     });
 
     return await this.adminRepository.save(admin);
@@ -88,6 +89,10 @@ export class AdminService {
 
   async update(id: number, updateAdminDto: UpdateAdminDto): Promise<Admin> {
     const admin = await this.findOne(id);
+
+    if (admin.is_system_admin) {
+      throw new BadRequestException('Cannot modify system administrator');
+    }
 
     if (updateAdminDto.username) {
       const existingAdmin = await this.adminRepository.findOne({
@@ -127,6 +132,11 @@ export class AdminService {
 
   async remove(id: number): Promise<void> {
     const admin = await this.findOne(id);
+
+    if (admin.is_system_admin) {
+      throw new BadRequestException('Cannot delete system administrator');
+    }
+
     await this.adminRepository.remove(admin);
   }
 

@@ -21,9 +21,7 @@ export class ItemTemplateService {
     private readonly itemTemplateRepository: Repository<ItemTemplate>,
   ) {}
 
-  async findAll(
-    paginationDto: PaginationDto,
-  ): Promise<{
+  async findAll(paginationDto: PaginationDto): Promise<{
     data: ItemTemplate[];
     total: number;
     page: number;
