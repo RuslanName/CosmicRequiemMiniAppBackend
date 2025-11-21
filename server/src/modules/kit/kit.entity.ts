@@ -28,9 +28,6 @@ export class Kit {
   @Column({ type: 'bigint' })
   price: number;
 
-  @Column({ type: 'varchar' })
-  image_path: string;
-
   @Column({
     type: 'enum',
     enum: ShopItemStatus,

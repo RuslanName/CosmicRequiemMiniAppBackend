@@ -15,7 +15,6 @@ const Kits = () => {
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [editingKit, setEditingKit] = useState<Kit | null>(null);
   const [formData, setFormData] = useState<CreateKitDto | UpdateKitDto>({});
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState<string>('');
   const [searchId, setSearchId] = useState<string>('');
 
@@ -70,7 +69,6 @@ const Kits = () => {
     setIsCreateMode(true);
     setEditingKit(null);
     setFormData({ name: '', currency: 'virtual', price: 0, item_template_ids: [] });
-    setImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -85,7 +83,6 @@ const Kits = () => {
       status: kit.status,
       item_template_ids: ids,
     });
-    setImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -110,14 +107,13 @@ const Kits = () => {
       };
 
       if (isCreateMode) {
-        await kitsApi.create(data as CreateKitDto, imageFile || undefined);
+        await kitsApi.create(data as CreateKitDto);
       } else if (editingKit) {
-        await kitsApi.update(editingKit.id, data as UpdateKitDto, imageFile || undefined);
+        await kitsApi.update(editingKit.id, data as UpdateKitDto);
       }
       setIsModalOpen(false);
       setEditingKit(null);
       setIsCreateMode(false);
-      setImageFile(null);
       loadKits();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка сохранения набора');
@@ -129,7 +125,6 @@ const Kits = () => {
     setEditingKit(null);
     setIsCreateMode(false);
     setFormData({});
-    setImageFile(null);
     setError('');
   };
 
@@ -173,7 +168,6 @@ const Kits = () => {
           <tr>
             <th>ID</th>
             <th>Название</th>
-            <th>Изображение</th>
             <th>Валюта</th>
             <th>Цена</th>
             <th>Статус</th>
@@ -185,15 +179,6 @@ const Kits = () => {
             <tr key={kit.id}>
               <td>{kit.id}</td>
               <td>{kit.name}</td>
-              <td>
-                {kit.image_path && (
-                  <img 
-                    src={`http://localhost:5000/${kit.image_path}`} 
-                    alt={kit.name}
-                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
-                  />
-                )}
-              </td>
               <td>{CurrencyLabels[kit.currency as Currency] || kit.currency}</td>
               <td>{kit.price}</td>
               <td>{ShopItemStatusLabels[kit.status as ShopItemStatus] || kit.status}</td>
@@ -294,24 +279,6 @@ const Kits = () => {
             label="Шаблоны предметов"
             required={true}
           />
-          <div className="form-group">
-            <label className="form-label">Изображение {isCreateMode ? '(обязательно)' : '(опционально)'}</label>
-            <input
-              className="form-input"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-            />
-            {editingKit && editingKit.image_path && !imageFile && (
-              <div style={{ marginTop: '10px' }}>
-                <img 
-                  src={`http://localhost:5000/${editingKit.image_path}`} 
-                  alt={editingKit.name}
-                  style={{ width: '100px', height: '100px', objectFit: 'cover' }}
-                />
-              </div>
-            )}
-          </div>
           {error && <div className="error-message">{error}</div>}
           <div className="form-actions">
             <button className="btn btn-secondary" onClick={handleClose}>

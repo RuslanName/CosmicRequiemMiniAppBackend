@@ -20,9 +20,6 @@ import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/setting-key.enum';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
-import { Express } from 'express';
-import * as fs from 'fs';
-import * as path from 'path';
 
 @Injectable()
 export class KitService {
@@ -74,38 +71,7 @@ export class KitService {
     return kit;
   }
 
-  private async saveKitImage(file: Express.Multer.File): Promise<string> {
-    if (!file) {
-      throw new BadRequestException('Image file is required');
-    }
-
-    const uploadDir = path.join(process.cwd(), 'data', 'kit-images');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const fileExtension = path.extname(file.originalname);
-    const fileName = `kit-${Date.now()}${fileExtension}`;
-    const filePath = path.join(uploadDir, fileName);
-
-    fs.writeFileSync(filePath, file.buffer);
-
-    return path.join('data', 'kit-images', fileName).replace(/\\/g, '/');
-  }
-
-  private async deleteKitImage(imagePath: string): Promise<void> {
-    if (imagePath && imagePath.startsWith('data/kit-images/')) {
-      const fullPath = path.join(process.cwd(), imagePath);
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath);
-      }
-    }
-  }
-
-  async create(
-    createKitDto: CreateKitDto,
-    image: Express.Multer.File,
-  ): Promise<Kit> {
+  async create(createKitDto: CreateKitDto): Promise<Kit> {
     const itemTemplates = await this.itemTemplateRepository.find({
       where: { id: In(createKitDto.item_template_ids) },
     });
@@ -114,24 +80,18 @@ export class KitService {
       throw new NotFoundException('Some item templates not found');
     }
 
-    const imagePath = await this.saveKitImage(image);
     const kit = this.kitRepository.create({
       name: createKitDto.name,
       currency: createKitDto.currency,
       price: createKitDto.price,
       status: createKitDto.status,
-      image_path: imagePath,
       item_templates: itemTemplates,
     });
 
     return this.kitRepository.save(kit);
   }
 
-  async update(
-    id: number,
-    updateKitDto: UpdateKitDto,
-    image?: Express.Multer.File,
-  ): Promise<Kit> {
+  async update(id: number, updateKitDto: UpdateKitDto): Promise<Kit> {
     const kit = await this.kitRepository.findOne({
       where: { id },
       relations: ['item_templates'],
@@ -139,14 +99,6 @@ export class KitService {
 
     if (!kit) {
       throw new NotFoundException(`Kit with ID ${id} not found`);
-    }
-
-    if (image) {
-      if (kit.image_path) {
-        await this.deleteKitImage(kit.image_path);
-      }
-      const imagePath = await this.saveKitImage(image);
-      updateKitDto = { ...updateKitDto, image_path: imagePath } as UpdateKitDto;
     }
 
     if (updateKitDto.item_template_ids) {
@@ -166,7 +118,6 @@ export class KitService {
       currency: updateKitDto.currency,
       price: updateKitDto.price,
       status: updateKitDto.status,
-      image_path: updateKitDto.image_path,
     });
 
     return this.kitRepository.save(kit);
@@ -177,10 +128,6 @@ export class KitService {
 
     if (!kit) {
       throw new NotFoundException(`Kit with ID ${id} not found`);
-    }
-
-    if (kit.image_path) {
-      await this.deleteKitImage(kit.image_path);
     }
 
     await this.kitRepository.remove(kit);

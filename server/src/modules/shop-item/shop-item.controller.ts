@@ -95,6 +95,62 @@ export class ShopItemController {
     return this.shopItemService.findAll(paginationDto);
   }
 
+  @Get('list')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('shop-item:public-list')
+  @ApiOperation({
+    summary: 'Получить список доступных товаров для Mini App',
+    description:
+      'Возвращает список товаров со статусом IN_STOCK с поддержкой пагинации для Mini App.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Номер страницы (по умолчанию 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Количество элементов на странице (по умолчанию 10)',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Список доступных товаров успешно возвращен',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            name: 'Red Nickname',
+            currency: 'virtual',
+            price: 1000,
+            status: 'in_stock',
+            image_path: 'data/shop-item-images/shop-item-1234567890.jpg',
+            item_template: {
+              id: 1,
+              type: 'nickname_color',
+              value: 'red',
+            },
+          },
+        ],
+        total: 50,
+        page: 1,
+        limit: 10,
+      },
+    },
+  })
+  async getShopItemsList(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<{ data: ShopItem[]; total: number; page: number; limit: number }> {
+    return this.shopItemService.findAvailable(paginationDto);
+  }
+
   @Get(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()

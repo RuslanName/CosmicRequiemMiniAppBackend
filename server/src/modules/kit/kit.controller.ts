@@ -9,10 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
-  UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -22,9 +19,7 @@ import {
   ApiBody,
   ApiBearerAuth,
   ApiCookieAuth,
-  ApiConsumes,
 } from '@nestjs/swagger';
-import { Express } from 'express';
 import { KitService } from './kit.service';
 import { Kit } from './kit.entity';
 import { CreateKitDto } from './dtos/create-kit.dto';
@@ -146,75 +141,32 @@ export class KitController {
   @Post()
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
   @InvalidateCache('kit:list')
   @ApiOperation({
     summary: 'Создать новый набор',
-    description:
-      'Создает новый набор. Изображение загружается через multipart/form-data.',
+    description: 'Создает новый набор.',
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', example: 'Premium Kit' },
-        currency: { type: 'string', example: 'virtual' },
-        price: { type: 'number', example: 5000 },
-        status: { type: 'string', example: 'in_stock' },
-        item_template_ids: {
-          type: 'array',
-          items: { type: 'number' },
-          example: [1, 2, 3],
-        },
-        image: { type: 'string', format: 'binary' },
-      },
-      required: ['name', 'currency', 'price', 'item_template_ids', 'image'],
-    },
-  })
+  @ApiBody({ type: CreateKitDto })
   @ApiResponse({ status: 201, description: 'Возвращает созданный набор' })
-  async create(
-    @Body() createKitDto: CreateKitDto,
-    @UploadedFile() image: Express.Multer.File,
-  ): Promise<Kit> {
-    return this.kitService.create(createKitDto, image);
+  async create(@Body() createKitDto: CreateKitDto): Promise<Kit> {
+    return this.kitService.create(createKitDto);
   }
 
   @Patch(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
   @InvalidateCache('kit::id', 'kit:list')
   @ApiOperation({
     summary: 'Обновить набор',
-    description:
-      'Обновляет информацию о наборе. Изображение опционально, загружается через multipart/form-data.',
+    description: 'Обновляет информацию о наборе.',
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', example: 'Premium Kit' },
-        currency: { type: 'string', example: 'virtual' },
-        price: { type: 'number', example: 5000 },
-        status: { type: 'string', example: 'in_stock' },
-        item_template_ids: {
-          type: 'array',
-          items: { type: 'number' },
-          example: [1, 2, 3],
-        },
-        image: { type: 'string', format: 'binary' },
-      },
-    },
-  })
+  @ApiBody({ type: UpdateKitDto })
   @ApiResponse({ status: 200, description: 'Возвращает обновленный набор' })
   async update(
     @Param('id') id: string,
     @Body() updateKitDto: UpdateKitDto,
-    @UploadedFile() image?: Express.Multer.File,
   ): Promise<Kit> {
-    return this.kitService.update(+id, updateKitDto, image);
+    return this.kitService.update(+id, updateKitDto);
   }
 
   @Delete(':id')

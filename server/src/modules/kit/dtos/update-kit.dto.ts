@@ -35,9 +35,4 @@ export class UpdateKitDto {
   @IsArray()
   @IsNumber({}, { each: true })
   item_template_ids?: number[];
-
-  @ApiProperty({ example: 'data/kit-images/kit-123.jpg', required: false })
-  @IsOptional()
-  @IsString()
-  image_path?: string;
 }

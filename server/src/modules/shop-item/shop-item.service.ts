@@ -61,6 +61,28 @@ export class ShopItemService {
     };
   }
 
+  async findAvailable(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: ShopItem[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.shopItemRepository.findAndCount({
+      where: { status: ShopItemStatus.IN_STOCK },
+      relations: ['item_template'],
+      skip,
+      take: limit,
+      order: { created_at: 'DESC' },
+    });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
+
   async findOne(id: number): Promise<ShopItem> {
     const shopItem = await this.shopItemRepository.findOne({
       where: { id },
