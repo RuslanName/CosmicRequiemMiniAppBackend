@@ -111,7 +111,7 @@ server {
     }
 
     location / {
-        alias /app/pvp-app-dist/;
+        alias /app/client-mini-app-dist/;
         try_files $uri $uri/ /index.html;
         index index.html;
         

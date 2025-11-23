@@ -133,7 +133,7 @@ volumes:
   postgres_data:
   redis_data:
   admin-dist:
-  pvp-app-dist:
+  client-mini-app-dist:
 
 networks:
   app-network:
