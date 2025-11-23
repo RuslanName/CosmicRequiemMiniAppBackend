@@ -43,10 +43,6 @@ RUN npm ci --only=production
 
 COPY --from=server-builder /app/dist ./dist
 
-COPY --from=client-admin-builder /app/dist ./client-admin-dist
-
-COPY --from=client-mini-app-builder /app/dist ./client-mini-app-dist
-
 EXPOSE 5000
 
 CMD ["node", "dist/main.js"]
