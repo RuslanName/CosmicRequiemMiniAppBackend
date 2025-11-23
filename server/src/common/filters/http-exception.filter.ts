@@ -32,7 +32,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         exceptionResponse !== null
       ) {
         const responseObj = exceptionResponse as any;
-        
+
         if (Array.isArray(responseObj.message)) {
           message = responseObj.message;
         } else if (responseObj.message) {
@@ -56,7 +56,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       message = exception.message || 'Internal server error';
       error = exception.name;
-      
+
       this.logger.error(
         `Unhandled Error: ${message}`,
         exception.stack,

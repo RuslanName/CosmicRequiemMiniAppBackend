@@ -40,9 +40,7 @@ export class KitService {
     private readonly userBoostRepository: Repository<UserBoost>,
   ) {}
 
-  private generateAccessoryName(
-    itemTemplate: ItemTemplate,
-  ): string {
+  private generateAccessoryName(itemTemplate: ItemTemplate): string {
     switch (itemTemplate.type) {
       case ItemTemplateType.SHIELD:
         return `Щит ${itemTemplate.value}h`;
