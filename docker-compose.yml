@@ -13,6 +13,20 @@ services:
     networks:
       - app-network
 
+  pvp-app-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: pvp-app-builder
+      args:
+        - VITE_API_URL=${VITE_API_URL}
+    container_name: cosmic-requiem-pvp-app-init
+    command: sh -c "mkdir -p /pvp-app-dist && cp -r /app/dist/* /pvp-app-dist/ && ls -la /pvp-app-dist"
+    volumes:
+      - pvp-app-dist:/pvp-app-dist
+    networks:
+      - app-network
+
   server:
     build:
       context: .
@@ -98,9 +112,11 @@ services:
       - ./certbot/www:/var/www/certbot:rw
       - ./certbot/conf:/etc/letsencrypt:rw
       - admin-dist:/app/admin-dist:ro
+      - pvp-app-dist:/app/pvp-app-dist:ro
     entrypoint: ["/bin/sh", "/custom-entrypoint.sh"]
     depends_on:
       - admin-init
+      - pvp-app-init
       - server
     networks:
       - app-network
@@ -117,6 +133,7 @@ volumes:
   postgres_data:
   redis_data:
   admin-dist:
+  pvp-app-dist:
 
 networks:
   app-network:

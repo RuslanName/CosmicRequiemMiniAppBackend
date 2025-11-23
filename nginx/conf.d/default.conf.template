@@ -9,7 +9,15 @@ server {
     }
 
     location / {
-        return 404;
+        # MAIN_DOMAIN_HTTP_REDIRECT_PLACEHOLDER
+        alias /app/pvp-app-dist/;
+        try_files $uri $uri/ /index.html;
+        index index.html;
+        
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
     }
 }
 

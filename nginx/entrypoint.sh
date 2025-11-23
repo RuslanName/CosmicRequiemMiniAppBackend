@@ -10,14 +10,15 @@ fi
 
 API_CERT="/etc/letsencrypt/live/api.${NGINX_BASE_DOMAIN}/fullchain.pem"
 ADMIN_CERT="/etc/letsencrypt/live/admin.${NGINX_BASE_DOMAIN}/fullchain.pem"
+MAIN_CERT="/etc/letsencrypt/live/${NGINX_BASE_DOMAIN}/fullchain.pem"
 
-if [ -f "$API_CERT" ] && [ -f "$ADMIN_CERT" ]; then
+if [ -f "$API_CERT" ] && [ -f "$ADMIN_CERT" ] && [ -f "$MAIN_CERT" ]; then
     if [ -f /etc/nginx/templates/ssl.conf.template ]; then
         echo "SSL certificates found. Generating SSL configuration and enabling HTTPS redirects..."
         envsubst '${NGINX_BASE_DOMAIN} ${NGINX_SERVER_PORT}' < /etc/nginx/templates/ssl.conf.template > /etc/nginx/conf.d/ssl.conf
         
         awk '
-        BEGIN { skip_api = 0; skip_admin = 0; api_braces = 0; admin_braces = 0 }
+        BEGIN { skip_api = 0; skip_admin = 0; skip_main = 0; api_braces = 0; admin_braces = 0; main_braces = 0 }
         /# HTTP_REDIRECT_PLACEHOLDER/ {
             skip_api = 1
             api_braces = 1
@@ -52,6 +53,23 @@ if [ -f "$API_CERT" ] && [ -f "$ADMIN_CERT" ]; then
             }
             next
         }
+        /# MAIN_DOMAIN_HTTP_REDIRECT_PLACEHOLDER/ {
+            skip_main = 1
+            main_braces = 1
+            print "        return 301 https://$host$request_uri;"
+            next
+        }
+        skip_main == 1 {
+            if (/\{/) main_braces++
+            if (/\}/) {
+                main_braces--
+                if (main_braces == 0) {
+                    skip_main = 0
+                    print
+                }
+            }
+            next
+        }
         { print }
         ' /etc/nginx/conf.d/default.conf > /tmp/nginx.conf.tmp
         
@@ -70,6 +88,7 @@ else
     sed -i '/include \/etc\/nginx\/conf.d\/ssl.conf;/d' /etc/nginx/conf.d/default.conf
     sed -i 's|# HTTP_REDIRECT_PLACEHOLDER||' /etc/nginx/conf.d/default.conf
     sed -i 's|# ADMIN_HTTP_REDIRECT_PLACEHOLDER||' /etc/nginx/conf.d/default.conf
+    sed -i 's|# MAIN_DOMAIN_HTTP_REDIRECT_PLACEHOLDER||' /etc/nginx/conf.d/default.conf
     echo "Nginx will work in HTTP-only mode until certificates are obtained."
 fi
 

@@ -365,7 +365,7 @@ export class UserController {
     return this.userService.getEventHistory(req.user.id, paginationDto);
   }
 
-  @Post('activate-shield')
+  @Post('me/activate-shield')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Активировать щит из инвентаря (Для Mini App)' })
