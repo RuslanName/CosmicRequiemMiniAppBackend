@@ -154,7 +154,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
-  @CacheKey('user:attackable')
+  @CacheKey('user:attackable::user')
   @ApiOperation({
     summary: 'Получить список пользователей для атаки (Для Mini App)',
   })

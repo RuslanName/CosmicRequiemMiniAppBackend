@@ -79,18 +79,46 @@ export class CacheInterceptor implements NestInterceptor {
   private buildKey(key: string, request: any): string {
     const params = request.params || {};
     const query = request.query || {};
+    const user = request.user || {};
 
     let finalKey = key;
+    const processedQueryKeys = new Set<string>();
 
     Object.keys(params).forEach((param) => {
+      const beforeReplace = finalKey;
       finalKey = finalKey.replace(`::${param}`, params[param]);
       finalKey = finalKey.replace(`:${param}`, params[param]);
     });
 
     Object.keys(query).forEach((q) => {
+      const beforeReplace = finalKey;
       finalKey = finalKey.replace(`::${q}`, query[q]);
-      finalKey = finalKey.replace(`:${q}`, query[q]);
+      if (finalKey !== beforeReplace) {
+        processedQueryKeys.add(q);
+      } else {
+        finalKey = finalKey.replace(`:${q}`, query[q]);
+        if (finalKey !== beforeReplace) {
+          processedQueryKeys.add(q);
+        }
+      }
     });
+
+    if (user.id) {
+      finalKey = finalKey.replace(`::user`, user.id);
+      finalKey = finalKey.replace(`:user`, user.id);
+    }
+
+    const remainingQueryKeys = Object.keys(query).filter(
+      (q) => !processedQueryKeys.has(q),
+    );
+
+    if (remainingQueryKeys.length > 0) {
+      const querySuffix = remainingQueryKeys
+        .sort()
+        .map((q) => `${q}:${query[q]}`)
+        .join(':');
+      finalKey += `:query:${querySuffix}`;
+    }
 
     return finalKey;
   }
