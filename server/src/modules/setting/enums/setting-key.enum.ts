@@ -17,5 +17,5 @@ export enum SettingKey {
   MAX_RANDOM_CHANCE = 'max_random_chance',
   RANDOM_POWER_COEFFICIENT = 'random_power_coefficient',
   RANDOM_BONUS_PER_GUARD = 'random_bonus_per_guard',
-  REFERRER_REWARD = 'referrer_reward',
+  REFERRER_MONEY_REWARD = 'referrer_money_reward',
 }

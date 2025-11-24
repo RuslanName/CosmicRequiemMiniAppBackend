@@ -70,4 +70,7 @@ export class UserMeResponseDto {
 
   @ApiProperty()
   contract_income: number;
+
+  @ApiProperty()
+  referrer_money_reward: number;
 }

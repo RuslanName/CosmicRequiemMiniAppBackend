@@ -72,6 +72,7 @@ export class UserService {
     equippedAccessories: any[],
     trainingCost: number,
     contractIncome: number,
+    referrerMoneyReward: number,
   ): UserMeResponseDto {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = this.getGuardsCount(user.guards || []);
@@ -101,6 +102,7 @@ export class UserService {
       referral_link: transformed.referral_link,
       training_cost: trainingCost,
       contract_income: contractIncome,
+      referrer_money_reward: referrerMoneyReward,
     };
   }
 
@@ -227,12 +229,16 @@ export class UserService {
 
     const training_cost = Math.round(10 * Math.pow(1 + currentPower, 1.2));
     const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
+    const referrerMoneyReward = Settings[
+      SettingKey.REFERRER_MONEY_REWARD
+    ] as number;
 
     return this.transformToUserMeResponseDto(
       user,
       equippedAccessories,
       training_cost,
       contract_income,
+      referrerMoneyReward,
     );
   }
 
@@ -349,11 +355,15 @@ export class UserService {
     const equippedAccessories =
       await this.userAccessoryService.findEquippedByUserId(userId);
     const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
+    const referrerMoneyReward = Settings[
+      SettingKey.REFERRER_MONEY_REWARD
+    ] as number;
     const userMe = this.transformToUserMeResponseDto(
       updatedUser,
       equippedAccessories,
       training_cost,
       contract_income,
+      referrerMoneyReward,
     );
 
     return {
@@ -429,11 +439,15 @@ export class UserService {
 
     const equippedAccessories =
       await this.userAccessoryService.findEquippedByUserId(userId);
+    const referrerMoneyReward = Settings[
+      SettingKey.REFERRER_MONEY_REWARD
+    ] as number;
     const userMe = this.transformToUserMeResponseDto(
       user,
       equippedAccessories,
       training_cost,
       contract_income,
+      referrerMoneyReward,
     );
 
     return {

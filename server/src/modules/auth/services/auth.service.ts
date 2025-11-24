@@ -83,7 +83,9 @@ export class AuthService {
       await this.userGuardRepository.save(firstGuard);
 
       if (referrerUser) {
-        const referrerReward = Settings[SettingKey.REFERRER_REWARD] as number;
+        const referrerReward = Settings[
+          SettingKey.REFERRER_MONEY_REWARD
+        ] as number;
         referrerUser.money = Number(referrerUser.money) + referrerReward;
         await this.userRepository.save(referrerUser);
       }

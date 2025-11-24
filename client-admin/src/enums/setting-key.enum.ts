@@ -17,7 +17,7 @@ export const SettingKey = {
   MAX_RANDOM_CHANCE: 'max_random_chance',
   RANDOM_POWER_COEFFICIENT: 'random_power_coefficient',
   RANDOM_BONUS_PER_GUARD: 'random_bonus_per_guard',
-  REFERRER_REWARD: 'referrer_reward',
+  REFERRER_MONEY_REWARD: 'referrer_money_reward',
 } as const;
 
 export type SettingKey = typeof SettingKey[keyof typeof SettingKey];
@@ -41,6 +41,6 @@ export const SettingKeyLabels: Record<SettingKey, string> = {
   [SettingKey.MAX_RANDOM_CHANCE]: 'Макс. случайный шанс',
   [SettingKey.RANDOM_POWER_COEFFICIENT]: 'Коэффициент случайной силы',
   [SettingKey.RANDOM_BONUS_PER_GUARD]: 'Случайный бонус за стража',
-  [SettingKey.REFERRER_REWARD]: 'Вознаграждение реферера за приглашение',
+  [SettingKey.REFERRER_MONEY_REWARD]: 'Вознаграждение реферера за приглашение',
 };
 

@@ -22,7 +22,7 @@ export const DEFAULT_SETTINGS = {
   [SettingKey.MAX_RANDOM_CHANCE]: 3,
   [SettingKey.RANDOM_POWER_COEFFICIENT]: 0.001,
   [SettingKey.RANDOM_BONUS_PER_GUARD]: 0.2,
-  [SettingKey.REFERRER_REWARD]: 10000,
+  [SettingKey.REFERRER_MONEY_REWARD]: 10000,
 } as const;
 
 export const TIME_UNIT_MULTIPLIERS: Partial<Record<SettingKey, number>> = {
