@@ -26,9 +26,6 @@ import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/enums/setting-key.enum';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
-import { Express } from 'express';
-import * as fs from 'fs';
-import * as path from 'path';
 
 @Injectable()
 export class ShopItemService {
@@ -88,8 +85,7 @@ export class ShopItemService {
         name: item.name,
         description: item.item_template?.name || '',
         price: item.price,
-        image_path: item.image_path || '',
-        category: category,
+        image_path: item.item_template?.image_path || '',
         created_at: item.created_at,
         updated_at: item.updated_at,
       });
@@ -111,38 +107,7 @@ export class ShopItemService {
     return shopItem;
   }
 
-  private saveShopItemImage(file?: Express.Multer.File): string | null {
-    if (!file) {
-      return null;
-    }
-
-    const uploadDir = path.join(process.cwd(), 'data', 'shop-item-images');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const fileExtension = path.extname(file.originalname);
-    const fileName = `shop-item-${Date.now()}${fileExtension}`;
-    const filePath = path.join(uploadDir, fileName);
-
-    fs.writeFileSync(filePath, file.buffer);
-
-    return path.join('data', 'shop-item-images', fileName).replace(/\\/g, '/');
-  }
-
-  private deleteShopItemImage(imagePath: string): void {
-    if (imagePath && imagePath.startsWith('data/shop-item-images/')) {
-      const fullPath = path.join(process.cwd(), imagePath);
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath);
-      }
-    }
-  }
-
-  async create(
-    createShopItemDto: CreateShopItemDto,
-    image?: Express.Multer.File,
-  ): Promise<ShopItem> {
+  async create(createShopItemDto: CreateShopItemDto): Promise<ShopItem> {
     const itemTemplate = await this.itemTemplateRepository.findOne({
       where: { id: createShopItemDto.item_template_id },
     });
@@ -153,13 +118,11 @@ export class ShopItemService {
       );
     }
 
-    const imagePath = this.saveShopItemImage(image);
     const shopItem = this.shopItemRepository.create({
       name: createShopItemDto.name,
       currency: createShopItemDto.currency,
       price: createShopItemDto.price,
       status: createShopItemDto.status,
-      image_path: imagePath,
       item_template_id: createShopItemDto.item_template_id,
       item_template: itemTemplate,
     });
@@ -170,7 +133,6 @@ export class ShopItemService {
   async update(
     id: number,
     updateShopItemDto: UpdateShopItemDto,
-    image?: Express.Multer.File,
   ): Promise<ShopItem> {
     const shopItem = await this.shopItemRepository.findOne({
       where: { id },
@@ -179,17 +141,6 @@ export class ShopItemService {
 
     if (!shopItem) {
       throw new NotFoundException(`ShopItem with ID ${id} not found`);
-    }
-
-    if (image) {
-      if (shopItem.image_path) {
-        this.deleteShopItemImage(shopItem.image_path);
-      }
-      const imagePath = this.saveShopItemImage(image);
-      updateShopItemDto = {
-        ...updateShopItemDto,
-        image_path: imagePath,
-      } as UpdateShopItemDto;
     }
 
     if (updateShopItemDto.item_template_id) {
@@ -212,7 +163,6 @@ export class ShopItemService {
       currency: updateShopItemDto.currency,
       price: updateShopItemDto.price,
       status: updateShopItemDto.status,
-      image_path: updateShopItemDto.image_path,
     });
 
     return this.shopItemRepository.save(shopItem);
@@ -223,10 +173,6 @@ export class ShopItemService {
 
     if (!shopItem) {
       throw new NotFoundException(`ShopItem with ID ${id} not found`);
-    }
-
-    if (shopItem.image_path) {
-      this.deleteShopItemImage(shopItem.image_path);
     }
 
     await this.shopItemRepository.remove(shopItem);
@@ -272,9 +218,14 @@ export class ShopItemService {
     const itemTemplate = shopItem.item_template;
 
     if (itemTemplate.type === ItemTemplateType.GUARD) {
+      if (!itemTemplate.value) {
+        throw new BadRequestException(
+          'ItemTemplate value is required for GUARD type',
+        );
+      }
       const guardStrength = parseInt(itemTemplate.value, 10);
       const guard = this.userGuardRepository.create({
-        name: `Guard #${Date.now()}`,
+        name: `Страж #${Date.now()}`,
         strength: guardStrength,
         is_first: false,
         user,
@@ -301,6 +252,11 @@ export class ShopItemService {
           ? UserBoostType.REWARD_DOUBLING
           : UserBoostType.COOLDOWN_HALVING;
 
+      if (!itemTemplate.value) {
+        throw new BadRequestException(
+          'ItemTemplate value is required for REWARD_DOUBLING and COOLDOWN_HALVING types',
+        );
+      }
       const boostHours = parseInt(itemTemplate.value, 10);
       const now = new Date();
 

@@ -212,6 +212,11 @@ export class KitService {
 
     for (const itemTemplate of kit.item_templates) {
       if (itemTemplate.type === ItemTemplateType.GUARD) {
+        if (!itemTemplate.value) {
+          throw new BadRequestException(
+            'ItemTemplate value is required for GUARD type',
+          );
+        }
         const guardStrength = parseInt(itemTemplate.value, 10);
         const guard = this.userGuardRepository.create({
           name: `Guard #${Date.now()}`,
@@ -239,6 +244,11 @@ export class KitService {
             ? UserBoostType.REWARD_DOUBLING
             : UserBoostType.COOLDOWN_HALVING;
 
+        if (!itemTemplate.value) {
+          throw new BadRequestException(
+            'ItemTemplate value is required for REWARD_DOUBLING and COOLDOWN_HALVING types',
+          );
+        }
         const boostHours = parseInt(itemTemplate.value, 10);
         const now = new Date();
 

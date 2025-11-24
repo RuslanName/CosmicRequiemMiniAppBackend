@@ -28,9 +28,4 @@ export class UpdateShopItemDto {
   @IsOptional()
   @IsNumber()
   item_template_id?: number;
-
-  @ApiProperty({ example: 'data/shop-images/item-123.jpg', required: false })
-  @IsOptional()
-  @IsString()
-  image_path?: string;
 }

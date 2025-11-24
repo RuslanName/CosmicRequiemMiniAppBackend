@@ -11,6 +11,7 @@ import { ItemTemplateType } from '../item-template/enums/item-template-type.enum
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { User } from '../user/user.entity';
+import { UserAccessoryResponseDto } from './dtos/user-accessory-response.dto';
 
 @Injectable()
 export class UserAccessoryService {
@@ -23,22 +24,42 @@ export class UserAccessoryService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async findByUserId(userId: number): Promise<UserAccessory[]> {
-    return this.userAccessoryRepository.find({
+  async findByUserId(userId: number): Promise<UserAccessoryResponseDto[]> {
+    const accessories = await this.userAccessoryRepository.find({
       where: { user: { id: userId } },
       relations: ['item_template'],
       order: { created_at: 'DESC' },
     });
+
+    return accessories.map((accessory) => ({
+      id: accessory.id,
+      name: accessory.name,
+      status: accessory.status,
+      type: accessory.item_template?.type || '',
+      value: accessory.item_template?.value || null,
+      image_path: accessory.item_template?.image_path || null,
+      created_at: accessory.created_at,
+    }));
   }
 
-  async findEquippedByUserId(userId: number): Promise<UserAccessory[]> {
-    return this.userAccessoryRepository.find({
+  async findEquippedByUserId(userId: number): Promise<UserAccessoryResponseDto[]> {
+    const accessories = await this.userAccessoryRepository.find({
       where: {
         user: { id: userId },
         status: UserAccessoryStatus.EQUIPPED,
       },
       relations: ['item_template'],
     });
+
+    return accessories.map((accessory) => ({
+      id: accessory.id,
+      name: accessory.name,
+      status: accessory.status,
+      type: accessory.item_template?.type || '',
+      value: accessory.item_template?.value || null,
+      image_path: accessory.item_template?.image_path || null,
+      created_at: accessory.created_at,
+    }));
   }
 
   async equip(userId: number, accessoryId: number): Promise<UserAccessory> {
@@ -125,6 +146,11 @@ export class UserAccessoryService {
       throw new BadRequestException('This accessory is not a shield');
     }
 
+    if (!accessory.item_template.value) {
+      throw new BadRequestException(
+        'ItemTemplate value is required for SHIELD type',
+      );
+    }
     const shieldHours = parseInt(accessory.item_template.value, 10);
     const now = new Date();
 

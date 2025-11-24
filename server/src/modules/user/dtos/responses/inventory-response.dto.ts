@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserBoost } from '../../../user-boost/user-boost.entity';
-import { UserAccessory } from '../../../user-accessory/user-accessory.entity';
+import { UserBoostResponseDto } from '../../../user-boost/dtos/user-boost-response.dto';
+import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/user-accessory-response.dto';
 
 export class InventoryResponseDto {
-  @ApiProperty({ type: [UserBoost] })
-  boosts: UserBoost[];
+  @ApiProperty({ type: [UserBoostResponseDto] })
+  boosts: UserBoostResponseDto[];
 
-  @ApiProperty({ type: [UserAccessory] })
-  accessories: UserAccessory[];
+  @ApiProperty({ type: [UserAccessoryResponseDto] })
+  accessories: UserAccessoryResponseDto[];
 }

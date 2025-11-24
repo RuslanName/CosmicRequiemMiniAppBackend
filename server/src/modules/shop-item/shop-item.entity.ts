@@ -27,9 +27,6 @@ export class ShopItem {
   @Column({ type: 'bigint' })
   price: number;
 
-  @Column({ type: 'varchar', nullable: true })
-  image_path: string | null;
-
   @Column({
     type: 'enum',
     enum: ShopItemStatus,

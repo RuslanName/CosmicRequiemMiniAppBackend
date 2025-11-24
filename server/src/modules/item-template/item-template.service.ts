@@ -11,9 +11,9 @@ import { UpdateItemTemplateDto } from './dtos/update-item-template.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { ItemTemplateType } from './enums/item-template-type.enum';
-import { Color } from './enums/color.enum';
-import { NicknameIcon } from './enums/nickname-icon.enum';
-import { AvatarFrame } from './enums/avatar-frame.enum';
+import { Express } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ItemTemplateService {
@@ -55,29 +55,23 @@ export class ItemTemplateService {
 
   private validateItemTemplateValue(
     type: ItemTemplateType,
-    value: string,
+    value: string | null | undefined,
   ): void {
+    if (!value) {
+      return;
+    }
+
     switch (type) {
       case ItemTemplateType.NICKNAME_COLOR:
-        if (!Object.values(Color).includes(value as Color)) {
+        const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+        if (!hexColorRegex.test(value)) {
           throw new BadRequestException(
-            `Value must be one of: ${Object.values(Color).join(', ')}`,
+            'Value must be a valid hex color (e.g., #ff0000)',
           );
         }
         break;
       case ItemTemplateType.NICKNAME_ICON:
-        if (!Object.values(NicknameIcon).includes(value as NicknameIcon)) {
-          throw new BadRequestException(
-            `Value must be one of: ${Object.values(NicknameIcon).join(', ')}`,
-          );
-        }
-        break;
       case ItemTemplateType.AVATAR_FRAME:
-        if (!Object.values(AvatarFrame).includes(value as AvatarFrame)) {
-          throw new BadRequestException(
-            `Value must be one of: ${Object.values(AvatarFrame).join(', ')}`,
-          );
-        }
         break;
       case ItemTemplateType.GUARD:
         const guardStrength = parseInt(value, 10);
@@ -100,22 +94,59 @@ export class ItemTemplateService {
     }
   }
 
+  private saveItemTemplateImage(file?: Express.Multer.File): string | null {
+    if (!file) {
+      return null;
+    }
+
+    const uploadDir = path.join(process.cwd(), 'data', 'item-template-images');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const fileExtension = path.extname(file.originalname);
+    const fileName = `item-template-${Date.now()}${fileExtension}`;
+    const filePath = path.join(uploadDir, fileName);
+
+    fs.writeFileSync(filePath, file.buffer);
+
+    return path
+      .join('data', 'item-template-images', fileName)
+      .replace(/\\/g, '/');
+  }
+
+  private deleteItemTemplateImage(imagePath: string): void {
+    if (imagePath && imagePath.startsWith('data/item-template-images/')) {
+      const fullPath = path.join(process.cwd(), imagePath);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    }
+  }
+
   async create(
     createItemTemplateDto: CreateItemTemplateDto,
+    image?: Express.Multer.File,
   ): Promise<ItemTemplate> {
-    this.validateItemTemplateValue(
-      createItemTemplateDto.type,
-      createItemTemplateDto.value,
-    );
-    const itemTemplate = this.itemTemplateRepository.create(
-      createItemTemplateDto,
-    );
+    if (createItemTemplateDto.value) {
+      this.validateItemTemplateValue(
+        createItemTemplateDto.type,
+        createItemTemplateDto.value,
+      );
+    }
+
+    const imagePath = this.saveItemTemplateImage(image);
+    const itemTemplate = this.itemTemplateRepository.create({
+      ...createItemTemplateDto,
+      image_path: imagePath,
+    });
     return this.itemTemplateRepository.save(itemTemplate);
   }
 
   async update(
     id: number,
     updateItemTemplateDto: UpdateItemTemplateDto,
+    image?: Express.Multer.File,
   ): Promise<ItemTemplate> {
     const itemTemplate = await this.itemTemplateRepository.findOne({
       where: { id },
@@ -126,10 +157,27 @@ export class ItemTemplateService {
     }
 
     const typeToValidate = updateItemTemplateDto.type || itemTemplate.type;
-    const valueToValidate = updateItemTemplateDto.value || itemTemplate.value;
+    const valueToValidate =
+      updateItemTemplateDto.value !== undefined
+        ? updateItemTemplateDto.value
+        : itemTemplate.value;
 
-    if (updateItemTemplateDto.type || updateItemTemplateDto.value) {
+    if (
+      updateItemTemplateDto.type ||
+      updateItemTemplateDto.value !== undefined
+    ) {
       this.validateItemTemplateValue(typeToValidate, valueToValidate);
+    }
+
+    if (image) {
+      if (itemTemplate.image_path) {
+        this.deleteItemTemplateImage(itemTemplate.image_path);
+      }
+      const imagePath = this.saveItemTemplateImage(image);
+      updateItemTemplateDto = {
+        ...updateItemTemplateDto,
+        image_path: imagePath,
+      } as UpdateItemTemplateDto;
     }
 
     Object.assign(itemTemplate, updateItemTemplateDto);
@@ -143,6 +191,10 @@ export class ItemTemplateService {
 
     if (!itemTemplate) {
       throw new NotFoundException(`ItemTemplate with ID ${id} not found`);
+    }
+
+    if (itemTemplate.image_path) {
+      this.deleteItemTemplateImage(itemTemplate.image_path);
     }
 
     await this.itemTemplateRepository.remove(itemTemplate);

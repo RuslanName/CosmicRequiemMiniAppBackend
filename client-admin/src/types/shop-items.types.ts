@@ -3,10 +3,9 @@ export interface ShopItem {
   name: string;
   currency: string;
   price: number;
-  image_path: string | null;
   status: string;
   item_template_id: number;
-  item_template?: any;
+  item_template?: ItemTemplate;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +24,15 @@ export interface UpdateShopItemDto {
   price?: number;
   status?: string;
   item_template_id?: number;
-  image_path?: string;
+}
+
+interface ItemTemplate {
+  id: number;
+  name: string;
+  type: string;
+  value: string | null;
+  image_path: string | null;
+  created_at: string;
+  updated_at: string;
 }
 

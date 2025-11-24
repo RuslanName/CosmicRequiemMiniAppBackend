@@ -23,11 +23,20 @@ export class UpdateItemTemplateDto {
   type?: ItemTemplateType;
 
   @ApiProperty({
-    example: 'red',
+    example: '#ff0000',
     required: false,
     description: 'Значение продукта',
   })
   @IsOptional()
   @IsString()
   value?: string;
+
+  @ApiProperty({
+    example: 'data/item-template-images/item-template-123.jpg',
+    required: false,
+    description: 'Путь к изображению',
+  })
+  @IsOptional()
+  @IsString()
+  image_path?: string;
 }

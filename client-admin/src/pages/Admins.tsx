@@ -173,8 +173,8 @@ const Admins = () => {
         <thead>
           <tr>
             <th>ID</th>
-            <th>ID пользователя</th>
             <th>Имя пользователя</th>
+            <th>ID пользователя</th>
             <th>Тип</th>
             <th>Действия</th>
           </tr>
@@ -183,8 +183,8 @@ const Admins = () => {
           {admins.map((admin) => (
             <tr key={admin.id}>
               <td>{admin.id}</td>
-              <td>{admin.user_id}</td>
               <td>{admin.username}</td>
+              <td>{admin.user_id}</td>
               <td>
                 {admin.is_system_admin && (
                   <span style={{ 

@@ -35,7 +35,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { DeclareWarDto } from './dtos/declare-war.dto';
 import { AttackEnemyDto } from './dtos/attack-enemy.dto';
-import { ClanWar } from '../clan-war/entities/clan-war.entity';
 import { User } from '../user/user.entity';
 import { CreateClanApplicationDto } from './dtos/create-clan-application.dto';
 import { ClanApplication } from './entities/clan-application.entity';
@@ -49,6 +48,7 @@ import { ClanWithReferralResponseDto } from './dtos/responses/clan-with-referral
 import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto';
 import { UserWithStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
+import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
 
 @ApiTags('Clans')
 @Controller('clans')
@@ -127,7 +127,7 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
   async getMyClanWars(
     @Request() req: AuthenticatedRequest,
-  ): Promise<ClanWar[]> {
+  ): Promise<ClanWarResponseDto[]> {
     const clan = await this.clanService.getUserClan(req.user.id);
     return this.clanService.getActiveWars(clan.id);
   }
@@ -286,7 +286,7 @@ export class ClanController {
   async declareWar(
     @Request() req: AuthenticatedRequest,
     @Body() declareWarDto: DeclareWarDto,
-  ): Promise<ClanWar> {
+  ): Promise<ClanWarResponseDto> {
     return this.clanService.declareWar(
       req.user.id,
       declareWarDto.target_clan_id,
@@ -508,7 +508,7 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanWars(@Param('id') id: string): Promise<ClanWar[]> {
+  async getClanWars(@Param('id') id: string): Promise<ClanWarResponseDto[]> {
     return this.clanService.getAllWars(+id);
   }
 

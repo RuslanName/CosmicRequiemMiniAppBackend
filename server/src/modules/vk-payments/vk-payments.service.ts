@@ -86,10 +86,11 @@ export class VKPaymentsService {
       }
 
       const baseUrl = ENV.VK_APP_URL.replace(/\/$/, '');
-      const imageUrl = shopItem.image_path
-        ? shopItem.image_path.startsWith('http')
-          ? shopItem.image_path
-          : `${baseUrl}/${shopItem.image_path.replace(/^\//, '')}`
+      const imagePath = shopItem.item_template?.image_path;
+      const imageUrl = imagePath
+        ? imagePath.startsWith('http')
+          ? imagePath
+          : `${baseUrl}/${imagePath.replace(/^\//, '')}`
         : undefined;
 
       return {
@@ -223,6 +224,11 @@ export class VKPaymentsService {
     const itemTemplate = shopItem.item_template;
 
     if (itemTemplate.type === ItemTemplateType.GUARD) {
+      if (!itemTemplate.value) {
+        throw new BadRequestException(
+          'ItemTemplate value is required for GUARD type',
+        );
+      }
       const guardStrength = parseInt(itemTemplate.value, 10);
       const guard = this.userGuardRepository.create({
         name: `Guard #${Date.now()}`,
@@ -273,6 +279,11 @@ export class VKPaymentsService {
           ? UserBoostType.REWARD_DOUBLING
           : UserBoostType.COOLDOWN_HALVING;
 
+      if (!itemTemplate.value) {
+        throw new BadRequestException(
+          'ItemTemplate value is required for REWARD_DOUBLING and COOLDOWN_HALVING types',
+        );
+      }
       const boostHours = parseInt(itemTemplate.value, 10);
       const now = new Date();
 

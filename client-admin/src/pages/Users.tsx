@@ -136,9 +136,8 @@ const Users = () => {
         <thead>
           <tr>
             <th>ID</th>
+            <th>ФИО</th>
             <th>VK ID</th>
-            <th>Имя</th>
-            <th>Фамилия</th>
             <th>Деньги</th>
             <th>Сила</th>
             <th>Количество стражей</th>
@@ -151,9 +150,8 @@ const Users = () => {
           {users.map((user) => (
             <tr key={user.id}>
               <td>{user.id}</td>
+              <td>{`${user.first_name} ${user.last_name || ''}`.trim() || '-'}</td>
               <td>{user.vk_id}</td>
-              <td>{user.first_name}</td>
-              <td>{user.last_name || '-'}</td>
               <td>{user.money}</td>
               <td>{user.strength || 0}</td>
               <td>{user.guards_count ?? '-'}</td>

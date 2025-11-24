@@ -8,7 +8,10 @@ import {
   Body,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -17,7 +20,9 @@ import {
   ApiQuery,
   ApiBody,
   ApiCookieAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { Express } from 'express';
 import { ItemTemplateService } from './item-template.service';
 import { ItemTemplate } from './item-template.entity';
 import { CreateItemTemplateDto } from './dtos/create-item-template.dto';
@@ -61,6 +66,8 @@ export class ItemTemplateController {
   }
 
   @Post()
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Создать новый шаблон предмета' })
   @ApiBody({ type: CreateItemTemplateDto })
   @ApiResponse({
@@ -72,11 +79,14 @@ export class ItemTemplateController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
     @Body() createItemTemplateDto: CreateItemTemplateDto,
+    @UploadedFile() image?: Express.Multer.File,
   ): Promise<ItemTemplate> {
-    return this.itemTemplateService.create(createItemTemplateDto);
+    return this.itemTemplateService.create(createItemTemplateDto, image);
   }
 
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Обновить шаблон предмета' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateItemTemplateDto })
@@ -88,8 +98,9 @@ export class ItemTemplateController {
   async update(
     @Param('id') id: string,
     @Body() updateItemTemplateDto: UpdateItemTemplateDto,
+    @UploadedFile() image?: Express.Multer.File,
   ): Promise<ItemTemplate> {
-    return this.itemTemplateService.update(+id, updateItemTemplateDto);
+    return this.itemTemplateService.update(+id, updateItemTemplateDto, image);
   }
 
   @Delete(':id')

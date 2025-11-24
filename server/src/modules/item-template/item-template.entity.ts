@@ -21,8 +21,11 @@ export class ItemTemplate {
   })
   type: ItemTemplateType;
 
-  @Column({ type: 'varchar' })
-  value: string;
+  @Column({ type: 'varchar', nullable: true })
+  value: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  image_path: string | null;
 
   @CreateDateColumn()
   created_at: Date;

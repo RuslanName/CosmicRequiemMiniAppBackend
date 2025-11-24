@@ -18,9 +18,6 @@ export class ShopItemWithoutTemplate {
   image_path: string;
 
   @ApiProperty()
-  category: string;
-
-  @ApiProperty()
   created_at: Date;
 
   @ApiProperty()

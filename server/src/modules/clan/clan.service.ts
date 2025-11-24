@@ -25,6 +25,7 @@ import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto
 import { UserWithStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanReferralLinkResponseDto } from './dtos/responses/clan-referral-link-response.dto';
+import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
 import { ClanApplicationStatus } from './enums/clan-application.enum';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -94,6 +95,7 @@ export class ClanService {
       transformed.referral_link = `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`;
     }
     delete transformed.referral_link_id;
+    delete transformed.leader_id;
 
     if (clan.members) {
       transformed.money = this.calculateClanMoney(clan.members);
@@ -130,10 +132,14 @@ export class ClanService {
   private transformToClanWithReferralResponseDto(
     clan: Clan,
   ): ClanWithReferralResponseDto {
-    return this.transformClanForResponse(clan, {
+    const transformed = this.transformClanForResponse(clan, {
       includeReferralLink: true,
       includeMembers: false,
     }) as ClanWithReferralResponseDto;
+    
+    delete (transformed as any).leader_id;
+    
+    return transformed;
   }
 
   private transformToUserWithStatsResponseDto(
@@ -392,7 +398,7 @@ export class ClanService {
     );
   }
 
-  async declareWar(userId: number, targetClanId: number): Promise<ClanWar> {
+  async declareWar(userId: number, targetClanId: number): Promise<ClanWarResponseDto> {
     const myClan = await this.getLeaderClan(userId);
 
     if (myClan.id === targetClanId) {
@@ -455,7 +461,14 @@ export class ClanService {
       status: ClanWarStatus.IN_PROGRESS,
     });
 
-    return this.clanWarRepository.save(clanWar);
+    const savedWar = await this.clanWarRepository.save(clanWar);
+    
+    const warWithRelations = await this.clanWarRepository.findOne({
+      where: { id: savedWar.id },
+      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader', 'stolen_items'],
+    });
+    
+    return this.transformClanWarToResponseDto(warWithRelations!);
   }
 
   async getEnemyClanMembers(
@@ -948,15 +961,32 @@ export class ClanService {
     return this.transformToClanWithStatsResponseDto(user.clan);
   }
 
-  async getActiveWars(clanId: number): Promise<ClanWar[]> {
-    return this.clanWarRepository.find({
+  async getActiveWars(clanId: number): Promise<ClanWarResponseDto[]> {
+    const wars = await this.clanWarRepository.find({
       where: [
         { clan_1_id: clanId, status: ClanWarStatus.IN_PROGRESS },
         { clan_2_id: clanId, status: ClanWarStatus.IN_PROGRESS },
       ],
-      relations: ['clan_1', 'clan_2'],
+      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader', 'stolen_items'],
       order: { start_time: 'DESC' },
     });
+    
+    return wars.map((war) => this.transformClanWarToResponseDto(war));
+  }
+  
+  private transformClanWarToResponseDto(war: ClanWar): ClanWarResponseDto {
+    const transformed: any = { ...war };
+    delete transformed.clan_1_id;
+    delete transformed.clan_2_id;
+    
+    if (war.clan_1) {
+      transformed.clan_1 = this.transformToClanWithStatsResponseDto(war.clan_1);
+    }
+    if (war.clan_2) {
+      transformed.clan_2 = this.transformToClanWithStatsResponseDto(war.clan_2);
+    }
+    
+    return transformed as ClanWarResponseDto;
   }
 
   async getEnemyClans(userId: number): Promise<ClanWithStatsResponseDto[]> {
@@ -1054,12 +1084,14 @@ export class ClanService {
     );
   }
 
-  async getAllWars(clanId: number): Promise<ClanWar[]> {
-    return await this.clanWarRepository.find({
+  async getAllWars(clanId: number): Promise<ClanWarResponseDto[]> {
+    const wars = await this.clanWarRepository.find({
       where: [{ clan_1_id: clanId }, { clan_2_id: clanId }],
-      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader'],
+      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader', 'stolen_items'],
       order: { created_at: 'DESC' },
     });
+    
+    return wars.map((war) => this.transformClanWarToResponseDto(war));
   }
 
   async getClanMembers(clanId: number): Promise<UserWithStatsResponseDto[]> {

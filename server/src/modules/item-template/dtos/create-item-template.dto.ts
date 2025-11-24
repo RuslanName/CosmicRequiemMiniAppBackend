@@ -1,4 +1,4 @@
-import { IsString, IsEnum } from 'class-validator';
+import { IsString, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { ItemTemplateType } from '../enums/item-template-type.enum';
 
@@ -15,7 +15,12 @@ export class CreateItemTemplateDto {
   @IsEnum(ItemTemplateType)
   type: ItemTemplateType;
 
-  @ApiProperty({ example: 'red', description: 'Значение продукта' })
+  @ApiProperty({
+    example: '#ff0000',
+    description: 'Значение продукта (необязательно)',
+    required: false,
+  })
+  @IsOptional()
   @IsString()
-  value: string;
+  value?: string;
 }

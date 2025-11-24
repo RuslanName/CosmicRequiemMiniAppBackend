@@ -9,11 +9,8 @@ import {
   Query,
   UseGuards,
   Request,
-  UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
 import { AuthenticatedRequest } from '../../common/types/request.types';
-import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -23,9 +20,7 @@ import {
   ApiBody,
   ApiBearerAuth,
   ApiCookieAuth,
-  ApiConsumes,
 } from '@nestjs/swagger';
-import { Express } from 'express';
 import { ShopItemService } from './shop-item.service';
 import { ShopItem } from './shop-item.entity';
 import { CreateShopItemDto } from './dtos/create-shop-item.dto';
@@ -95,8 +90,6 @@ export class ShopItemController {
   @Post()
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Создать новый товар магазина' })
   @ApiBody({ type: CreateShopItemDto })
   @ApiResponse({
@@ -105,16 +98,13 @@ export class ShopItemController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
     @Body() createShopItemDto: CreateShopItemDto,
-    @UploadedFile() image?: Express.Multer.File,
   ): Promise<ShopItem> {
-    return this.shopItemService.create(createShopItemDto, image);
+    return this.shopItemService.create(createShopItemDto);
   }
 
   @Patch(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Обновить товар магазина' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateShopItemDto })
@@ -126,9 +116,8 @@ export class ShopItemController {
   async update(
     @Param('id') id: string,
     @Body() updateShopItemDto: UpdateShopItemDto,
-    @UploadedFile() image?: Express.Multer.File,
   ): Promise<ShopItem> {
-    return this.shopItemService.update(+id, updateShopItemDto, image);
+    return this.shopItemService.update(+id, updateShopItemDto);
   }
 
   @Delete(':id')

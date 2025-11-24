@@ -23,9 +23,6 @@ export class ClanWithStatsResponseDto {
   @ApiProperty()
   updated_at: Date;
 
-  @ApiProperty({ nullable: true })
-  leader_id: number | null;
-
   @ApiProperty({ type: () => User, required: false })
   leader?: User;
 

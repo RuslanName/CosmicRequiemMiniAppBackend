@@ -159,7 +159,7 @@ const UserGuards = () => {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Имя</th>
+            <th>Название</th>
             <th>Сила</th>
             <th>Первый</th>
             <th>ID пользователя</th>

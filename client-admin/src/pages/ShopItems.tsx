@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { shopItemsApi, type ShopItem, type CreateShopItemDto, type UpdateShopItemDto } from '../api/shop-items.api';
 import { ShopItemStatus, ShopItemStatusLabels, Currency, CurrencyLabels } from '../enums';
+import { ENV } from '../config/constants';
 import Modal from '../components/Modal';
 import ItemTemplateSelect from '../components/ItemTemplateSelect';
 import '../components/Table.css';
@@ -15,7 +16,6 @@ const ShopItems = () => {
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [editingAccessory, setEditingAccessory] = useState<ShopItem | null>(null);
   const [formData, setFormData] = useState<CreateShopItemDto | UpdateShopItemDto>({});
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState<string>('');
   const [searchId, setSearchId] = useState<string>('');
 
@@ -70,7 +70,6 @@ const ShopItems = () => {
     setIsCreateMode(true);
     setEditingAccessory(null);
     setFormData({ name: '', currency: 'virtual', price: 0, item_template_id: 0 });
-    setImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -84,7 +83,6 @@ const ShopItems = () => {
       status: accessory.status,
       item_template_id: accessory.item_template_id,
     });
-    setImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -104,14 +102,13 @@ const ShopItems = () => {
     try {
       setError('');
       if (isCreateMode) {
-        await shopItemsApi.create(formData as CreateShopItemDto, imageFile || undefined);
+        await shopItemsApi.create(formData as CreateShopItemDto);
       } else if (editingAccessory) {
-        await shopItemsApi.update(editingAccessory.id, formData as UpdateShopItemDto, imageFile || undefined);
+        await shopItemsApi.update(editingAccessory.id, formData as UpdateShopItemDto);
       }
       setIsModalOpen(false);
       setEditingAccessory(null);
       setIsCreateMode(false);
-      setImageFile(null);
       loadAccessories();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка сохранения товара магазина');
@@ -123,7 +120,6 @@ const ShopItems = () => {
     setEditingAccessory(null);
     setIsCreateMode(false);
     setFormData({});
-    setImageFile(null);
     setError('');
   };
 
@@ -166,8 +162,8 @@ const ShopItems = () => {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Название</th>
             <th>Изображение</th>
+            <th>Название</th>
             <th>Валюта</th>
             <th>Цена</th>
             <th>Статус</th>
@@ -179,16 +175,18 @@ const ShopItems = () => {
           {accessories.map((accessory) => (
             <tr key={accessory.id}>
               <td>{accessory.id}</td>
-              <td>{accessory.name}</td>
               <td>
-                {accessory.image_path && (
+                {accessory.item_template?.image_path ? (
                   <img 
-                    src={`http://localhost:5000/${accessory.image_path}`} 
+                    src={`${ENV.API_URL}/${accessory.item_template.image_path}`} 
                     alt={accessory.name}
                     style={{ width: '50px', height: '50px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
                   />
+                ) : (
+                  '-'
                 )}
               </td>
+              <td>{accessory.name}</td>
               <td>{CurrencyLabels[accessory.currency as Currency] || accessory.currency}</td>
               <td>{accessory.price}</td>
               <td>{ShopItemStatusLabels[accessory.status as ShopItemStatus] || accessory.status}</td>
@@ -290,24 +288,18 @@ const ShopItems = () => {
             label="Шаблон предмета"
             required={true}
           />
+          {editingAccessory?.item_template?.image_path && (
           <div className="form-group">
-            <label className="form-label">Изображение {isCreateMode ? '(обязательно)' : '(опционально)'}</label>
-            <input
-              className="form-input"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-            />
-            {editingAccessory && editingAccessory.image_path && !imageFile && (
+              <label className="form-label">Изображение из шаблона</label>
               <div style={{ marginTop: '10px' }}>
                 <img 
-                  src={`http://localhost:5000/${editingAccessory.image_path}`} 
+                  src={`${ENV.API_URL}/${editingAccessory.item_template.image_path}`} 
                   alt={editingAccessory.name}
                   style={{ width: '100px', height: '100px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
                 />
               </div>
+              </div>
             )}
-          </div>
           {error && <div className="error-message">{error}</div>}
           <div className="form-actions">
             <button className="btn btn-secondary" onClick={handleClose}>

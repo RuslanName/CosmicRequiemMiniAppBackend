@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserAccessory } from '../../../user-accessory/user-accessory.entity';
+import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/user-accessory-response.dto';
 
 export class UserMeResponseDto {
   @ApiProperty()
@@ -59,8 +59,8 @@ export class UserMeResponseDto {
   @ApiProperty()
   guards_count: number;
 
-  @ApiProperty({ type: [UserAccessory] })
-  equipped_accessories: UserAccessory[];
+  @ApiProperty({ type: [UserAccessoryResponseDto] })
+  equipped_accessories: UserAccessoryResponseDto[];
 
   @ApiProperty({ required: false })
   referral_link?: string;

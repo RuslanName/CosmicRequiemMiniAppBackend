@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { itemTemplatesApi, type ItemTemplate, type CreateItemTemplateDto, type UpdateItemTemplateDto } from '../api/item-templates.api';
 import { ItemTemplateType, ItemTemplateTypeLabels } from '../enums/item-template-type.enum';
-import { Color, ColorLabels } from '../enums/color.enum';
-import { NicknameIcon, NicknameIconLabels } from '../enums/nickname-icon.enum';
-import { AvatarFrame, AvatarFrameLabels } from '../enums/avatar-frame.enum';
+import { ENV } from '../config/constants';
 import Modal from '../components/Modal';
 import '../components/Table.css';
 
@@ -17,6 +15,8 @@ const ItemTemplates = () => {
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [editingItemTemplate, setEditingItemTemplate] = useState<ItemTemplate | null>(null);
   const [formData, setFormData] = useState<CreateItemTemplateDto | UpdateItemTemplateDto>({});
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string>('#ff0000');
   const [error, setError] = useState<string>('');
   const [searchId, setSearchId] = useState<string>('');
 
@@ -70,7 +70,9 @@ const ItemTemplates = () => {
   const handleCreate = () => {
     setIsCreateMode(true);
     setEditingItemTemplate(null);
-    setFormData({ name: '', type: ItemTemplateType.NICKNAME_COLOR, value: '' });
+    setFormData({ name: '', type: ItemTemplateType.NICKNAME_COLOR });
+    setImageFile(null);
+    setSelectedColor('#ff0000');
     setIsModalOpen(true);
   };
 
@@ -80,8 +82,14 @@ const ItemTemplates = () => {
     setFormData({
       name: itemTemplate.name,
       type: itemTemplate.type,
-      value: itemTemplate.value,
+      value: itemTemplate.value || undefined,
     });
+    setImageFile(null);
+    if (itemTemplate.type === ItemTemplateType.NICKNAME_COLOR && itemTemplate.value) {
+      setSelectedColor(itemTemplate.value);
+    } else if (itemTemplate.type === ItemTemplateType.NICKNAME_COLOR) {
+      setSelectedColor('#ff0000');
+    }
     setIsModalOpen(true);
   };
 
@@ -100,14 +108,36 @@ const ItemTemplates = () => {
   const handleSave = async () => {
     try {
       setError('');
+      const dataToSave = { ...formData };
+      
+      if ((formData as any).type === ItemTemplateType.NICKNAME_COLOR) {
+        if (selectedColor) {
+          dataToSave.value = selectedColor;
+        } else {
+          dataToSave.value = undefined;
+        }
+      }
+      
+      if ((formData as any).type === ItemTemplateType.NICKNAME_ICON || 
+          (formData as any).type === ItemTemplateType.AVATAR_FRAME) {
+        dataToSave.value = undefined;
+      }
+      
+      const shouldSendImage = ![
+        ItemTemplateType.NICKNAME_COLOR,
+        ItemTemplateType.REWARD_DOUBLING,
+        ItemTemplateType.COOLDOWN_HALVING
+      ].includes((formData as any).type);
+      
       if (isCreateMode) {
-        await itemTemplatesApi.create(formData as CreateItemTemplateDto);
+        await itemTemplatesApi.create(dataToSave as CreateItemTemplateDto, shouldSendImage ? (imageFile || undefined) : undefined);
       } else if (editingItemTemplate) {
-        await itemTemplatesApi.update(editingItemTemplate.id, formData as UpdateItemTemplateDto);
+        await itemTemplatesApi.update(editingItemTemplate.id, dataToSave as UpdateItemTemplateDto, shouldSendImage ? (imageFile || undefined) : undefined);
       }
       setIsModalOpen(false);
       setEditingItemTemplate(null);
       setIsCreateMode(false);
+      setImageFile(null);
       loadItemTemplates();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка сохранения шаблона');
@@ -119,6 +149,8 @@ const ItemTemplates = () => {
     setEditingItemTemplate(null);
     setIsCreateMode(false);
     setFormData({});
+    setImageFile(null);
+    setSelectedColor('#ff0000');
     setError('');
   };
 
@@ -161,6 +193,7 @@ const ItemTemplates = () => {
         <thead>
           <tr>
             <th>ID</th>
+            <th>Изображение</th>
             <th>Название</th>
             <th>Тип</th>
             <th>Значение</th>
@@ -169,25 +202,18 @@ const ItemTemplates = () => {
         </thead>
         <tbody>
           {itemTemplates.map((itemTemplate) => {
-            let displayValue = itemTemplate.value;
+            let displayValue = itemTemplate.value || '-';
             let colorPreview = null;
             
-            if (itemTemplate.type === ItemTemplateType.NICKNAME_COLOR) {
-              displayValue = ColorLabels[itemTemplate.value as Color] || itemTemplate.value;
-              const colorMap: Record<string, string> = {
-                'red': '#ff0000',
-                'blue': '#0000ff',
-                'green': '#00ff00',
-                'colorful': 'linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff)',
-              };
-              const bgColor = colorMap[itemTemplate.value] || itemTemplate.value;
+            if (itemTemplate.type === ItemTemplateType.NICKNAME_COLOR && itemTemplate.value) {
+              displayValue = itemTemplate.value;
               colorPreview = (
                 <span 
                   style={{ 
                     display: 'inline-block', 
                     width: '20px', 
                     height: '20px', 
-                    background: bgColor,
+                    background: itemTemplate.value,
                     border: '1px solid #ccc',
                     borderRadius: '4px',
                     marginRight: '8px',
@@ -195,15 +221,22 @@ const ItemTemplates = () => {
                   }}
                 />
               );
-            } else if (itemTemplate.type === ItemTemplateType.NICKNAME_ICON) {
-              displayValue = NicknameIconLabels[itemTemplate.value as NicknameIcon] || itemTemplate.value;
-            } else if (itemTemplate.type === ItemTemplateType.AVATAR_FRAME) {
-              displayValue = AvatarFrameLabels[itemTemplate.value as AvatarFrame] || itemTemplate.value;
             }
 
             return (
               <tr key={itemTemplate.id}>
                 <td>{itemTemplate.id}</td>
+                <td>
+                  {itemTemplate.image_path ? (
+                    <img 
+                      src={`${ENV.API_URL}/${itemTemplate.image_path}`} 
+                      alt={itemTemplate.name}
+                      style={{ width: '50px', height: '50px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
+                    />
+                  ) : (
+                    '-'
+                  )}
+                </td>
                 <td>{itemTemplate.name}</td>
                 <td>{ItemTemplateTypeLabels[itemTemplate.type as ItemTemplateType] || itemTemplate.type}</td>
                 <td>
@@ -270,7 +303,13 @@ const ItemTemplates = () => {
             <select
               className="form-select"
               value={(formData as any).type || ItemTemplateType.NICKNAME_COLOR}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value, value: '' })}
+              onChange={(e) => {
+                const newType = e.target.value;
+                setFormData({ ...formData, type: newType, value: undefined });
+                if (newType !== ItemTemplateType.NICKNAME_COLOR) {
+                  setSelectedColor('#ff0000');
+                }
+              }}
             >
               {Object.values(ItemTemplateType).map((type) => (
                 <option key={type} value={type}>
@@ -279,47 +318,35 @@ const ItemTemplates = () => {
               ))}
             </select>
           </div>
+          {((formData as any).type !== ItemTemplateType.NICKNAME_ICON && 
+            (formData as any).type !== ItemTemplateType.AVATAR_FRAME) && (
           <div className="form-group">
-            <label className="form-label">Значение</label>
+              <label className="form-label">Значение {(formData as any).type === ItemTemplateType.NICKNAME_COLOR ? '(необязательно)' : ''}</label>
             {(formData as any).type === ItemTemplateType.NICKNAME_COLOR ? (
-              <select
-                className="form-select"
-                value={(formData as any).value || ''}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              >
-                <option value="">-- Выберите цвет --</option>
-                {Object.values(Color).map((color) => (
-                  <option key={color} value={color}>
-                    {ColorLabels[color]}
-                  </option>
-                ))}
-              </select>
-            ) : (formData as any).type === ItemTemplateType.NICKNAME_ICON ? (
-              <select
-                className="form-select"
-                value={(formData as any).value || ''}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              >
-                <option value="">-- Выберите иконку --</option>
-                {Object.values(NicknameIcon).map((icon) => (
-                  <option key={icon} value={icon}>
-                    {NicknameIconLabels[icon]}
-                  </option>
-                ))}
-              </select>
-            ) : (formData as any).type === ItemTemplateType.AVATAR_FRAME ? (
-              <select
-                className="form-select"
-                value={(formData as any).value || ''}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              >
-                <option value="">-- Выберите рамку --</option>
-                {Object.values(AvatarFrame).map((frame) => (
-                  <option key={frame} value={frame}>
-                    {AvatarFrameLabels[frame]}
-                  </option>
-                ))}
-              </select>
+                <div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                    <input
+                      type="color"
+                      value={selectedColor}
+                      onChange={(e) => setSelectedColor(e.target.value)}
+                      style={{ width: '50px', height: '40px', cursor: 'pointer' }}
+                    />
+                    <input
+                      className="form-input"
+                      type="text"
+                      value={selectedColor}
+                      onChange={(e) => {
+                        const color = e.target.value;
+                        setSelectedColor(color);
+                      }}
+                      placeholder="#ff0000"
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    Выберите цвет из палитры или введите hex-код цвета
+                  </div>
+                </div>
             ) : (
               <input
                 className="form-input"
@@ -330,6 +357,29 @@ const ItemTemplates = () => {
               />
             )}
           </div>
+          )}
+          {((formData as any).type !== ItemTemplateType.NICKNAME_COLOR && 
+            (formData as any).type !== ItemTemplateType.REWARD_DOUBLING && 
+            (formData as any).type !== ItemTemplateType.COOLDOWN_HALVING) && (
+            <div className="form-group">
+              <label className="form-label">Изображение (необязательно)</label>
+              <input
+                className="form-input"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              />
+              {editingItemTemplate && editingItemTemplate.image_path && !imageFile && (
+                <div style={{ marginTop: '10px' }}>
+                  <img 
+                    src={`${ENV.API_URL}/${editingItemTemplate.image_path}`} 
+                    alt={editingItemTemplate.name}
+                    style={{ width: '100px', height: '100px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {error && <div className="error-message">{error}</div>}
           <div className="form-actions">
             <button className="btn btn-secondary" onClick={handleClose}>

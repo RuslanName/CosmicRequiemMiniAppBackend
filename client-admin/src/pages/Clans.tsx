@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { clansApi, type Clan, type CreateClanDto, type UpdateClanDto } from '../api/clans.api';
 import { ClanStatus, ClanStatusLabels } from '../enums';
+import { ENV } from '../config/constants';
 import Modal from '../components/Modal';
 import UserSelect from '../components/UserSelect';
 import '../components/Table.css';
@@ -165,8 +166,8 @@ const Clans = () => {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Название</th>
             <th>Изображение</th>
+            <th>Название</th>
             <th>Макс. участников</th>
             <th>ID лидера</th>
             <th>Деньги</th>
@@ -182,16 +183,18 @@ const Clans = () => {
           {clans.map((clan) => (
             <tr key={clan.id}>
               <td>{clan.id}</td>
-              <td>{clan.name}</td>
               <td>
-                {clan.image_path && (
+                {clan.image_path ? (
                   <img 
-                    src={`http://localhost:5000/${clan.image_path}`} 
+                    src={`${ENV.API_URL}/${clan.image_path}`} 
                     alt={clan.name}
                     style={{ width: '50px', height: '50px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
                   />
+                ) : (
+                  '-'
                 )}
               </td>
+              <td>{clan.name}</td>
               <td>{clan.max_members}</td>
               <td>{clan.leader_id || '-'}</td>
               <td>{clan.money ?? '-'}</td>
@@ -291,6 +294,15 @@ const Clans = () => {
               accept="image/*"
               onChange={(e) => setImageFile(e.target.files?.[0] || null)}
             />
+            {editingClan && editingClan.image_path && !imageFile && (
+              <div style={{ marginTop: '10px' }}>
+                <img 
+                  src={`${ENV.API_URL}/${editingClan.image_path}`} 
+                  alt={editingClan.name}
+                  style={{ width: '100px', height: '100px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+            )}
           </div>
           {error && <div className="error-message">{error}</div>}
           <div className="form-actions">

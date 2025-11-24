@@ -27,8 +27,10 @@ import { UserWithBasicStatsResponseDto } from './dtos/responses/user-with-basic-
 import { UserMeResponseDto } from './dtos/responses/user-me-response.dto';
 import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
 import { TrainingResponseDto } from './dtos/responses/training-response.dto';
+import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
 import { ContractResponseDto } from './dtos/responses/contract-response.dto';
 import { InventoryResponseDto } from './dtos/responses/inventory-response.dto';
+import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
 import { AttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
 
 @Injectable()
@@ -67,7 +69,7 @@ export class UserService {
 
   private transformToUserMeResponseDto(
     user: User,
-    equippedAccessories: UserAccessory[],
+    equippedAccessories: any[],
     trainingCost: number,
     contractIncome: number,
   ): UserMeResponseDto {
@@ -167,7 +169,7 @@ export class UserService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.userRepository.findAndCount({
-      relations: ['clan', 'guards'],
+      relations: ['guards'],
       skip,
       take: limit,
     });
@@ -193,7 +195,7 @@ export class UserService {
   > {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['clan', 'guards'],
+      relations: ['guards'],
     });
 
     if (!user) {
@@ -212,7 +214,7 @@ export class UserService {
   async findMe(userId: number): Promise<UserMeResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan', 'guards'],
+      relations: ['guards'],
     });
 
     if (!user) {
@@ -237,7 +239,7 @@ export class UserService {
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['clan', 'guards'],
+      relations: ['guards'],
     });
 
     if (!user) {
@@ -482,11 +484,11 @@ export class UserService {
     return this.userBoostService.findByUserId(userId);
   }
 
-  async getUserAccessories(userId: number): Promise<UserAccessory[]> {
+  async getUserAccessories(userId: number) {
     return this.userAccessoryService.findByUserId(userId);
   }
 
-  async getUserGuards(userId: number): Promise<UserGuard[]> {
+  async getUserGuards(userId: number): Promise<UserGuardResponseDto[]> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -496,7 +498,13 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    return user.guards || [];
+    const guards = user.guards || [];
+    return guards.map((guard) => {
+      const transformed: any = { ...guard };
+      delete transformed.user_id;
+      delete transformed.user;
+      return transformed as UserGuardResponseDto;
+    });
   }
 
   async getInventory(userId: number): Promise<InventoryResponseDto> {
@@ -505,8 +513,15 @@ export class UserService {
       this.getUserAccessories(userId),
     ]);
 
+    const boostsWithoutUser: UserBoostResponseDto[] = boosts.map((boost) => ({
+      id: boost.id,
+      type: boost.type,
+      end_time: boost.end_time,
+      created_at: boost.created_at,
+    }));
+
     return {
-      boosts,
+      boosts: boostsWithoutUser,
       accessories,
     };
   }
@@ -885,7 +900,7 @@ export class UserService {
           }
         }
 
-        let opponentEquippedAccessories: UserAccessory[] | null = null;
+        let opponentEquippedAccessories: any[] | null = null;
         if (event.opponent?.id) {
           opponentEquippedAccessories =
             await this.userAccessoryService.findEquippedByUserId(

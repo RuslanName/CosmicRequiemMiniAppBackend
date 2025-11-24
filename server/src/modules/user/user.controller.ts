@@ -30,13 +30,13 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
-import { UserGuard } from '../user-guard/user-guard.entity';
 import { EquipAccessoryDto } from '../user-accessory/dtos/equip-accessory.dto';
 import { AttackPlayerDto } from './dtos/attack-player.dto';
 import { ActivateShieldDto } from './dtos/activate-shield.dto';
 import { UserWithBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
 import { UserMeResponseDto } from './dtos/responses/user-me-response.dto';
 import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
+import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
 import { TrainingResponseDto } from './dtos/responses/training-response.dto';
 import { ContractResponseDto } from './dtos/responses/contract-response.dto';
 import { AttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
@@ -257,7 +257,7 @@ export class UserController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async getMyGuards(
     @Request() req: AuthenticatedRequest,
-  ): Promise<UserGuard[]> {
+  ): Promise<UserGuardResponseDto[]> {
     return this.userService.getUserGuards(req.user.id);
   }
 
