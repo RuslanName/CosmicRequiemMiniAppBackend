@@ -8,11 +8,11 @@ if [ -f /etc/nginx/templates/default.conf.template ]; then
     envsubst '${NGINX_BASE_DOMAIN} ${NGINX_SERVER_PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 fi
 
+MAIN_CERT="/etc/letsencrypt/live/${NGINX_BASE_DOMAIN}/fullchain.pem"
 API_CERT="/etc/letsencrypt/live/api.${NGINX_BASE_DOMAIN}/fullchain.pem"
 ADMIN_CERT="/etc/letsencrypt/live/admin.${NGINX_BASE_DOMAIN}/fullchain.pem"
-MAIN_CERT="/etc/letsencrypt/live/${NGINX_BASE_DOMAIN}/fullchain.pem"
 
-if [ -f "$API_CERT" ] && [ -f "$ADMIN_CERT" ] && [ -f "$MAIN_CERT" ]; then
+if [ -f "$MAIN_CERT" ]; then
     if [ -f /etc/nginx/templates/ssl.conf.template ]; then
         echo "SSL certificates found. Generating SSL configuration and enabling HTTPS redirects..."
         envsubst '${NGINX_BASE_DOMAIN} ${NGINX_SERVER_PORT}' < /etc/nginx/templates/ssl.conf.template > /etc/nginx/conf.d/ssl.conf

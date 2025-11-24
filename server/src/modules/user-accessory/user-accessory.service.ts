@@ -26,7 +26,7 @@ export class UserAccessoryService {
   async findByUserId(userId: number): Promise<UserAccessory[]> {
     return this.userAccessoryRepository.find({
       where: { user: { id: userId } },
-      relations: ['item_template', 'shop_item'],
+      relations: ['item_template'],
       order: { created_at: 'DESC' },
     });
   }
@@ -37,7 +37,7 @@ export class UserAccessoryService {
         user: { id: userId },
         status: UserAccessoryStatus.EQUIPPED,
       },
-      relations: ['item_template', 'shop_item'],
+      relations: ['item_template'],
     });
   }
 
