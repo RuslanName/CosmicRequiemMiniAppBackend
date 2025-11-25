@@ -28,7 +28,7 @@ export class VKPaymentsController {
   @Get('callback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Колбек для обработки платёжных уведомлений от VK (GET)',
+    summary: 'Get колбек для обработки платёжных уведомлений от VK',
     description:
       'Обрабатывает уведомления get_item, get_item_test и order_status_change от платформы ВКонтакте. Эндпоинт не требует токена аутентификации, так как VK отправляет запросы напрямую.',
   })
@@ -71,7 +71,7 @@ export class VKPaymentsController {
   @Post('callback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Колбек для обработки платёжных уведомлений от VK (POST)',
+    summary: 'Post колбек для обработки платёжных уведомлений от VK',
     description:
       'Обрабатывает уведомления get_item, get_item_test и order_status_change от платформы ВКонтакте. Эндпоинт не требует токена аутентификации, так как VK отправляет запросы напрямую.',
   })
@@ -104,8 +104,11 @@ export class VKPaymentsController {
         item_price: body.item_price ? Number(body.item_price) : undefined,
         sig: body.sig,
       };
-      
-      return await this.vkPaymentsService.handleNotification(notification, body);
+
+      return await this.vkPaymentsService.handleNotification(
+        notification,
+        body,
+      );
     } catch (error) {
       throw error;
     }
@@ -113,7 +116,10 @@ export class VKPaymentsController {
 
   private parseQueryToNotification(query: any): VKNotificationDto {
     const itemId = query.item_id || query.item || undefined;
-    const finalItemId = itemId && typeof itemId === 'string' && itemId.trim() !== '' ? itemId.trim() : (itemId || undefined);
+    const finalItemId =
+      itemId && typeof itemId === 'string' && itemId.trim() !== ''
+        ? itemId.trim()
+        : itemId || undefined;
 
     return {
       notification_type: query.notification_type,

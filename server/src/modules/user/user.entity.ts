@@ -12,6 +12,7 @@ import { Clan } from '../clan/entities/clan.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
+import { UserTask } from '../task/entities/user-task.entity';
 
 @Entity()
 export class User {
@@ -82,6 +83,9 @@ export class User {
 
   @OneToMany(() => UserAccessory, (userAccessory) => userAccessory.user)
   accessories?: UserAccessory[];
+
+  @OneToMany(() => UserTask, (userTask) => userTask.user)
+  tasks?: UserTask[];
 
   @ManyToOne(() => User, (user) => user.referrals, {
     nullable: true,

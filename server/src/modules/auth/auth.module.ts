@@ -14,10 +14,12 @@ import { ClanApplication } from '../clan/entities/clan-application.entity';
 import { ENV } from '../../config/constants';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
+import { TaskModule } from '../task/task.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserGuard, Admin, Clan, ClanApplication]),
+    TaskModule,
     PassportModule,
     JwtModule.register({
       secret: ENV.JWT_SECRET,

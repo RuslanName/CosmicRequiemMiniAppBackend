@@ -11,7 +11,11 @@ export class VKNotificationDto {
   @IsString()
   item_id?: string;
 
-  @ApiProperty({ required: false, description: 'Альтернативное поле для item_id (VK может отправлять item вместо item_id)' })
+  @ApiProperty({
+    required: false,
+    description:
+      'Альтернативное поле для item_id (VK может отправлять item вместо item_id)',
+  })
   @IsOptional()
   @IsString()
   item?: string;

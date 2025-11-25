@@ -29,9 +29,20 @@ import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto
 import { TrainingResponseDto } from './dtos/responses/training-response.dto';
 import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
 import { ContractResponseDto } from './dtos/responses/contract-response.dto';
-import { InventoryResponseDto } from './dtos/responses/inventory-response.dto';
+import {
+  InventoryResponseDto,
+  AccessoriesCategoryResponseDto,
+} from './dtos/responses/inventory-response.dto';
 import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
+import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-response.dto';
 import { AttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
+import { UserTaskService } from '../task/services/user-task.service';
+import { TaskType } from '../task/enums/task-type.enum';
+import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
+import {
+  UserTaskResponseDto,
+  TaskResponseDto,
+} from '../task/dtos/user-task-response.dto';
 
 @Injectable()
 export class UserService {
@@ -45,6 +56,7 @@ export class UserService {
     private readonly userBoostService: UserBoostService,
     private readonly userAccessoryService: UserAccessoryService,
     private readonly eventHistoryService: EventHistoryService,
+    private readonly userTaskService: UserTaskService,
   ) {}
 
   private calculateUserPower(guards: UserGuard[]): number {
@@ -341,6 +353,11 @@ export class UserService {
 
     await this.userRepository.save(user);
 
+    await this.userTaskService.updateTaskProgress(
+      userId,
+      TaskType.COMPLETE_TRAINING,
+    );
+
     const updatedUser = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -436,6 +453,11 @@ export class UserService {
     user.last_contract_time = new Date();
 
     await this.userRepository.save(user);
+
+    await this.userTaskService.updateTaskProgress(
+      userId,
+      TaskType.COMPLETE_CONTRACT,
+    );
 
     const contractCooldownEnd = new Date(
       new Date().getTime() + contractCooldown,
@@ -562,7 +584,7 @@ export class UserService {
 
   async getInventory(
     userId: number,
-    paginationDto?: PaginationDto,
+    queryParams?: any,
   ): Promise<InventoryResponseDto> {
     const [boosts, allAccessories] = await Promise.all([
       this.getUserBoosts(userId),
@@ -576,15 +598,38 @@ export class UserService {
       created_at: boost.created_at,
     }));
 
-    if (paginationDto) {
-      const { page = 1, limit = 10 } = paginationDto;
-      const skip = (page - 1) * limit;
-      const total = allAccessories.length;
-      const accessories = allAccessories.slice(skip, skip + limit);
+    const categoriesData: Record<string, UserAccessoryResponseDto[]> = {};
 
-      return {
-        boosts: boostsWithoutUser,
-        accessories,
+    for (const accessory of allAccessories) {
+      const category = accessory.type || 'other';
+
+      if (!categoriesData[category]) {
+        categoriesData[category] = [];
+      }
+
+      categoriesData[category].push(accessory);
+    }
+
+    const defaultPage = queryParams?.page ? Number(queryParams.page) : 1;
+    const defaultLimit = queryParams?.limit ? Number(queryParams.limit) : 10;
+
+    const accessories: Record<string, AccessoriesCategoryResponseDto> = {};
+
+    for (const [categoryName, items] of Object.entries(categoriesData)) {
+      const categoryPageParam = queryParams?.[`${categoryName}_page`];
+      const categoryLimitParam = queryParams?.[`${categoryName}_limit`];
+
+      const page = categoryPageParam ? Number(categoryPageParam) : defaultPage;
+      const limit = categoryLimitParam
+        ? Number(categoryLimitParam)
+        : defaultLimit;
+
+      const total = items.length;
+      const skip = (page - 1) * limit;
+      const paginatedItems = items.slice(skip, skip + limit);
+
+      accessories[categoryName] = {
+        data: paginatedItems,
         total,
         page,
         limit,
@@ -593,8 +638,82 @@ export class UserService {
 
     return {
       boosts: boostsWithoutUser,
-      accessories: allAccessories,
+      accessories,
     };
+  }
+
+  async getUserTasks(userId: number): Promise<UserTasksResponseDto> {
+    await this.userTaskService.initializeTasksForUser(userId);
+
+    const userTasks = await this.userTaskService.getUserTasks(userId);
+
+    const tasks: UserTaskResponseDto[] = userTasks.map((userTask) => ({
+      id: userTask.id,
+      progress: userTask.progress,
+      status: userTask.status,
+      task: {
+        id: userTask.task.id,
+        description: userTask.task.description,
+        type: userTask.task.type,
+        value: userTask.task.value,
+        money_reward: Number(userTask.task.money_reward),
+      },
+      created_at: userTask.created_at,
+      updated_at: userTask.updated_at,
+    }));
+
+    return { tasks };
+  }
+
+  async checkCommunitySubscribe(
+    userId: number,
+    communityId: string,
+  ): Promise<{ subscribed: boolean }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    try {
+      const vkApiUrl = `https://api.vk.com/method/groups.isMember`;
+      const vkApiParams = new URLSearchParams({
+        group_id: communityId.replace(/^-/, ''),
+        user_id: user.vk_id.toString(),
+        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
+        v: '5.131',
+      });
+
+      const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
+      const data = await response.json();
+
+      let isSubscribed = false;
+
+      if (data.response === 1) {
+        isSubscribed = true;
+      } else if (
+        Array.isArray(data.response) &&
+        data.response[0]?.member === 1
+      ) {
+        isSubscribed = true;
+      } else if (data.response?.member === 1) {
+        isSubscribed = true;
+      }
+
+      if (isSubscribed) {
+        await this.userTaskService.updateTaskProgress(
+          userId,
+          TaskType.COMMUNITY_SUBSCRIBE,
+        );
+      }
+
+      return { subscribed: isSubscribed };
+    } catch (error) {
+      console.error('Error checking community subscription:', error);
+      return { subscribed: false };
+    }
   }
 
   async equipAccessory(

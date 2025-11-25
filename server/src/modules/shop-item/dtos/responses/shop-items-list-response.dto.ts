@@ -31,7 +31,21 @@ export class ShopItemWithoutTemplate {
   updated_at: Date;
 }
 
-export class ShopItemsListResponseDto {
+export class ShopItemsCategoryResponseDto {
   @ApiProperty({ type: [ShopItemWithoutTemplate] })
-  categories: Record<string, ShopItemWithoutTemplate[]>;
+  data: ShopItemWithoutTemplate[];
+
+  @ApiProperty()
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
+}
+
+export class ShopItemsListResponseDto {
+  @ApiProperty({ type: ShopItemsCategoryResponseDto })
+  categories: Record<string, ShopItemsCategoryResponseDto>;
 }

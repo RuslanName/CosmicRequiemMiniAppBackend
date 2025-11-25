@@ -18,6 +18,8 @@ import { ItemTemplateModule } from './item-template/item-template.module';
 import { AdminModule } from './admin/admin.module';
 import { UserBoostModule } from './user-boost/user-boost.module';
 import { VKPaymentsModule } from './vk-payments/vk-payments.module';
+import { TaskModule } from './task/task.module';
+import { GiveawayModule } from './giveaway/giveaway.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -54,6 +56,8 @@ import { AppController } from './app.controller';
     UserGuardModule,
     UserBoostModule,
     VKPaymentsModule,
+    TaskModule,
+    GiveawayModule,
   ],
   controllers: [AppController],
 })

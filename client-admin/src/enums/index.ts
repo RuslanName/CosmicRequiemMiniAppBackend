@@ -7,4 +7,5 @@ export * from './item-template-type.enum';
 export * from './color.enum';
 export * from './nickname-icon.enum';
 export * from './avatar-frame.enum';
+export * from './task-type.enum';
 

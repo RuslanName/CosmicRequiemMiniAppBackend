@@ -12,6 +12,8 @@ import { AuthDto } from '../dtos/auth.dto';
 import { ENV } from '../../../config/constants';
 import { Settings } from '../../../config/setting.config';
 import { SettingKey } from '../../setting/enums/setting-key.enum';
+import { UserTaskService } from '../../task/services/user-task.service';
+import { TaskType } from '../../task/enums/task-type.enum';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +27,7 @@ export class AuthService {
     private readonly clanRepository: Repository<Clan>,
     @InjectRepository(ClanApplication)
     private readonly clanApplicationRepository: Repository<ClanApplication>,
+    private readonly userTaskService: UserTaskService,
   ) {}
 
   async validateAuth(dto: AuthDto): Promise<string> {
@@ -82,12 +85,19 @@ export class AuthService {
       });
       await this.userGuardRepository.save(firstGuard);
 
+      await this.userTaskService.initializeTasksForUser(dbUser.id);
+
       if (referrerUser) {
         const referrerReward = Settings[
           SettingKey.REFERRER_MONEY_REWARD
         ] as number;
         referrerUser.money = Number(referrerUser.money) + referrerReward;
         await this.userRepository.save(referrerUser);
+
+        await this.userTaskService.updateTaskProgress(
+          referrerUser.id,
+          TaskType.FRIEND_INVITE,
+        );
       }
     } else {
       dbUser.first_name = user.first_name;
@@ -107,9 +117,17 @@ export class AuthService {
 
       if (!dbUser.referrer && referrerUser) {
         dbUser.referrer = referrerUser;
+        await this.userRepository.save(dbUser);
+
+        await this.userTaskService.updateTaskProgress(
+          referrerUser.id,
+          TaskType.FRIEND_INVITE,
+        );
+      } else {
+        await this.userRepository.save(dbUser);
       }
 
-      await this.userRepository.save(dbUser);
+      await this.userTaskService.initializeTasksForUser(dbUser.id);
     }
 
     if (targetClan) {

@@ -8,6 +8,7 @@ import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { UserBoostModule } from '../user-boost/user-boost.module';
 import { UserAccessoryModule } from '../user-accessory/user-accessory.module';
 import { EventHistoryModule } from '../event-history/event-history.module';
+import { TaskModule } from '../task/task.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { EventHistoryModule } from '../event-history/event-history.module';
     UserBoostModule,
     UserAccessoryModule,
     EventHistoryModule,
+    TaskModule,
   ],
   controllers: [UserController],
   providers: [UserService],

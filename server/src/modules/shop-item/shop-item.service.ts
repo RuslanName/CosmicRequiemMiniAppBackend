@@ -13,6 +13,7 @@ import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import {
   ShopItemsListResponseDto,
   ShopItemWithoutTemplate,
+  ShopItemsCategoryResponseDto,
 } from './dtos/responses/shop-items-list-response.dto';
 import { ShopItemPurchaseResponseDto } from './dtos/responses/shop-item-purchase-response.dto';
 import { ItemTemplate } from '../item-template/item-template.entity';
@@ -66,23 +67,23 @@ export class ShopItemService {
     };
   }
 
-  async findAvailable(): Promise<ShopItemsListResponseDto> {
+  async findAvailable(queryParams?: any): Promise<ShopItemsListResponseDto> {
     const shopItems = await this.shopItemRepository.find({
       where: { status: ShopItemStatus.IN_STOCK },
       relations: ['item_template'],
       order: { created_at: 'DESC' },
     });
 
-    const categories: Record<string, ShopItemWithoutTemplate[]> = {};
+    const categoriesData: Record<string, ShopItemWithoutTemplate[]> = {};
 
     for (const item of shopItems) {
       const category = item.item_template?.type || 'other';
 
-      if (!categories[category]) {
-        categories[category] = [];
+      if (!categoriesData[category]) {
+        categoriesData[category] = [];
       }
 
-      categories[category].push({
+      categoriesData[category].push({
         id: item.id,
         name: item.name,
         description: item.item_template?.name || '',
@@ -93,6 +94,34 @@ export class ShopItemService {
         created_at: item.created_at,
         updated_at: item.updated_at,
       });
+    }
+
+    // Общие параметры пагинации (по умолчанию)
+    const defaultPage = queryParams?.page ? Number(queryParams.page) : 1;
+    const defaultLimit = queryParams?.limit ? Number(queryParams.limit) : 10;
+
+    const categories: Record<string, ShopItemsCategoryResponseDto> = {};
+
+    for (const [categoryName, items] of Object.entries(categoriesData)) {
+      // Параметры пагинации для конкретной категории
+      const categoryPageParam = queryParams?.[`${categoryName}_page`];
+      const categoryLimitParam = queryParams?.[`${categoryName}_limit`];
+
+      const page = categoryPageParam ? Number(categoryPageParam) : defaultPage;
+      const limit = categoryLimitParam
+        ? Number(categoryLimitParam)
+        : defaultLimit;
+
+      const total = items.length;
+      const skip = (page - 1) * limit;
+      const paginatedItems = items.slice(skip, skip + limit);
+
+      categories[categoryName] = {
+        data: paginatedItems,
+        total,
+        page,
+        limit,
+      };
     }
 
     return { categories };

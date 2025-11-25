@@ -18,8 +18,10 @@ const Layout = () => {
     { path: '/item-templates', label: 'Шаблоны предметов' },
     { path: '/shop-items', label: 'Товары магазина' },
     { path: '/kits', label: 'Наборы' },
-    { path: '/admins', label: 'Администраторы' },
+    { path: '/tasks', label: 'Задания' },
+    { path: '/giveaway', label: 'Конкурс' },
     { path: '/settings', label: 'Настройки' },
+    { path: '/admins', label: 'Администраторы' },
   ];
 
   useEffect(() => {
@@ -83,16 +85,98 @@ const Layout = () => {
           <h1 className="sidebar-title">Admin панель</h1>
         </div>
         <nav className="sidebar-nav">
-          {menuItems.map((item) => (
+          <div className="nav-section">
+            <div className="nav-section-title">Пользователи</div>
             <Link
-              key={item.path}
-              to={item.path}
-              className={`sidebar-link ${location.pathname === item.path ? 'active' : ''}`}
+              to="/users"
+              className={`sidebar-link ${location.pathname === '/users' ? 'active' : ''}`}
               onClick={handleLinkClick}
             >
-              {item.label}
+              Пользователи
             </Link>
-          ))}
+            <Link
+              to="/user-guards"
+              className={`sidebar-link ${location.pathname === '/user-guards' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Стражи пользователей
+            </Link>
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-title">Кланы</div>
+            <Link
+              to="/clans"
+              className={`sidebar-link ${location.pathname === '/clans' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Кланы
+            </Link>
+            <Link
+              to="/clan-wars"
+              className={`sidebar-link ${location.pathname === '/clan-wars' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Клановые войны
+            </Link>
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-title">Магазин</div>
+            <Link
+              to="/item-templates"
+              className={`sidebar-link ${location.pathname === '/item-templates' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Шаблоны предметов
+            </Link>
+            <Link
+              to="/shop-items"
+              className={`sidebar-link ${location.pathname === '/shop-items' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Товары магазина
+            </Link>
+            <Link
+              to="/kits"
+              className={`sidebar-link ${location.pathname === '/kits' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Наборы
+            </Link>
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-title">Задания</div>
+            <Link
+              to="/tasks"
+              className={`sidebar-link ${location.pathname === '/tasks' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Задания
+            </Link>
+            <Link
+              to="/giveaway"
+              className={`sidebar-link ${location.pathname === '/giveaway' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Конкурс
+            </Link>
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-title">Система</div>
+            <Link
+              to="/settings"
+              className={`sidebar-link ${location.pathname === '/settings' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Настройки
+            </Link>
+            <Link
+              to="/admins"
+              className={`sidebar-link ${location.pathname === '/admins' ? 'active' : ''}`}
+              onClick={handleLinkClick}
+            >
+              Администраторы
+            </Link>
+          </div>
         </nav>
         <button className="logout-btn" onClick={handleLogout}>
           Выйти

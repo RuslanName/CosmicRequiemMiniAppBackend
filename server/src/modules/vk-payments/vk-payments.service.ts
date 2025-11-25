@@ -45,8 +45,9 @@ export class VKPaymentsService {
     notification: VKNotificationDto,
     originalQuery?: any,
   ): Promise<any> {
-    const isTestMode = notification.notification_type?.endsWith('_test') || false;
-    
+    const isTestMode =
+      notification.notification_type?.endsWith('_test') || false;
+
     if (!notification.item_id) {
       if (notification.item) {
         notification.item_id = notification.item;
@@ -54,7 +55,7 @@ export class VKPaymentsService {
         notification.item_id = originalQuery.item_id || originalQuery.item;
       }
     }
-    
+
     if (!isTestMode && !this.verifySignature(notification, originalQuery)) {
       throw new UnauthorizedException('Invalid VK signature');
     }

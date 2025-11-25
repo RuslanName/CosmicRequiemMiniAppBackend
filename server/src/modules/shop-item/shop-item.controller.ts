@@ -63,14 +63,45 @@ export class ShopItemController {
   @CacheKey('shop-item:public-list')
   @ApiOperation({
     summary: 'Получить список доступных товаров по категориям (Для Mini App)',
+    description:
+      'Пагинация: используйте `page` и `limit` для всех категорий, или `{category}_page` и `{category}_limit` для конкретной категории (например: `guard_page=1&guard_limit=10`)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    example: 1,
+    description: 'Общий номер страницы для всех категорий',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 10,
+    description: 'Общий лимит для всех категорий',
+  })
+  @ApiQuery({
+    name: '{category}_page',
+    required: false,
+    type: Number,
+    description:
+      'Номер страницы для конкретной категории (например: guard_page=1)',
+  })
+  @ApiQuery({
+    name: '{category}_limit',
+    required: false,
+    type: Number,
+    description: 'Лимит для конкретной категории (например: guard_limit=10)',
   })
   @ApiResponse({
     status: 200,
     type: ShopItemsListResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getShopItemsList(): Promise<ShopItemsListResponseDto> {
-    return this.shopItemService.findAvailable();
+  async getShopItemsList(
+    @Query() query: any,
+  ): Promise<ShopItemsListResponseDto> {
+    return this.shopItemService.findAvailable(query);
   }
 
   @Get(':id')

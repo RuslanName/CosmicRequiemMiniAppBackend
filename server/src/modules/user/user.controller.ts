@@ -44,6 +44,8 @@ import { InventoryResponseDto } from './dtos/responses/inventory-response.dto';
 import { EventHistoryItemResponseDto } from './dtos/responses/event-history-item-response.dto';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
 import { ActivateShieldResponseDto } from './dtos/responses/activate-shield-response.dto';
+import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
+import { CheckCommunitySubscribeDto } from './dtos/check-community-subscribe.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -232,9 +234,37 @@ export class UserController {
   @ApiOperation({
     summary:
       'Получить инвентарь текущего пользователя (бусты и аксессуары) (Для Mini App)',
+    description:
+      'Пагинация: используйте `page` и `limit` для всех категорий аксессуаров, или `{category}_page` и `{category}_limit` для конкретной категории (например: `nickname_color_page=1&nickname_color_limit=10`)',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    example: 1,
+    description: 'Общий номер страницы для всех категорий аксессуаров',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 10,
+    description: 'Общий лимит для всех категорий аксессуаров',
+  })
+  @ApiQuery({
+    name: '{category}_page',
+    required: false,
+    type: Number,
+    description:
+      'Номер страницы для конкретной категории (например: nickname_color_page=1)',
+  })
+  @ApiQuery({
+    name: '{category}_limit',
+    required: false,
+    type: Number,
+    description:
+      'Лимит для конкретной категории (например: nickname_color_limit=10)',
+  })
   @ApiResponse({
     status: 200,
     type: InventoryResponseDto,
@@ -242,9 +272,9 @@ export class UserController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getInventory(
     @Request() req: AuthenticatedRequest,
-    @Query() paginationDto?: PaginationDto,
+    @Query() query: any,
   ): Promise<InventoryResponseDto> {
-    return this.userService.getInventory(req.user.id, paginationDto);
+    return this.userService.getInventory(req.user.id, query);
   }
 
   @Get('me/guards')
@@ -378,6 +408,48 @@ export class UserController {
     return this.userAccessoryService.activateShield(
       req.user.id,
       activateShieldDto.accessory_id,
+    );
+  }
+
+  @Get('me/tasks')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Получить задания текущего пользователя (Для Mini App)',
+  })
+  @ApiResponse({
+    status: 200,
+    type: UserTasksResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getTasks(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserTasksResponseDto> {
+    return this.userService.getUserTasks(req.user.id);
+  }
+
+  @Post('me/check-community-subscribe')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Проверить подписку на сообщество и обновить прогресс задания (Для Mini App)',
+    description:
+      'Проверяет подписку пользователя на указанное сообщество VK и обновляет прогресс задания community_subscribe',
+  })
+  @ApiBody({ type: CheckCommunitySubscribeDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Проверка выполнена',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async checkCommunitySubscribe(
+    @Request() req: AuthenticatedRequest,
+    @Body() checkCommunitySubscribeDto: CheckCommunitySubscribeDto,
+  ): Promise<{ subscribed: boolean }> {
+    return this.userService.checkCommunitySubscribe(
+      req.user.id,
+      checkCommunitySubscribeDto.community_id,
     );
   }
 }

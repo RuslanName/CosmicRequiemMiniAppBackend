@@ -13,6 +13,7 @@ export const ENV = {
   REDIS_PASSWORD: process.env.REDIS_PASSWORD || '',
   VK_APP_SECRET: process.env.VK_APP_SECRET!,
   VK_APP_URL: process.env.VK_APP_URL!,
+  VK_SERVICE_TOKEN: process.env.VK_SERVICE_TOKEN || '',
   JWT_SECRET: process.env.JWT_SECRET!,
   JWT_ADMIN_SECRET: process.env.JWT_ADMIN_SECRET || process.env.JWT_SECRET!,
   JWT_EXPIRES_IN: String(process.env.JWT_EXPIRES_IN || '4h'),
