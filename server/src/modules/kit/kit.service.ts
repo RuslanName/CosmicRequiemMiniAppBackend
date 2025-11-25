@@ -218,13 +218,18 @@ export class KitService {
       throw new BadRequestException('Kit is not available');
     }
 
+    // Для виртуальной валюты списываем деньги с пользователя
+    // Для голосов (VOICES) деньги уже списаны VK, просто выдаем товары
     if (kit.currency === Currency.VIRTUAL) {
       if (Number(user.money) < kit.price) {
         throw new BadRequestException('Insufficient funds');
       }
       user.money = Number(user.money) - kit.price;
+    } else if (kit.currency === Currency.VOICES) {
+      // Для голосов не списываем деньги - их уже списал VK
+      // Просто выдаем товары
     } else {
-      throw new BadRequestException('VOICES currency not implemented yet');
+      throw new BadRequestException(`Unsupported currency: ${kit.currency}`);
     }
 
     const createdGuards: UserGuard[] = [];

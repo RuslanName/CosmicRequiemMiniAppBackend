@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/user-accessory-response.dto';
 
 export class UserRatingResponseDto {
   @ApiProperty()
@@ -57,4 +58,11 @@ export class UserRatingResponseDto {
 
   @ApiProperty()
   guards_count: number;
+
+  @ApiProperty({
+    type: [UserAccessoryResponseDto],
+    required: false,
+    nullable: true,
+  })
+  equipped_accessories?: UserAccessoryResponseDto[] | null;
 }

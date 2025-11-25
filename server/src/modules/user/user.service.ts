@@ -137,7 +137,10 @@ export class UserService {
     };
   }
 
-  private transformToUserRatingResponseDto(user: User): UserRatingResponseDto {
+  private transformToUserRatingResponseDto(
+    user: User,
+    equippedAccessories?: any[],
+  ): UserRatingResponseDto {
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
 
@@ -161,6 +164,7 @@ export class UserService {
       clan_id: user.clan_id,
       strength,
       guards_count: guardsCount,
+      equipped_accessories: equippedAccessories || null,
     };
   }
 
@@ -475,28 +479,38 @@ export class UserService {
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
-    const skip = (page - 1) * limit;
 
-    const [data, total] = await this.userRepository.findAndCount({
+    const allUsers = await this.userRepository.find({
       relations: ['guards'],
-      skip,
-      take: limit,
     });
 
-    const dataWithStrength = data
-      .map((user) => {
-        const { guards, ...userWithoutGuards } = user;
+    const usersWithStrength = await Promise.all(
+      allUsers.map(async (user) => {
+        const equippedAccessories =
+          await this.userAccessoryService.findEquippedByUserId(user.id);
         return {
-          ...userWithoutGuards,
+          user,
           strength: this.calculateUserPower(user.guards || []),
-          money: Number(user.money || 0),
-          guards_count: this.getGuardsCount(user.guards || []),
+          equippedAccessories,
         };
-      })
-      .sort((a, b) => b.strength - a.strength);
+      }),
+    );
+
+    usersWithStrength.sort((a, b) => b.strength - a.strength);
+
+    const total = usersWithStrength.length;
+    const skip = (page - 1) * limit;
+    const paginatedUsers = usersWithStrength.slice(skip, skip + limit);
+
+    const data = paginatedUsers.map((item) =>
+      this.transformToUserRatingResponseDto(
+        item.user,
+        item.equippedAccessories,
+      ),
+    );
 
     return {
-      data: dataWithStrength,
+      data,
       total,
       page,
       limit,
@@ -511,7 +525,13 @@ export class UserService {
     return this.userAccessoryService.findByUserId(userId);
   }
 
-  async getUserGuards(userId: number): Promise<UserGuardResponseDto[]> {
+  async getUserGuards(
+    userId: number,
+    paginationDto?: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserGuardResponseDto>> {
+    const { page = 1, limit = 10 } = paginationDto || {};
+    const skip = (page - 1) * limit;
+
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -521,17 +541,30 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const guards = user.guards || [];
-    return guards.map((guard) => {
+    const allGuards = user.guards || [];
+    const total = allGuards.length;
+    const paginatedGuards = allGuards.slice(skip, skip + limit);
+
+    const guards = paginatedGuards.map((guard) => {
       const transformed: any = { ...guard };
       delete transformed.user_id;
       delete transformed.user;
       return transformed as UserGuardResponseDto;
     });
+
+    return {
+      data: guards,
+      total,
+      page,
+      limit,
+    };
   }
 
-  async getInventory(userId: number): Promise<InventoryResponseDto> {
-    const [boosts, accessories] = await Promise.all([
+  async getInventory(
+    userId: number,
+    paginationDto?: PaginationDto,
+  ): Promise<InventoryResponseDto> {
+    const [boosts, allAccessories] = await Promise.all([
       this.getUserBoosts(userId),
       this.getUserAccessories(userId),
     ]);
@@ -543,9 +576,24 @@ export class UserService {
       created_at: boost.created_at,
     }));
 
+    if (paginationDto) {
+      const { page = 1, limit = 10 } = paginationDto;
+      const skip = (page - 1) * limit;
+      const total = allAccessories.length;
+      const accessories = allAccessories.slice(skip, skip + limit);
+
+      return {
+        boosts: boostsWithoutUser,
+        accessories,
+        total,
+        page,
+        limit,
+      };
+    }
+
     return {
       boosts: boostsWithoutUser,
-      accessories,
+      accessories: allAccessories,
     };
   }
 
@@ -590,12 +638,22 @@ export class UserService {
         relations: ['clan', 'guards'],
       });
 
-      const dataWithStrength = users
+      const filteredUsers = users
         .filter((user) => user.id !== userId)
         .filter(
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
-        )
-        .map((user) => this.transformToUserRatingResponseDto(user));
+        );
+
+      const dataWithStrength = await Promise.all(
+        filteredUsers.map(async (user) => {
+          const equippedAccessories =
+            await this.userAccessoryService.findEquippedByUserId(user.id);
+          return this.transformToUserRatingResponseDto(
+            user,
+            equippedAccessories,
+          );
+        }),
+      );
 
       dataWithStrength.sort((a, b) => b.strength - a.strength);
 
@@ -619,30 +677,35 @@ export class UserService {
         },
       });
 
-      const dataWithStrength = users
+      const filteredUsers = users
         .filter((user) => user.id !== userId)
         .filter(
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
         )
-        .map((user) => {
-          const { guards, ...userWithoutGuards } = user;
-          return {
-            ...userWithoutGuards,
-            strength: this.calculateUserPower(user.guards || []),
-            money: Number(user.money || 0),
-            guards_count: this.getGuardsCount(user.guards || []),
-          };
-        })
-        .filter(
-          (user) =>
-            user.strength >= currentStrength - strengthRange &&
-            user.strength <= currentStrength + strengthRange,
-        )
-        .sort(
-          (a, b) =>
-            Math.abs(a.strength - currentStrength) -
-            Math.abs(b.strength - currentStrength),
-        );
+        .filter((user) => {
+          const strength = this.calculateUserPower(user.guards || []);
+          return (
+            strength >= currentStrength - strengthRange &&
+            strength <= currentStrength + strengthRange
+          );
+        });
+
+      const dataWithStrength = await Promise.all(
+        filteredUsers.map(async (user) => {
+          const equippedAccessories =
+            await this.userAccessoryService.findEquippedByUserId(user.id);
+          return this.transformToUserRatingResponseDto(
+            user,
+            equippedAccessories,
+          );
+        }),
+      );
+
+      dataWithStrength.sort(
+        (a, b) =>
+          Math.abs(a.strength - currentStrength) -
+          Math.abs(b.strength - currentStrength),
+      );
 
       total = dataWithStrength.length;
       const paginatedData = dataWithStrength.slice(skip, skip + limit);

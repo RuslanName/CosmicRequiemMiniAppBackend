@@ -233,6 +233,8 @@ export class UserController {
     summary:
       'Получить инвентарь текущего пользователя (бусты и аксессуары) (Для Mini App)',
   })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
     type: InventoryResponseDto,
@@ -240,8 +242,9 @@ export class UserController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getInventory(
     @Request() req: AuthenticatedRequest,
+    @Query() paginationDto?: PaginationDto,
   ): Promise<InventoryResponseDto> {
-    return this.userService.getInventory(req.user.id);
+    return this.userService.getInventory(req.user.id, paginationDto);
   }
 
   @Get('me/guards')
@@ -250,6 +253,8 @@ export class UserController {
   @ApiOperation({
     summary: 'Получить стражей текущего пользователя (Для Mini App)',
   })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
   })
@@ -257,8 +262,9 @@ export class UserController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async getMyGuards(
     @Request() req: AuthenticatedRequest,
-  ): Promise<UserGuardResponseDto[]> {
-    return this.userService.getUserGuards(req.user.id);
+    @Query() paginationDto?: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserGuardResponseDto>> {
+    return this.userService.getUserGuards(req.user.id, paginationDto);
   }
 
   @Post('equip-accessory')

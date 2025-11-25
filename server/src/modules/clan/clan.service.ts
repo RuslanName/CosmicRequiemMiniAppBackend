@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThan, Repository } from 'typeorm';
+import { In, Like, MoreThan, Repository } from 'typeorm';
 import { Clan } from './entities/clan.entity';
 import { CreateClanDto } from './dtos/create-clan.dto';
 import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
@@ -210,6 +210,38 @@ export class ClanService {
     }
 
     return this.transformToClanWithStatsResponseDto(clan);
+  }
+
+  async searchClans(
+    query: string,
+    paginationDto?: PaginationDto,
+  ): Promise<PaginatedResponseDto<ClanWithStatsResponseDto>> {
+    if (!query || query.trim() === '') {
+      throw new BadRequestException('Query parameter is required');
+    }
+
+    const { page = 1, limit = 10 } = paginationDto || {};
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.clanRepository.findAndCount({
+      where: {
+        name: Like(`%${query.trim()}%`),
+      },
+      relations: ['members', 'members.guards', 'leader', '_wars_1', '_wars_2'],
+      skip,
+      take: limit,
+    });
+
+    const transformedData = data.map((clan) =>
+      this.transformToClanWithStatsResponseDto(clan),
+    );
+
+    return {
+      data: transformedData,
+      total,
+      page,
+      limit,
+    };
   }
 
   private saveClanImage(file: Express.Multer.File): string {

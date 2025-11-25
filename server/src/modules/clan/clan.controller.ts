@@ -244,6 +244,70 @@ export class ClanController {
     return this.clanService.getClanRating(paginationDto);
   }
 
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('clan:search:query::query:page::page:limit::limit')
+  @ApiOperation({ summary: 'Поиск кланов по названию (Для Mini App)' })
+  @ApiQuery({
+    name: 'query',
+    required: true,
+    type: String,
+    description: 'Поисковый запрос',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    type: [ClanWithStatsResponseDto],
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async searchClans(
+    @Query('query') query: string,
+    @Query() paginationDto?: PaginationDto,
+  ): Promise<PaginatedResponseDto<ClanWithStatsResponseDto>> {
+    return this.clanService.searchClans(query, paginationDto);
+  }
+
+  @Get(':id/find')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('clan:find:id::id')
+  @ApiOperation({ summary: 'Получить клан по ID (Для Mini App)' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    type: ClanWithStatsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  async findClanById(
+    @Param('id') id: string,
+  ): Promise<ClanWithStatsResponseDto> {
+    return this.clanService.findOne(+id);
+  }
+
+  @Get(':id/find/members')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('clan:find:members:id::id')
+  @ApiOperation({ summary: 'Получить участников клана по ID (Для Mini App)' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    type: [UserWithStatsResponseDto],
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  async findClanMembersById(
+    @Param('id') id: string,
+  ): Promise<UserWithStatsResponseDto[]> {
+    return this.clanService.getClanMembers(+id);
+  }
+
   @Get('wars/available')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

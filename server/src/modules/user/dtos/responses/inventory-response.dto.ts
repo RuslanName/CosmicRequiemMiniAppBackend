@@ -8,4 +8,13 @@ export class InventoryResponseDto {
 
   @ApiProperty({ type: [UserAccessoryResponseDto] })
   accessories: UserAccessoryResponseDto[];
+
+  @ApiProperty({ required: false })
+  total?: number;
+
+  @ApiProperty({ required: false })
+  page?: number;
+
+  @ApiProperty({ required: false })
+  limit?: number;
 }
