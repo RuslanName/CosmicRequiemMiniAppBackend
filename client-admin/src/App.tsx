@@ -13,7 +13,7 @@ import Kits from './pages/Kits';
 import Admins from './pages/Admins';
 import Settings from './pages/Settings';
 import Tasks from './pages/Tasks';
-import Giveaway from './pages/Giveaway';
+import GiveawayPage from './pages/Giveaway';
 import './App.css';
 
 import { ENV } from './config/constants';
@@ -43,7 +43,7 @@ function App() {
             <Route path="admins" element={<Admins />} />
             <Route path="settings" element={<Settings />} />
             <Route path="tasks" element={<Tasks />} />
-            <Route path="giveaway" element={<Giveaway />} />
+            <Route path="giveaway" element={<GiveawayPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

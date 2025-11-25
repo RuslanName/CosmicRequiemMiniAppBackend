@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { giveawaysApi, type Giveaway, type CreateGiveawayDto, type UpdateGiveawayDto } from '../api/giveaways.api';
 import { ENV } from '../config/constants';
+import Modal from '../components/Modal';
 import '../components/Table.css';
 
-const Giveaway = () => {
+const GiveawayPage = () => {
   const [giveaway, setGiveaway] = useState<Giveaway | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -205,5 +206,5 @@ const Giveaway = () => {
   );
 };
 
-export default Giveaway;
+export default GiveawayPage;
 

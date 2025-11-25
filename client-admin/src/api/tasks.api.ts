@@ -25,8 +25,6 @@ export interface UpdateTaskDto {
   money_reward?: number;
 }
 
-export type { Task, CreateTaskDto, UpdateTaskDto };
-
 export const tasksApi = {
   getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Task>> => {
     const response = await api.get('/tasks', { params });

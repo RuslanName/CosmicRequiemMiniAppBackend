@@ -10,20 +10,6 @@ const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  const menuItems = [
-    { path: '/users', label: 'Пользователи' },
-    { path: '/user-guards', label: 'Стражи пользователей' },
-    { path: '/clans', label: 'Кланы' },
-    { path: '/clan-wars', label: 'Клановые войны' },
-    { path: '/item-templates', label: 'Шаблоны предметов' },
-    { path: '/shop-items', label: 'Товары магазина' },
-    { path: '/kits', label: 'Наборы' },
-    { path: '/tasks', label: 'Задания' },
-    { path: '/giveaway', label: 'Конкурс' },
-    { path: '/settings', label: 'Настройки' },
-    { path: '/admins', label: 'Администраторы' },
-  ];
-
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth <= 768;

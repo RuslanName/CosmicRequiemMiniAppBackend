@@ -21,8 +21,6 @@ export interface UpdateGiveawayDto {
   image_path?: string | null;
 }
 
-export type { Giveaway, CreateGiveawayDto, UpdateGiveawayDto };
-
 export const giveawaysApi = {
   getOne: async (): Promise<Giveaway | null> => {
     const response = await api.get('/giveaways');
