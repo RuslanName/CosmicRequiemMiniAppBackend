@@ -41,13 +41,17 @@ export class VKPaymentsService {
     private readonly userBoostService: UserBoostService,
   ) {}
 
-  async handleNotification(notification: VKNotificationDto): Promise<any> {
-    if (!this.verifySignature(notification)) {
+  async handleNotification(
+    notification: VKNotificationDto,
+    originalQuery?: any,
+  ): Promise<any> {
+    if (!this.verifySignature(notification, originalQuery)) {
       throw new UnauthorizedException('Invalid VK signature');
     }
 
     switch (notification.notification_type) {
       case 'get_item':
+      case 'get_item_test':
         return this.handleGetItem(notification);
       case 'order_status_change':
         return this.handleOrderStatusChange(notification);
@@ -344,7 +348,10 @@ export class VKPaymentsService {
     return null;
   }
 
-  private verifySignature(notification: VKNotificationDto): boolean {
+  private verifySignature(
+    notification: VKNotificationDto,
+    originalQuery?: any,
+  ): boolean {
     const VK_APP_SECRET = ENV.VK_APP_SECRET;
 
     if (!VK_APP_SECRET) {
@@ -357,26 +364,38 @@ export class VKPaymentsService {
 
     const params: Record<string, string> = {};
 
-    if (notification.app_id) {
-      params.app_id = String(notification.app_id);
-    }
-    if (notification.notification_type) {
-      params.notification_type = notification.notification_type;
-    }
-    if (notification.item_id) {
-      params.item_id = notification.item_id;
-    }
-    if (notification.order_id) {
-      params.order_id = String(notification.order_id);
-    }
-    if (notification.status) {
-      params.status = notification.status;
-    }
-    if (notification.user_id) {
-      params.user_id = String(notification.user_id);
-    }
-    if (notification.item_price) {
-      params.item_price = String(notification.item_price);
+    if (originalQuery) {
+      Object.keys(originalQuery).forEach((key) => {
+        if (
+          key !== 'sig' &&
+          originalQuery[key] !== undefined &&
+          originalQuery[key] !== null
+        ) {
+          params[key] = String(originalQuery[key]);
+        }
+      });
+    } else {
+      if (notification.app_id) {
+        params.app_id = String(notification.app_id);
+      }
+      if (notification.notification_type) {
+        params.notification_type = notification.notification_type;
+      }
+      if (notification.item_id) {
+        params.item_id = notification.item_id;
+      }
+      if (notification.order_id) {
+        params.order_id = String(notification.order_id);
+      }
+      if (notification.status) {
+        params.status = notification.status;
+      }
+      if (notification.user_id) {
+        params.user_id = String(notification.user_id);
+      }
+      if (notification.item_price) {
+        params.item_price = String(notification.item_price);
+      }
     }
 
     const queryString = Object.keys(params)

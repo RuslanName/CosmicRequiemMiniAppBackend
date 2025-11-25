@@ -21,6 +21,9 @@ export class ShopItemWithoutTemplate {
   @ApiProperty()
   image_path: string;
 
+  @ApiProperty({ required: false, nullable: true })
+  value: string | null;
+
   @ApiProperty()
   created_at: Date;
 

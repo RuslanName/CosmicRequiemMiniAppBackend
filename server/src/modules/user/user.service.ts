@@ -934,17 +934,17 @@ export class UserService {
           }
         }
 
-        let opponentEquippedAccessories: any[] | null = null;
         let opponentDto: UserWithBasicStatsResponseDto | null = null;
 
         if (event.opponent?.id) {
-          opponentEquippedAccessories =
+          const equippedAccessories =
             await this.userAccessoryService.findEquippedByUserId(
               event.opponent.id,
             );
-          opponentDto = this.transformToUserBasicStatsResponseDto(
-            event.opponent,
-          );
+          opponentDto = {
+            ...this.transformToUserBasicStatsResponseDto(event.opponent),
+            equipped_accessories: equippedAccessories,
+          };
         }
 
         const { user_id, opponent_id, user, opponent, ...eventWithoutIds } =
@@ -958,7 +958,6 @@ export class UserService {
           stolen_strength: stolenStrength,
           stolen_guards_count: stolenGuardsCount,
           opponent: opponentDto,
-          opponent_equipped_accessories: opponentEquippedAccessories,
         };
       }),
     );

@@ -89,6 +89,7 @@ export class ShopItemService {
         price: item.price,
         currency: item.currency,
         image_path: item.item_template?.image_path || '',
+        value: item.item_template?.value || null,
         created_at: item.created_at,
         updated_at: item.updated_at,
       });
