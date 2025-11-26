@@ -46,4 +46,7 @@ export class ClanWithReferralResponseDto {
 
   @ApiProperty({ required: false })
   wars_count?: number;
+
+  @ApiProperty({ required: false })
+  has_active_wars?: boolean;
 }

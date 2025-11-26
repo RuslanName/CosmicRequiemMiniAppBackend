@@ -42,12 +42,13 @@ export class ShopItemController {
   @Get()
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @ApiOperation({ summary: 'Получить все аксессуары с пагинацией' })
+  @ApiOperation({ summary: 'Получить все товары магазина с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [ShopItem],
+    type: PaginatedResponseDto<ShopItem>,
+    description: 'Список товаров магазина с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -107,13 +108,15 @@ export class ShopItemController {
   @Get(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @ApiOperation({ summary: 'Получить аксессуар по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiOperation({ summary: 'Получить товар магазина по ID' })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID товара' })
   @ApiResponse({
     status: 200,
+    type: ShopItem,
+    description: 'Информация о товаре',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
+  @ApiResponse({ status: 404, description: 'Товар не найден' })
   async findOne(@Param('id') id: string): Promise<ShopItem> {
     return this.shopItemService.findOne(+id);
   }
@@ -125,6 +128,12 @@ export class ShopItemController {
   @ApiBody({ type: CreateShopItemDto })
   @ApiResponse({
     status: 201,
+    type: ShopItem,
+    description: 'Товар успешно создан',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
@@ -137,10 +146,16 @@ export class ShopItemController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Обновить товар магазина' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID товара' })
   @ApiBody({ type: UpdateShopItemDto })
   @ApiResponse({
     status: 200,
+    type: ShopItem,
+    description: 'Товар успешно обновлен',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Товар не найден' })
@@ -154,13 +169,14 @@ export class ShopItemController {
   @Delete(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @ApiOperation({ summary: 'Удалить аксессуар' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiOperation({ summary: 'Удалить товар магазина' })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID товара' })
   @ApiResponse({
     status: 200,
+    description: 'Товар успешно удален',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
+  @ApiResponse({ status: 404, description: 'Товар не найден' })
   async remove(@Param('id') id: string): Promise<void> {
     return this.shopItemService.remove(+id);
   }

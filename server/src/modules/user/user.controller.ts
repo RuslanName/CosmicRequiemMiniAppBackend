@@ -63,7 +63,8 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [UserWithBasicStatsResponseDto],
+    type: PaginatedResponseDto<UserWithBasicStatsResponseDto>,
+    description: 'Список пользователей с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -94,14 +95,21 @@ export class UserController {
   @Post('training')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Тренировка стражей пользователя (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Тренировка стражей пользователя (Для Mini App)',
+    description:
+      'Тренирует стражей пользователя, увеличивая их силу. Проверяет кулдауны тренировки и контракта (нельзя выполнять одновременно). Для первого стража применяется ограничение max_strength_first_user_guard.',
+  })
   @ApiBody({ required: false })
   @ApiResponse({
     status: 200,
     type: TrainingResponseDto,
+    description: 'Тренировка успешно выполнена',
   })
   @ApiResponse({
     status: 400,
+    description:
+      'Кулдаун активен, недостаточно средств или превышено ограничение силы первого стража',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -116,14 +124,18 @@ export class UserController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Выполнить контракт для заработка денег (Для Mini App)',
+    description:
+      'Выполняет контракт для заработка денег. Проверяет кулдауны контракта и тренировки (нельзя выполнять одновременно).',
   })
   @ApiBody({ required: false })
   @ApiResponse({
     status: 200,
     type: ContractResponseDto,
+    description: 'Контракт успешно выполнен',
   })
   @ApiResponse({
     status: 400,
+    description: 'Кулдаун активен или недостаточно средств',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -138,12 +150,18 @@ export class UserController {
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('user:rating')
-  @ApiOperation({ summary: 'Получить рейтинг пользователей (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Получить рейтинг пользователей (Для Mini App)',
+    description:
+      'Возвращает рейтинг пользователей, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [UserRatingResponseDto],
+    type: PaginatedResponseDto<UserRatingResponseDto>,
+    description:
+      'Рейтинг пользователей, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getRating(
@@ -159,21 +177,27 @@ export class UserController {
   @CacheKey('user:attackable::user')
   @ApiOperation({
     summary: 'Получить список пользователей для атаки (Для Mini App)',
+    description:
+      'Возвращает список пользователей для атаки. Фильтры: top - все пользователи, suitable - подходящие по силе. Сортировка: strength * 1000 + money (от самых крутых к менее крутым). Для suitable сначала сортировка по близости к текущей силе, затем по силе и деньгам.',
   })
   @ApiQuery({
     name: 'filter',
     required: false,
     enum: ['top', 'suitable', 'friends'],
     example: 'top',
+    description:
+      'Фильтр: top - все пользователи, suitable - подходящие по силе, friends - друзья',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [UserRatingResponseDto],
+    type: PaginatedResponseDto<UserRatingResponseDto>,
+    description: 'Список пользователей для атаки с пагинацией',
   })
   @ApiResponse({
     status: 400,
+    description: 'Неверный фильтр',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getAttackableUsers(
@@ -197,10 +221,16 @@ export class UserController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить пользователя по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID пользователя',
+  })
   @ApiResponse({
     status: 200,
     type: UserWithBasicStatsResponseDto,
+    description: 'Информация о пользователе',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -214,10 +244,21 @@ export class UserController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Обновить пользователя' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID пользователя',
+  })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({
     status: 200,
+    type: User,
+    description: 'Пользователь успешно обновлен',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -282,11 +323,16 @@ export class UserController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить стражей текущего пользователя (Для Mini App)',
+    description:
+      'Возвращает список стражей пользователя с пагинацией, отсортированных по силе (от самых сильных к менее сильным)',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: PaginatedResponseDto<UserGuardResponseDto>,
+    description:
+      'Список стражей, отсортированных по силе (от самых сильных к менее сильным)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -304,9 +350,12 @@ export class UserController {
   @ApiBody({ type: EquipAccessoryDto })
   @ApiResponse({
     status: 200,
+    type: UserAccessory,
+    description: 'Аксессуар успешно надет',
   })
   @ApiResponse({
     status: 400,
+    description: 'Аксессуар уже надет или неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
@@ -324,12 +373,20 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Снять аксессуар (Для Mini App)' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID аксессуара для снятия',
+  })
   @ApiResponse({
     status: 200,
+    type: UserAccessory,
+    description: 'Аксессуар успешно снят',
   })
   @ApiResponse({
     status: 400,
+    description: 'Аксессуар не надет',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
@@ -348,9 +405,12 @@ export class UserController {
   @ApiResponse({
     status: 200,
     type: AttackPlayerResponseDto,
+    description: 'Результат атаки',
   })
   @ApiResponse({
     status: 400,
+    description:
+      'Невозможно атаковать (кулдаун активен, щит активен, недостаточно силы и т.д.)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -375,7 +435,8 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [EventHistoryItemResponseDto],
+    type: PaginatedResponseDto<EventHistoryItemResponseDto>,
+    description: 'История событий пользователя с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getEventHistory(
@@ -435,21 +496,42 @@ export class UserController {
     summary:
       'Проверить подписку на сообщество и обновить прогресс задания (Для Mini App)',
     description:
-      'Проверяет подписку пользователя на указанное сообщество VK и обновляет прогресс задания community_subscribe',
+      'Проверяет подписку пользователя на сообщество VK по задаче. Принимает task_id, находит задачу типа COMMUNITY_SUBSCRIBE, берет community_id из task.value и проверяет подписку. Если пользователь подписан, обновляет прогресс задачи.',
   })
-  @ApiBody({ type: CheckCommunitySubscribeDto })
+  @ApiBody({
+    type: CheckCommunitySubscribeDto,
+    description: 'ID задачи (task_id) для проверки подписки',
+  })
   @ApiResponse({
     status: 200,
     description: 'Проверка выполнена',
+    schema: {
+      type: 'object',
+      properties: {
+        subscribed: {
+          type: 'boolean',
+          description: 'Подписан ли пользователь на сообщество',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Задача не является типом COMMUNITY_SUBSCRIBE или значение community_id не установлено',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({
+    status: 404,
+    description: 'Пользователь не найден или задача не найдена',
+  })
   async checkCommunitySubscribe(
     @Request() req: AuthenticatedRequest,
     @Body() checkCommunitySubscribeDto: CheckCommunitySubscribeDto,
   ): Promise<{ subscribed: boolean }> {
     return this.userService.checkCommunitySubscribe(
       req.user.id,
-      checkCommunitySubscribeDto.community_id,
+      checkCommunitySubscribeDto.task_id,
     );
   }
 }

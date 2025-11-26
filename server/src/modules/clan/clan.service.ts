@@ -656,6 +656,7 @@ export class ClanService {
   async attackEnemy(
     userId: number,
     targetUserId: number,
+    enemyClanId?: number,
   ): Promise<AttackEnemyResponseDto> {
     const attacker = await this.userRepository.findOne({
       where: { id: userId },
@@ -737,6 +738,12 @@ export class ClanService {
       throw new BadRequestException('Cannot attack member of your own clan');
     }
 
+    if (enemyClanId && defender.clan.id !== enemyClanId) {
+      throw new BadRequestException(
+        'Target user does not belong to the specified enemy clan',
+      );
+    }
+
     const activeWar = await this.clanWarRepository.findOne({
       where: [
         {
@@ -754,6 +761,19 @@ export class ClanService {
 
     if (!activeWar) {
       throw new BadRequestException('No active war between clans');
+    }
+
+    if (enemyClanId) {
+      const isEnemyClanInWar =
+        (activeWar.clan_1_id === attacker.clan.id &&
+          activeWar.clan_2_id === enemyClanId) ||
+        (activeWar.clan_2_id === attacker.clan.id &&
+          activeWar.clan_1_id === enemyClanId);
+      if (!isEnemyClanInWar) {
+        throw new BadRequestException(
+          'No active war with the specified enemy clan',
+        );
+      }
     }
 
     const attacker_power = this.calculateUserPower(attacker.guards || []);
@@ -1109,11 +1129,22 @@ export class ClanService {
       throw new NotFoundException('User is not in a clan');
     }
 
+    const activeWarsCount = await this.clanWarRepository.count({
+      where: [
+        { clan_1_id: user.clan.id, status: ClanWarStatus.IN_PROGRESS },
+        { clan_2_id: user.clan.id, status: ClanWarStatus.IN_PROGRESS },
+      ],
+    });
+
     const isLeader = user.clan.leader_id === userId;
+    let result: ClanWithReferralResponseDto | ClanWithStatsResponseDto;
     if (isLeader) {
-      return this.transformToClanWithReferralResponseDto(user.clan);
+      result = this.transformToClanWithReferralResponseDto(user.clan);
+    } else {
+      result = this.transformToClanWithStatsResponseDto(user.clan);
     }
-    return this.transformToClanWithStatsResponseDto(user.clan);
+    (result as any).has_active_wars = activeWarsCount > 0;
+    return result as ClanWithReferralResponseDto;
   }
 
   async getActiveWars(clanId: number): Promise<ClanWarResponseDto[]> {
@@ -1133,6 +1164,39 @@ export class ClanService {
     });
 
     return wars.map((war) => this.transformClanWarToResponseDto(war));
+  }
+
+  async getAllWars(
+    clanId: number,
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<ClanWarResponseDto>> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const [wars, total] = await this.clanWarRepository.findAndCount({
+      where: [{ clan_1_id: clanId }, { clan_2_id: clanId }],
+      relations: [
+        'clan_1',
+        'clan_2',
+        'clan_1.leader',
+        'clan_2.leader',
+        'stolen_items',
+      ],
+      order: { start_time: 'DESC' },
+      skip,
+      take: limit,
+    });
+
+    const transformedData = wars.map((war) =>
+      this.transformClanWarToResponseDto(war),
+    );
+
+    return {
+      data: transformedData,
+      total,
+      page,
+      limit,
+    };
   }
 
   private transformClanWarToResponseDto(war: ClanWar): ClanWarResponseDto {
@@ -1181,9 +1245,24 @@ export class ClanService {
       relations: ['leader', 'members', 'members.guards', '_wars_1', '_wars_2'],
     });
 
-    return enemyClans.map((clan) =>
-      this.transformToClanWithStatsResponseDto(clan),
+    const enemyClansMap = new Map(enemyClans.map((clan) => [clan.id, clan]));
+    const warsMap = new Map(
+      activeWars.map((war) => {
+        const enemyClanId =
+          war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id;
+        return [enemyClanId, war];
+      }),
     );
+
+    return enemyClans.map((clan) => {
+      const transformed = this.transformToClanWithStatsResponseDto(clan);
+      const war = warsMap.get(clan.id);
+      if (war) {
+        (transformed as any).war_start_time = war.start_time;
+        (transformed as any).war_end_time = war.end_time;
+      }
+      return transformed;
+    });
   }
 
   async getEnemyClanById(
@@ -1217,6 +1296,12 @@ export class ClanService {
       );
     }
 
+    const activeWar = activeWars.find(
+      (war) =>
+        (war.clan_1.id === user.clan!.id && war.clan_2.id === enemyClanId) ||
+        (war.clan_2.id === user.clan!.id && war.clan_1.id === enemyClanId),
+    );
+
     const enemyClan = await this.clanRepository.findOne({
       where: { id: enemyClanId },
       relations: ['leader', 'members', 'members.guards', '_wars_1', '_wars_2'],
@@ -1226,7 +1311,12 @@ export class ClanService {
       throw new NotFoundException('Enemy clan not found');
     }
 
-    return this.transformToClanWithStatsResponseDto(enemyClan);
+    const transformed = this.transformToClanWithStatsResponseDto(enemyClan);
+    if (activeWar) {
+      (transformed as any).war_start_time = activeWar.start_time;
+      (transformed as any).war_end_time = activeWar.end_time;
+    }
+    return transformed;
   }
 
   async getEnemyClanMembersById(
@@ -1240,9 +1330,17 @@ export class ClanService {
       relations: ['guards'],
     });
 
-    return members.map((member) =>
+    const membersWithStats = members.map((member) =>
       this.transformToUserWithStatsResponseDto(member),
     );
+
+    membersWithStats.sort((a, b) => {
+      const scoreA = (a.strength || 0) * 1000 + (a.money || 0);
+      const scoreB = (b.strength || 0) * 1000 + (b.money || 0);
+      return scoreB - scoreA;
+    });
+
+    return membersWithStats;
   }
 
   async getClanMembers(clanId: number): Promise<UserWithStatsResponseDto[]> {
@@ -1259,9 +1357,17 @@ export class ClanService {
       relations: ['guards'],
     });
 
-    return members.map((member) =>
+    const membersWithStats = members.map((member) =>
       this.transformToUserWithStatsResponseDto(member),
     );
+
+    membersWithStats.sort((a, b) => {
+      const scoreA = (a.strength || 0) * 1000 + (a.money || 0);
+      const scoreB = (b.strength || 0) * 1000 + (b.money || 0);
+      return scoreB - scoreA;
+    });
+
+    return membersWithStats;
   }
 
   async getClanRating(
@@ -1323,6 +1429,11 @@ export class ClanService {
     );
 
     clansWithRating.sort((a, b) => {
+      const scoreA = (a.strength || 0) * 1000 + (a.money || 0);
+      const scoreB = (b.strength || 0) * 1000 + (b.money || 0);
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
       if (b.rating !== a.rating) {
         return b.rating - a.rating;
       }

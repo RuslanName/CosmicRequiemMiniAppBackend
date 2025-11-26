@@ -1,12 +1,13 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsNumber, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CheckCommunitySubscribeDto {
   @ApiProperty({
-    example: '12345678',
-    description: 'ID сообщества VK (без минуса)',
+    example: 1,
+    description:
+      'ID задачи (task_id). Задача должна быть типа COMMUNITY_SUBSCRIBE, в поле value должен быть указан community_id',
   })
-  @IsString()
+  @IsNumber()
   @IsNotEmpty()
-  community_id: string;
+  task_id: number;
 }

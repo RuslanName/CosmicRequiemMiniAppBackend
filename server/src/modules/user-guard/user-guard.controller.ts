@@ -39,7 +39,8 @@ export class UserGuardController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [UserGuard],
+    type: PaginatedResponseDto<UserGuard>,
+    description: 'Список стражей с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -50,9 +51,11 @@ export class UserGuardController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить стража по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID стража' })
   @ApiResponse({
     status: 200,
+    type: UserGuard,
+    description: 'Информация о страже',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Страж не найден' })
@@ -61,10 +64,21 @@ export class UserGuardController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Создать нового стража' })
+  @ApiOperation({
+    summary: 'Создать нового стража',
+    description:
+      'Создает нового стража. Если is_first=true и strength превышает max_strength_first_user_guard, будет установлено максимальное значение.',
+  })
   @ApiBody({ type: CreateUserGuardDto })
   @ApiResponse({
     status: 201,
+    type: UserGuard,
+    description: 'Страж успешно создан',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Неверные данные или сила первого стража превышает максимальное значение',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
@@ -74,11 +88,22 @@ export class UserGuardController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Обновить стража' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiOperation({
+    summary: 'Обновить стража',
+    description:
+      'Обновляет информацию о страже. Если is_first=true и strength превышает max_strength_first_user_guard, будет установлено максимальное значение.',
+  })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID стража' })
   @ApiBody({ type: UpdateUserGuardDto })
   @ApiResponse({
     status: 200,
+    type: UserGuard,
+    description: 'Страж успешно обновлен',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Неверные данные или сила первого стража превышает максимальное значение',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Страж не найден' })
@@ -91,9 +116,10 @@ export class UserGuardController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить стража' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID стража' })
   @ApiResponse({
     status: 200,
+    description: 'Страж успешно удален',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Страж не найден' })

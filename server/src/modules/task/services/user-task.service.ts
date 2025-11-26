@@ -103,4 +103,57 @@ export class UserTaskService {
       order: { created_at: 'DESC' },
     });
   }
+
+  async updateTaskProgressByTaskId(
+    userId: number,
+    taskId: number,
+    increment: number = 1,
+  ): Promise<void> {
+    const task = await this.taskRepository.findOne({
+      where: { id: taskId },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    let userTask = await this.userTaskRepository.findOne({
+      where: {
+        user_id: userId,
+        task_id: task.id,
+      },
+      relations: ['user', 'task'],
+    });
+
+    if (!userTask) {
+      userTask = this.userTaskRepository.create({
+        user_id: userId,
+        task_id: task.id,
+        progress: 0,
+        status: UserTaskStatus.IN_PROGRESS,
+      });
+    }
+
+    if (userTask.status === UserTaskStatus.COMPLETED) {
+      return;
+    }
+
+    userTask.progress += increment;
+
+    const requiredValue = task.value ? parseInt(task.value, 10) : 1;
+    if (userTask.progress >= requiredValue) {
+      userTask.status = UserTaskStatus.COMPLETED;
+      userTask.progress = requiredValue;
+
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+      });
+      if (user) {
+        user.money = Number(user.money) + Number(task.money_reward);
+        await this.userRepository.save(user);
+      }
+    }
+
+    await this.userTaskRepository.save(userTask);
+  }
 }

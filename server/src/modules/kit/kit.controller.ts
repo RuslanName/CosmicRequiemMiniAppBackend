@@ -46,7 +46,8 @@ export class KitController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [Kit],
+    type: PaginatedResponseDto<Kit>,
+    description: 'Список наборов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -65,7 +66,8 @@ export class KitController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [Kit],
+    type: PaginatedResponseDto<Kit>,
+    description: 'Список доступных наборов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getKitsList(
@@ -78,9 +80,11 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить набор по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID набора' })
   @ApiResponse({
     status: 200,
+    type: Kit,
+    description: 'Информация о наборе',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Набор не найден' })
@@ -95,6 +99,12 @@ export class KitController {
   @ApiBody({ type: CreateKitDto })
   @ApiResponse({
     status: 201,
+    type: Kit,
+    description: 'Набор успешно создан',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(@Body() createKitDto: CreateKitDto): Promise<Kit> {
@@ -105,10 +115,16 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Обновить набор' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID набора' })
   @ApiBody({ type: UpdateKitDto })
   @ApiResponse({
     status: 200,
+    type: Kit,
+    description: 'Набор успешно обновлен',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Набор не найден' })
@@ -123,9 +139,10 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Удалить набор' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID набора' })
   @ApiResponse({
     status: 200,
+    description: 'Набор успешно удален',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Набор не найден' })
@@ -136,14 +153,20 @@ export class KitController {
   @Post('purchase')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Купить набор (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Купить набор (Для Mini App)',
+    description:
+      'Покупка набора за виртуальную валюту или голоса VK. В зависимости от валюты набора списываются соответствующие средства.',
+  })
   @ApiBody({ type: PurchaseKitDto })
   @ApiResponse({
     status: 200,
     type: KitPurchaseResponseDto,
+    description: 'Набор успешно куплен',
   })
   @ApiResponse({
     status: 400,
+    description: 'Недостаточно средств, набор недоступен или неверная валюта',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Набор или пользователь не найден' })

@@ -39,10 +39,13 @@ export class GiveawayController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить доступный конкурс (Для Mini App)',
+    description:
+      'Возвращает активный конкурс, если он существует. Может быть только один активный конкурс.',
   })
   @ApiResponse({
     status: 200,
     type: Giveaway,
+    description: 'Информация о доступном конкурсе или null, если конкурса нет',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAvailable(): Promise<Giveaway | null> {
@@ -52,10 +55,14 @@ export class GiveawayController {
   @Get('giveaways')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @ApiOperation({ summary: 'Получить конкурс (для админ-панели)' })
+  @ApiOperation({
+    summary: 'Получить конкурс (для админ-панели)',
+    description: 'Возвращает текущий конкурс для админ-панели',
+  })
   @ApiResponse({
     status: 200,
     type: Giveaway,
+    description: 'Информация о конкурсе или null, если конкурса нет',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findOne(): Promise<Giveaway | null> {
@@ -67,16 +74,23 @@ export class GiveawayController {
   @ApiCookieAuth()
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Создать новый конкурс' })
+  @ApiOperation({
+    summary: 'Создать новый конкурс',
+    description:
+      'Создает новый конкурс. Может быть только один активный конкурс одновременно.',
+  })
   @ApiBody({ type: CreateGiveawayDto })
   @ApiResponse({
     status: 201,
+    type: Giveaway,
+    description: 'Конкурс успешно создан',
   })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
     status: 400,
-    description: 'Конкурс уже существует (может быть только один)',
+    description:
+      'Конкурс уже существует (может быть только один) или неверные данные',
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
     @Body() createGiveawayDto: CreateGiveawayDto,
     @UploadedFile() image?: Express.Multer.File,
@@ -90,10 +104,21 @@ export class GiveawayController {
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Обновить конкурс' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID конкурса',
+  })
   @ApiBody({ type: UpdateGiveawayDto })
   @ApiResponse({
     status: 200,
+    type: Giveaway,
+    description: 'Конкурс успешно обновлен',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Конкурс не найден' })
@@ -109,9 +134,15 @@ export class GiveawayController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Удалить конкурс' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID конкурса',
+  })
   @ApiResponse({
     status: 200,
+    description: 'Конкурс успешно удален',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Конкурс не найден' })

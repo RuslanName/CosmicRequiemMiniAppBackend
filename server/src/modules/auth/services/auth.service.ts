@@ -105,6 +105,33 @@ export class AuthService {
         referrerUser.money = Number(referrerUser.money) + referrerReward;
         await this.userRepository.save(referrerUser);
 
+        // TODO: Временное решение - даем initial_referrer_vk_id 10 стражей по 1 силе
+        const initialReferrerVkId = Settings[
+          SettingKey.INITIAL_REFERRER_VK_ID
+        ] as number;
+        if (
+          initialReferrerVkId &&
+          initialReferrerVkId > 0 &&
+          referrerUser.vk_id === initialReferrerVkId
+        ) {
+          const existingGuards = await this.userGuardRepository.find({
+            where: { user_id: referrerUser.id },
+          });
+          const guardsToCreate = 10 - existingGuards.length;
+
+          if (guardsToCreate > 0) {
+            for (let i = 0; i < guardsToCreate; i++) {
+              const guard = this.userGuardRepository.create({
+                name: `#${referrerUser.id}-${existingGuards.length + i + 1}`,
+                strength: 1,
+                is_first: false,
+                user: referrerUser,
+              });
+              await this.userGuardRepository.save(guard);
+            }
+          }
+        }
+
         await this.userTaskService.updateTaskProgress(
           referrerUser.id,
           TaskType.FRIEND_INVITE,

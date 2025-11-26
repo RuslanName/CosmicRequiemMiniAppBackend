@@ -44,7 +44,8 @@ export class ItemTemplateController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [ItemTemplate],
+    type: PaginatedResponseDto<ItemTemplate>,
+    description: 'Список шаблонов предметов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -55,9 +56,16 @@ export class ItemTemplateController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить шаблон предмета по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID шаблона предмета',
+  })
   @ApiResponse({
     status: 200,
+    type: ItemTemplate,
+    description: 'Информация о шаблоне предмета',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })
@@ -72,9 +80,12 @@ export class ItemTemplateController {
   @ApiBody({ type: CreateItemTemplateDto })
   @ApiResponse({
     status: 201,
+    type: ItemTemplate,
+    description: 'Шаблон предмета успешно создан',
   })
   @ApiResponse({
     status: 400,
+    description: 'Неверные данные или файл изображения',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
@@ -88,10 +99,21 @@ export class ItemTemplateController {
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Обновить шаблон предмета' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID шаблона предмета',
+  })
   @ApiBody({ type: UpdateItemTemplateDto })
   @ApiResponse({
     status: 200,
+    type: ItemTemplate,
+    description: 'Шаблон предмета успешно обновлен',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные или файл изображения',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })
@@ -105,9 +127,15 @@ export class ItemTemplateController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить шаблон предмета' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID шаблона предмета',
+  })
   @ApiResponse({
     status: 200,
+    description: 'Шаблон предмета успешно удален',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })

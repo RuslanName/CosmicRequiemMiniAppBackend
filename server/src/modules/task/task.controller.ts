@@ -39,7 +39,8 @@ export class TaskController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [Task],
+    type: PaginatedResponseDto<Task>,
+    description: 'Список заданий с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -50,9 +51,11 @@ export class TaskController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить задание по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID задания' })
   @ApiResponse({
     status: 200,
+    type: Task,
+    description: 'Информация о задании',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Задание не найдено' })
@@ -65,6 +68,12 @@ export class TaskController {
   @ApiBody({ type: CreateTaskDto })
   @ApiResponse({
     status: 201,
+    type: Task,
+    description: 'Задание успешно создано',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(@Body() createTaskDto: CreateTaskDto): Promise<Task> {
@@ -73,10 +82,16 @@ export class TaskController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить задание' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID задания' })
   @ApiBody({ type: UpdateTaskDto })
   @ApiResponse({
     status: 200,
+    type: Task,
+    description: 'Задание успешно обновлено',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Задание не найдено' })
@@ -89,9 +104,10 @@ export class TaskController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить задание' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID задания' })
   @ApiResponse({
     status: 200,
+    description: 'Задание успешно удалено',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Задание не найдено' })

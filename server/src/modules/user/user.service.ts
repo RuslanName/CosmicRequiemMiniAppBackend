@@ -288,12 +288,14 @@ export class UserService {
     );
 
     let trainingCooldown = Settings[SettingKey.TRAINING_COOLDOWN];
+    let contractCooldown = Settings[SettingKey.CONTRACT_COOLDOWN];
     if (
       cooldownHalvingBoost &&
       cooldownHalvingBoost.end_time &&
       cooldownHalvingBoost.end_time > new Date()
     ) {
       trainingCooldown = trainingCooldown / 2;
+      contractCooldown = contractCooldown / 2;
     }
 
     if (user.last_training_time) {
@@ -303,6 +305,18 @@ export class UserService {
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
           message: 'Training cooldown is still active',
+          cooldown_end: cooldownEndTime,
+        });
+      }
+    }
+
+    if (user.last_contract_time) {
+      const cooldownEndTime = new Date(
+        user.last_contract_time.getTime() + contractCooldown,
+      );
+      if (cooldownEndTime > new Date()) {
+        throw new BadRequestException({
+          message: 'Contract cooldown is still active',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -343,8 +357,19 @@ export class UserService {
       total_power_increase / guards_count,
     );
 
+    const maxStrengthFirstGuard = Settings[
+      SettingKey.MAX_STRENGTH_FIRST_USER_GUARD
+    ] as number;
+
     for (const guard of user.guards) {
-      guard.strength = Number(guard.strength) + powerIncreasePerGuard;
+      const newStrength = Number(guard.strength) + powerIncreasePerGuard;
+
+      if (guard.is_first && newStrength > maxStrengthFirstGuard) {
+        guard.strength = maxStrengthFirstGuard;
+      } else {
+        guard.strength = newStrength;
+      }
+
       await this.userGuardRepository.save(guard);
     }
 
@@ -415,12 +440,14 @@ export class UserService {
     );
 
     let contractCooldown = Settings[SettingKey.CONTRACT_COOLDOWN];
+    let trainingCooldown = Settings[SettingKey.TRAINING_COOLDOWN];
     if (
       cooldownHalvingBoost &&
       cooldownHalvingBoost.end_time &&
       cooldownHalvingBoost.end_time > new Date()
     ) {
       contractCooldown = contractCooldown / 2;
+      trainingCooldown = trainingCooldown / 2;
     }
 
     if (user.last_contract_time) {
@@ -430,6 +457,18 @@ export class UserService {
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
           message: 'Contract cooldown is still active',
+          cooldown_end: cooldownEndTime,
+        });
+      }
+    }
+
+    if (user.last_training_time) {
+      const cooldownEndTime = new Date(
+        user.last_training_time.getTime() + trainingCooldown,
+      );
+      if (cooldownEndTime > new Date()) {
+        throw new BadRequestException({
+          message: 'Training cooldown is still active',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -518,7 +557,11 @@ export class UserService {
       }),
     );
 
-    usersWithStrength.sort((a, b) => b.strength - a.strength);
+    usersWithStrength.sort((a, b) => {
+      const scoreA = a.strength * 1000 + Number(a.user.money || 0);
+      const scoreB = b.strength * 1000 + Number(b.user.money || 0);
+      return scoreB - scoreA;
+    });
 
     const total = usersWithStrength.length;
     const skip = (page - 1) * limit;
@@ -563,7 +606,8 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const allGuards = user.guards || [];
+    const allGuards = (user.guards || []).slice();
+    allGuards.sort((a, b) => Number(b.strength) - Number(a.strength));
     const total = allGuards.length;
     const paginatedGuards = allGuards.slice(skip, skip + limit);
 
@@ -667,7 +711,7 @@ export class UserService {
 
   async checkCommunitySubscribe(
     userId: number,
-    communityId: string,
+    taskId: number,
   ): Promise<{ subscribed: boolean }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -677,10 +721,51 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
+    const userTasks = await this.userTaskService.getUserTasks(userId);
+    const userTask = userTasks.find((ut) => ut.task.id === taskId);
+
+    if (!userTask || !userTask.task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    if (userTask.task.type !== TaskType.COMMUNITY_SUBSCRIBE) {
+      throw new BadRequestException('Task is not a community subscribe task');
+    }
+
+    if (!userTask.task.value) {
+      throw new BadRequestException('Task value (community_id) is not set');
+    }
+
+    const communityId = userTask.task.value;
+
     try {
+      let groupId = String(communityId).replace(/^-/, '');
+
+      if (isNaN(Number(groupId)) || groupId.includes('.')) {
+        const getByIdUrl = `https://api.vk.com/method/groups.getById`;
+        const getByIdParams = new URLSearchParams({
+          group_id: groupId,
+          access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
+          v: '5.131',
+        });
+
+        const getByIdResponse = await fetch(`${getByIdUrl}?${getByIdParams}`);
+        const getByIdData = await getByIdResponse.json();
+
+        if (getByIdData.error) {
+          return { subscribed: false };
+        }
+
+        if (getByIdData.response && getByIdData.response[0]?.id) {
+          groupId = String(Math.abs(getByIdData.response[0].id));
+        } else {
+          return { subscribed: false };
+        }
+      }
+
       const vkApiUrl = `https://api.vk.com/method/groups.isMember`;
       const vkApiParams = new URLSearchParams({
-        group_id: communityId.replace(/^-/, ''),
+        group_id: groupId,
         user_id: user.vk_id.toString(),
         access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
         v: '5.131',
@@ -688,6 +773,10 @@ export class UserService {
 
       const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
       const data = await response.json();
+
+      if (data.error) {
+        return { subscribed: false };
+      }
 
       let isSubscribed = false;
 
@@ -703,15 +792,11 @@ export class UserService {
       }
 
       if (isSubscribed) {
-        await this.userTaskService.updateTaskProgress(
-          userId,
-          TaskType.COMMUNITY_SUBSCRIBE,
-        );
+        await this.userTaskService.updateTaskProgressByTaskId(userId, taskId);
       }
 
       return { subscribed: isSubscribed };
     } catch (error) {
-      console.error('Error checking community subscription:', error);
       return { subscribed: false };
     }
   }
@@ -774,7 +859,11 @@ export class UserService {
         }),
       );
 
-      dataWithStrength.sort((a, b) => b.strength - a.strength);
+      dataWithStrength.sort((a, b) => {
+        const scoreA = a.strength * 1000 + Number(a.money || 0);
+        const scoreB = b.strength * 1000 + Number(b.money || 0);
+        return scoreB - scoreA;
+      });
 
       total = dataWithStrength.length;
       const paginatedData = dataWithStrength.slice(skip, skip + limit);
@@ -820,11 +909,16 @@ export class UserService {
         }),
       );
 
-      dataWithStrength.sort(
-        (a, b) =>
-          Math.abs(a.strength - currentStrength) -
-          Math.abs(b.strength - currentStrength),
-      );
+      dataWithStrength.sort((a, b) => {
+        const distanceA = Math.abs(a.strength - currentStrength);
+        const distanceB = Math.abs(b.strength - currentStrength);
+        if (distanceA !== distanceB) {
+          return distanceA - distanceB;
+        }
+        const scoreA = a.strength * 1000 + Number(a.money || 0);
+        const scoreB = b.strength * 1000 + Number(b.money || 0);
+        return scoreB - scoreA;
+      });
 
       total = dataWithStrength.length;
       const paginatedData = dataWithStrength.slice(skip, skip + limit);

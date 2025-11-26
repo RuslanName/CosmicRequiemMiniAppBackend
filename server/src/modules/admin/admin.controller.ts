@@ -43,7 +43,8 @@ export class AdminController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [Admin],
+    type: PaginatedResponseDto<Admin>,
+    description: 'Список администраторов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -58,6 +59,8 @@ export class AdminController {
   })
   @ApiResponse({
     status: 200,
+    type: Admin,
+    description: 'Информация о текущем администраторе',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
@@ -70,9 +73,16 @@ export class AdminController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить администратора по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID администратора',
+  })
   @ApiResponse({
     status: 200,
+    type: Admin,
+    description: 'Информация об администраторе',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
@@ -85,9 +95,13 @@ export class AdminController {
   @ApiBody({ type: CreateAdminDto })
   @ApiResponse({
     status: 201,
+    type: Admin,
+    description: 'Администратор успешно создан',
   })
   @ApiResponse({
     status: 400,
+    description:
+      'Неверные данные или администратор с таким username/user_id уже существует',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(@Body() createAdminDto: CreateAdminDto): Promise<Admin> {
@@ -96,10 +110,22 @@ export class AdminController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить администратора' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID администратора',
+  })
   @ApiBody({ type: UpdateAdminDto })
   @ApiResponse({
     status: 200,
+    type: Admin,
+    description: 'Администратор успешно обновлен',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Неверные данные или администратор с таким username/user_id уже существует',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
@@ -112,10 +138,16 @@ export class AdminController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить администратора' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID администратора',
+  })
   @ApiResponse({
     status: 200,
     type: AdminDeleteResponseDto,
+    description: 'Администратор успешно удален',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })

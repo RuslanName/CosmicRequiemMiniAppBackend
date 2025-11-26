@@ -37,7 +37,8 @@ export class ClanWarController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [ClanWar],
+    type: PaginatedResponseDto<ClanWar>,
+    description: 'Список войн с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -48,9 +49,11 @@ export class ClanWarController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить войну по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID войны' })
   @ApiResponse({
     status: 200,
+    type: ClanWar,
+    description: 'Информация о войне',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Война не найдена' })
@@ -60,10 +63,16 @@ export class ClanWarController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить войну' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID войны' })
   @ApiBody({ type: UpdateClanWarDto })
   @ApiResponse({
     status: 200,
+    type: ClanWar,
+    description: 'Война успешно обновлена',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Война не найдена' })
@@ -76,9 +85,10 @@ export class ClanWarController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить войну' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID войны' })
   @ApiResponse({
     status: 200,
+    description: 'Война успешно удалена',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Война не найдена' })

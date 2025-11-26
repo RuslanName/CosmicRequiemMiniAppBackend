@@ -43,4 +43,10 @@ export class ClanWithStatsResponseDto {
 
   @ApiProperty({ required: false })
   wars_count?: number;
+
+  @ApiProperty({ required: false })
+  war_start_time?: Date;
+
+  @ApiProperty({ required: false })
+  war_end_time?: Date;
 }

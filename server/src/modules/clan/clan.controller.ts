@@ -64,7 +64,8 @@ export class ClanController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [ClanWithStatsResponseDto],
+    type: PaginatedResponseDto<ClanWithStatsResponseDto>,
+    description: 'Список кланов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -83,7 +84,8 @@ export class ClanController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [ClanWithStatsResponseDto],
+    type: PaginatedResponseDto<ClanWithStatsResponseDto>,
+    description: 'Список кланов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getClansList(
@@ -99,10 +101,14 @@ export class ClanController {
   @CacheKey('clan:me')
   @ApiOperation({
     summary: 'Получить клан текущего пользователя (Для Mini App)',
+    description:
+      'Возвращает информацию о клане текущего пользователя. Включает поле has_active_wars (boolean), указывающее наличие активных войн.',
   })
   @ApiResponse({
     status: 200,
     type: ClanWithReferralResponseDto,
+    description:
+      'Информация о клане с полем has_active_wars, указывающим наличие активных войн',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
@@ -116,21 +122,25 @@ export class ClanController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
-  @CacheKey('clan:me:wars')
+  @CacheKey('clan:me:wars:page::page:limit::limit')
   @ApiOperation({
     summary:
-      'Получить активные войны клана текущего пользователя (Для Mini App)',
+      'Получить все войны клана текущего пользователя с пагинацией (Для Mini App)',
   })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: PaginatedResponseDto<ClanWarResponseDto>,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
   async getMyClanWars(
     @Request() req: AuthenticatedRequest,
-  ): Promise<ClanWarResponseDto[]> {
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<ClanWarResponseDto>> {
     const clan = await this.clanService.getUserClan(req.user.id);
-    return this.clanService.getActiveWars(clan.id);
+    return this.clanService.getAllWars(clan.id, paginationDto);
   }
 
   @Get('me/members')
@@ -138,10 +148,14 @@ export class ClanController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить всех участников своего клана (Для Mini App)',
+    description:
+      'Возвращает список участников клана, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money',
   })
   @ApiResponse({
     status: 200,
     type: [UserWithStatsResponseDto],
+    description:
+      'Список участников клана, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
@@ -157,10 +171,16 @@ export class ClanController {
   @ApiBearerAuth()
   @CacheTTL(30)
   @CacheKey('clan:me:enemy-clans')
-  @ApiOperation({ summary: 'Получить кланы, с которыми война (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Получить кланы, с которыми война (Для Mini App)',
+    description:
+      'Возвращает список кланов, с которыми у текущего клана активная война. Каждый клан включает поля war_start_time и war_end_time.',
+  })
   @ApiResponse({
     status: 200,
     type: [ClanWithStatsResponseDto],
+    description:
+      'Список вражеских кланов с полями war_start_time и war_end_time',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
@@ -177,14 +197,24 @@ export class ClanController {
   @CacheKey('clan:me:enemy-clan')
   @ApiOperation({
     summary: 'Получить конкретный вражеский клан (Для Mini App)',
+    description:
+      'Возвращает информацию о конкретном вражеском клане с полями war_start_time и war_end_time',
   })
-  @ApiParam({ name: 'id', type: Number, example: 2 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 2,
+    description: 'ID вражеского клана',
+  })
   @ApiResponse({
     status: 200,
     type: ClanWithStatsResponseDto,
+    description:
+      'Информация о вражеском клане с полями war_start_time и war_end_time',
   })
   @ApiResponse({
     status: 400,
+    description: 'Клан не является вражеским или война не активна',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -204,11 +234,20 @@ export class ClanController {
   @CacheTTL(30)
   @ApiOperation({
     summary: 'Получить участников вражеского клана (Для Mini App)',
+    description:
+      'Возвращает список участников вражеского клана, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money',
   })
-  @ApiParam({ name: 'id', type: Number, example: 2 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 2,
+    description: 'ID вражеского клана',
+  })
   @ApiResponse({
     status: 200,
     type: [UserWithStatsResponseDto],
+    description:
+      'Список участников вражеского клана, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
   })
   @ApiResponse({
     status: 400,
@@ -230,12 +269,18 @@ export class ClanController {
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('clan:rating')
-  @ApiOperation({ summary: 'Получить рейтинг кланов (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Получить рейтинг кланов (Для Mini App)',
+    description:
+      'Возвращает рейтинг кланов, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money, затем по рейтингу (wins)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: [ClanRatingResponseDto],
+    type: PaginatedResponseDto<ClanRatingResponseDto>,
+    description:
+      'Рейтинг кланов, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getClanRating(
@@ -251,8 +296,15 @@ export class ClanController {
   @CacheKey('clan:find:id::id:query::query')
   @ApiOperation({
     summary: 'Получить клан по ID или найти по названию (Для Mini App)',
+    description:
+      'Если указан query, выполняет поиск кланов по названию с пагинацией. Если query не указан, возвращает клан по ID.',
   })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 1,
+    description: 'ID клана (используется только если query не указан)',
+  })
   @ApiQuery({
     name: 'query',
     required: false,
@@ -264,7 +316,13 @@ export class ClanController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    type: ClanWithStatsResponseDto,
+    description: 'Клан по ID или список кланов по названию с пагинацией',
+    schema: {
+      oneOf: [
+        { $ref: '#/components/schemas/ClanWithStatsResponseDto' },
+        { $ref: '#/components/schemas/PaginatedResponseDto' },
+      ],
+    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
@@ -305,13 +363,17 @@ export class ClanController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить доступные кланы для объявления войны (Для Mini App)',
+    description:
+      'Возвращает список кланов, которым можно объявить войну (нет активной войны, кулдаун прошел и т.д.)',
   })
   @ApiResponse({
     status: 200,
     type: [ClanWithStatsResponseDto],
+    description: 'Список доступных кланов для объявления войны',
   })
   @ApiResponse({
     status: 400,
+    description: 'Невозможно получить список (кулдаун активен и т.д.)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -324,16 +386,24 @@ export class ClanController {
     return this.clanService.getAvailableClansForWar(req.user.id);
   }
 
-  @Post('wars/declare')
+  @Post('me/declare-war')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Объявить войну целевому клану (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Объявить войну целевому клану (Для Mini App)',
+    description:
+      'Объявляет войну целевому клану. Доступно только для лидера клана.',
+  })
   @ApiBody({ type: DeclareWarDto })
   @ApiResponse({
     status: 201,
+    type: ClanWarResponseDto,
+    description: 'Война успешно объявлена',
   })
   @ApiResponse({
     status: 400,
+    description:
+      'Невозможно объявить войну (кулдаун активен, достигнут лимит войн и т.д.)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -350,48 +420,45 @@ export class ClanController {
     );
   }
 
-  @Get('wars/enemy-members')
+  @Post('me/enemy-clans/:id/attack')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Получить участников вражеских кланов для атаки (Для Mini App)',
+    summary: 'Атаковать противника из вражеского клана (Для Mini App)',
+    description:
+      'Атакует указанного пользователя из вражеского клана. Параметр :id - это ID вражеского клана, в теле запроса указывается target_user_id.',
   })
-  @ApiResponse({
-    status: 200,
-    type: [UserWithStatsResponseDto],
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 2,
+    description: 'ID вражеского клана',
   })
-  @ApiResponse({
-    status: 400,
+  @ApiBody({
+    type: AttackEnemyDto,
+    description: 'ID целевого пользователя для атаки',
   })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async getEnemyClanMembers(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<UserWithStatsResponseDto[]> {
-    return this.clanService.getEnemyClanMembers(req.user.id);
-  }
-
-  @Post('wars/attack')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Атаковать противника (Для Mini App)' })
-  @ApiBody({ type: AttackEnemyDto })
   @ApiResponse({
     status: 200,
     type: AttackEnemyResponseDto,
+    description: 'Результат атаки',
   })
   @ApiResponse({
     status: 400,
+    description:
+      'Невозможно атаковать (кулдаун активен, нет активной войны, пользователь не из указанного клана и т.д.)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async attackEnemy(
     @Request() req: AuthenticatedRequest,
+    @Param('id') enemyClanId: string,
     @Body() attackEnemyDto: AttackEnemyDto,
   ): Promise<AttackEnemyResponseDto> {
     return this.clanService.attackEnemy(
       req.user.id,
       attackEnemyDto.target_user_id,
+      +enemyClanId,
     );
   }
 
@@ -401,9 +468,12 @@ export class ClanController {
   @ApiOperation({ summary: 'Покинуть текущий клан (Для Mini App)' })
   @ApiResponse({
     status: 200,
+    type: User,
+    description: 'Пользователь успешно покинул клан',
   })
   @ApiResponse({
     status: 400,
+    description: 'Пользователь не состоит в клане или является лидером',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -420,9 +490,12 @@ export class ClanController {
   @ApiBody({ type: CreateClanApplicationDto })
   @ApiResponse({
     status: 201,
+    type: ClanApplication,
+    description: 'Заявка успешно создана',
   })
   @ApiResponse({
     status: 400,
+    description: 'Пользователь уже состоит в клане или заявка уже существует',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан или пользователь не найден' })
@@ -441,9 +514,13 @@ export class ClanController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить список заявок на вступление в клан (Для Mini App)',
+    description:
+      'Возвращает список заявок на вступление в клан текущего пользователя',
   })
   @ApiResponse({
     status: 200,
+    type: [ClanApplication],
+    description: 'Список заявок на вступление в клан',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -462,12 +539,15 @@ export class ClanController {
   @ApiOperation({
     summary: 'Принять заявку на вступление в клан (Для Mini App)',
   })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID заявки' })
   @ApiResponse({
     status: 200,
+    type: ClanApplication,
+    description: 'Заявка успешно принята',
   })
   @ApiResponse({
     status: 400,
+    description: 'Заявка уже обработана или клан переполнен',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -487,12 +567,15 @@ export class ClanController {
   @ApiOperation({
     summary: 'Отклонить заявку на вступление в клан (Для Mini App)',
   })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID заявки' })
   @ApiResponse({
     status: 200,
+    type: ClanApplication,
+    description: 'Заявка успешно отклонена',
   })
   @ApiResponse({
     status: 400,
+    description: 'Заявка уже обработана',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -542,6 +625,11 @@ export class ClanController {
   @ApiOperation({ summary: 'Удалить клан (Для Mini App)' })
   @ApiResponse({
     status: 200,
+    description: 'Клан успешно удален',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Невозможно удалить клан (есть активные войны и т.д.)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -556,10 +644,11 @@ export class ClanController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить клан по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID клана' })
   @ApiResponse({
     status: 200,
     type: ClanWithStatsResponseDto,
+    description: 'Информация о клане',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
@@ -577,6 +666,11 @@ export class ClanController {
   @ApiResponse({
     status: 201,
     type: ClanWithReferralResponseDto,
+    description: 'Клан успешно создан',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
@@ -592,11 +686,16 @@ export class ClanController {
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Обновить клан' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID клана' })
   @ApiBody({ type: UpdateClanDto })
   @ApiResponse({
     status: 200,
     type: ClanWithReferralResponseDto,
+    description: 'Клан успешно обновлен',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
@@ -612,9 +711,10 @@ export class ClanController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Удалить клан' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID клана' })
   @ApiResponse({
     status: 200,
+    description: 'Клан успешно удален',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })

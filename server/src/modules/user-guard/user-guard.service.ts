@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserGuard } from './user-guard.entity';
@@ -6,6 +10,8 @@ import { CreateUserGuardDto } from './dtos/create-user-guard.dto';
 import { UpdateUserGuardDto } from './dtos/update-user-guard.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { Settings } from '../../config/setting.config';
+import { SettingKey } from '../setting/enums/setting-key.enum';
 
 @Injectable()
 export class UserGuardService {
@@ -49,6 +55,18 @@ export class UserGuardService {
 
   async create(createUserGuardDto: CreateUserGuardDto): Promise<UserGuard> {
     const { user_id, ...rest } = createUserGuardDto;
+
+    if (rest.is_first && rest.strength !== undefined) {
+      const maxStrengthFirstGuard = Settings[
+        SettingKey.MAX_STRENGTH_FIRST_USER_GUARD
+      ] as number;
+      if (rest.strength > maxStrengthFirstGuard) {
+        throw new BadRequestException(
+          `First guard strength cannot exceed ${maxStrengthFirstGuard}`,
+        );
+      }
+    }
+
     const userGuard = this.userGuardRepository.create({
       ...rest,
       user: { id: user_id } as any,
@@ -70,6 +88,23 @@ export class UserGuardService {
     }
 
     const { user_id, ...rest } = updateUserGuardDto;
+
+    const isFirst =
+      rest.is_first !== undefined ? rest.is_first : userGuard.is_first;
+    const newStrength =
+      rest.strength !== undefined ? rest.strength : userGuard.strength;
+
+    if (isFirst && newStrength !== undefined) {
+      const maxStrengthFirstGuard = Settings[
+        SettingKey.MAX_STRENGTH_FIRST_USER_GUARD
+      ] as number;
+      if (newStrength > maxStrengthFirstGuard) {
+        throw new BadRequestException(
+          `First guard strength cannot exceed ${maxStrengthFirstGuard}`,
+        );
+      }
+    }
+
     Object.assign(userGuard, rest);
     if (user_id !== undefined) {
       userGuard.user = { id: user_id } as any;
