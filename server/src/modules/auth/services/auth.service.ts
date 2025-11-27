@@ -171,13 +171,13 @@ export class AuthService {
 
     const vkGroupId = vk_params.vk_group_id;
     const vkViewerGroupRole = vk_params.vk_viewer_group_role;
-    
+
     if (vkGroupId) {
       if (targetClan && !targetClan.vk_group_id) {
         targetClan.vk_group_id = Number(vkGroupId);
         await this.clanRepository.save(targetClan);
       }
-      
+
       this.clanService
         .syncClanWithVkGroup(dbUser.id, vkGroupId, vkViewerGroupRole || '')
         .catch((error) => {

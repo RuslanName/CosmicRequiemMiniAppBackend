@@ -936,6 +936,7 @@ export class ClanService {
     }
 
     user.clan_leave_time = new Date();
+    user.clan_id = null;
     user.clan = undefined;
     await this.userRepository.save(user);
 

@@ -11,6 +11,7 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  HttpCode,
 } from '@nestjs/common';
 import { AuthenticatedRequest } from '../../common/types/request.types';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -462,7 +463,8 @@ export class ClanController {
     );
   }
 
-  @Post('leave')
+  @Post('me/leave')
+  @HttpCode(200)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Покинуть текущий клан (Для Mini App)' })
