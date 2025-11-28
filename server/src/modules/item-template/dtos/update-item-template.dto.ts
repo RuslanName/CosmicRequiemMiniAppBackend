@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsNumber } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { ItemTemplateType } from '../enums/item-template-type.enum';
 
@@ -30,6 +30,15 @@ export class UpdateItemTemplateDto {
   @IsOptional()
   @IsString()
   value?: string;
+
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Количество (только для стражей)',
+  })
+  @IsOptional()
+  @IsNumber()
+  quantity?: number;
 
   @ApiProperty({
     example: 'data/item-template-images/item-template-123.jpg',

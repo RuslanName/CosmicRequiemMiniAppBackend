@@ -4,6 +4,7 @@ export interface ItemTemplate {
   type: string;
   value: string | null;
   image_path: string | null;
+  quantity: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -12,11 +13,13 @@ export interface CreateItemTemplateDto {
   name: string;
   type: string;
   value?: string;
+  quantity?: number;
 }
 
 export interface UpdateItemTemplateDto {
   name?: string;
   type?: string;
   value?: string;
+  quantity?: number;
   image_path?: string;
 }

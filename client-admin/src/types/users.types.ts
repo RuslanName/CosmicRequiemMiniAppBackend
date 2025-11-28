@@ -18,6 +18,7 @@ export interface User {
   clan_id?: number;
   strength?: number;
   guards_count?: number;
+  first_guard_strength?: number | null;
   referral_link?: string;
 }
 

@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +16,9 @@ import { User } from '../user/user.entity';
 import { UserAccessoryResponseDto } from './dtos/user-accessory-response.dto';
 import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/enums/setting-key.enum';
+import { UserMeResponseDto } from '../user/dtos/responses/user-me-response.dto';
+import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class UserAccessoryService {
@@ -24,7 +29,34 @@ export class UserAccessoryService {
     private readonly userBoostRepository: Repository<UserBoost>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @Inject(forwardRef(() => UserService))
+    private readonly userService: UserService,
   ) {}
+
+  private transformUserBoostToResponseDto(
+    boost: UserBoost,
+  ): UserBoostResponseDto {
+    return {
+      id: boost.id,
+      type: boost.type,
+      end_time: boost.end_time || null,
+      created_at: boost.created_at,
+    };
+  }
+
+  private transformToUserAccessoryResponseDto(
+    accessory: UserAccessory,
+  ): UserAccessoryResponseDto {
+    return {
+      id: accessory.id,
+      name: accessory.item_template?.name || '',
+      status: accessory.status,
+      type: accessory.item_template?.type || '',
+      value: accessory.item_template?.value || null,
+      image_path: accessory.item_template?.image_path || null,
+      created_at: accessory.created_at,
+    };
+  }
 
   async findByUserId(userId: number): Promise<UserAccessoryResponseDto[]> {
     const accessories = await this.userAccessoryRepository.find({
@@ -33,15 +65,9 @@ export class UserAccessoryService {
       order: { created_at: 'DESC' },
     });
 
-    return accessories.map((accessory) => ({
-      id: accessory.id,
-      name: accessory.name,
-      status: accessory.status,
-      type: accessory.item_template?.type || '',
-      value: accessory.item_template?.value || null,
-      image_path: accessory.item_template?.image_path || null,
-      created_at: accessory.created_at,
-    }));
+    return accessories.map((accessory) =>
+      this.transformToUserAccessoryResponseDto(accessory),
+    );
   }
 
   async findEquippedByUserId(
@@ -55,18 +81,15 @@ export class UserAccessoryService {
       relations: ['item_template'],
     });
 
-    return accessories.map((accessory) => ({
-      id: accessory.id,
-      name: accessory.name,
-      status: accessory.status,
-      type: accessory.item_template?.type || '',
-      value: accessory.item_template?.value || null,
-      image_path: accessory.item_template?.image_path || null,
-      created_at: accessory.created_at,
-    }));
+    return accessories.map((accessory) =>
+      this.transformToUserAccessoryResponseDto(accessory),
+    );
   }
 
-  async equip(userId: number, accessoryId: number): Promise<UserAccessory> {
+  async equip(
+    userId: number,
+    accessoryId: number,
+  ): Promise<UserAccessoryResponseDto> {
     const accessory = await this.userAccessoryRepository.findOne({
       where: { id: accessoryId },
       relations: ['user', 'item_template'],
@@ -106,13 +129,24 @@ export class UserAccessoryService {
     }
 
     accessory.status = UserAccessoryStatus.EQUIPPED;
-    return this.userAccessoryRepository.save(accessory);
+    const savedAccessory = await this.userAccessoryRepository.save(accessory);
+    const accessoryWithRelations = await this.userAccessoryRepository.findOne({
+      where: { id: savedAccessory.id },
+      relations: ['item_template'],
+    });
+    if (!accessoryWithRelations) {
+      throw new NotFoundException('Аксессуар не найден после сохранения');
+    }
+    return this.transformToUserAccessoryResponseDto(accessoryWithRelations);
   }
 
-  async unequip(userId: number, accessoryId: number): Promise<UserAccessory> {
+  async unequip(
+    userId: number,
+    accessoryId: number,
+  ): Promise<UserAccessoryResponseDto> {
     const accessory = await this.userAccessoryRepository.findOne({
       where: { id: accessoryId },
-      relations: ['user'],
+      relations: ['user', 'item_template'],
     });
 
     if (!accessory) {
@@ -130,13 +164,21 @@ export class UserAccessoryService {
     }
 
     accessory.status = UserAccessoryStatus.UNEQUIPPED;
-    return this.userAccessoryRepository.save(accessory);
+    const savedAccessory = await this.userAccessoryRepository.save(accessory);
+    const accessoryWithRelations = await this.userAccessoryRepository.findOne({
+      where: { id: savedAccessory.id },
+      relations: ['item_template'],
+    });
+    if (!accessoryWithRelations) {
+      throw new NotFoundException('Аксессуар не найден после сохранения');
+    }
+    return this.transformToUserAccessoryResponseDto(accessoryWithRelations);
   }
 
   async activateShield(
     userId: number,
     accessoryId: number,
-  ): Promise<{ user: User; user_boost: UserBoost }> {
+  ): Promise<{ user: UserMeResponseDto; user_boost: UserBoostResponseDto }> {
     const accessory = await this.userAccessoryRepository.findOne({
       where: { id: accessoryId },
       relations: ['user', 'item_template'],
@@ -209,6 +251,9 @@ export class UserAccessoryService {
     await this.userAccessoryRepository.remove(accessory);
     await this.userRepository.save(user);
 
-    return { user, user_boost: createdBoost };
+    const userResponse = await this.userService.findMe(user.id);
+    const boostResponse = this.transformUserBoostToResponseDto(createdBoost);
+
+    return { user: userResponse, user_boost: boostResponse };
   }
 }

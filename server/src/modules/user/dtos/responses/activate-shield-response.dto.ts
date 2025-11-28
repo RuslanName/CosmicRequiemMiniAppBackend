@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { User } from '../../user.entity';
-import { UserBoost } from '../../../user-boost/user-boost.entity';
+import { UserMeResponseDto } from './user-me-response.dto';
+import { UserBoostResponseDto } from '../../../user-boost/dtos/user-boost-response.dto';
 
 export class ActivateShieldResponseDto {
-  @ApiProperty({ type: () => User })
-  user: User;
+  @ApiProperty({ type: () => UserMeResponseDto })
+  user: UserMeResponseDto;
 
-  @ApiProperty({ type: () => UserBoost })
-  user_boost: UserBoost;
+  @ApiProperty({ type: () => UserBoostResponseDto })
+  user_boost: UserBoostResponseDto;
 }

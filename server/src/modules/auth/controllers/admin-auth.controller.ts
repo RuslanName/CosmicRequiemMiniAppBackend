@@ -20,6 +20,7 @@ import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 import { ENV } from '../../../config/constants';
 import { AdminLoginResponseDto } from '../dtos/responses/admin-login-response.dto';
+import { LogoutResponseDto } from '../dtos/responses/logout-response.dto';
 
 @ApiTags('Auth')
 @Controller('auth/admin')
@@ -120,13 +121,13 @@ export class AdminAuthController {
   @ApiBody({ type: RefreshTokenDto, required: false })
   @ApiResponse({
     status: 200,
-    type: AdminLoginResponseDto,
+    type: LogoutResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async logout(
     @Body() refreshTokenDto: RefreshTokenDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<AdminLoginResponseDto> {
+  ): Promise<LogoutResponseDto> {
     const refreshToken =
       refreshTokenDto.refreshToken ||
       (res.req.cookies?.['admin_refresh_token'] as string);

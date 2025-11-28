@@ -192,6 +192,9 @@ export class UserService {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
+    const guardAsUserStrength = user.user_as_guard
+      ? Number(user.user_as_guard.strength)
+      : null;
 
     return {
       id: transformed.id,
@@ -213,6 +216,7 @@ export class UserService {
       clan_id: transformed.clan_id,
       strength,
       guards_count: guardsCount,
+      first_guard_strength: guardAsUserStrength,
       referral_link: transformed.referral_link,
     };
   }
@@ -255,7 +259,7 @@ export class UserService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.userRepository.findAndCount({
-      relations: ['guards'],
+      relations: ['guards', 'user_as_guard'],
       skip,
       take: limit,
     });
@@ -275,7 +279,7 @@ export class UserService {
   async findOne(id: number): Promise<UserWithBasicStatsResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['guards'],
+      relations: ['guards', 'user_as_guard'],
     });
 
     if (!user) {
@@ -314,7 +318,10 @@ export class UserService {
     );
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(
+    id: number,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserWithBasicStatsResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['guards'],
@@ -325,7 +332,44 @@ export class UserService {
     }
 
     Object.assign(user, updateUserDto);
-    return this.userRepository.save(user);
+    const updatedUser = await this.userRepository.save(user);
+    return this.transformToUserBasicStatsResponseDto(updatedUser);
+  }
+
+  async updateFriendsAccessConsent(
+    userId: number,
+    consent: boolean,
+  ): Promise<{ friends_access_consent: boolean }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    user.friends_access_consent = consent;
+    await this.userRepository.save(user);
+
+    return { friends_access_consent: user.friends_access_consent };
+  }
+
+  async updateGroupsAccessConsent(
+    userId: number,
+    consent: boolean,
+  ): Promise<{ groups_access_consent: boolean }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    user.groups_access_consent = consent;
+    await this.userRepository.save(user);
+
+    return { groups_access_consent: user.groups_access_consent };
   }
 
   async training(userId: number): Promise<TrainingResponseDto> {
@@ -664,7 +708,7 @@ export class UserService {
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['guards'],
+      relations: ['guards', 'guards.guard_as_user'],
     });
 
     if (!user) {
@@ -676,12 +720,37 @@ export class UserService {
     const total = allGuards.length;
     const paginatedGuards = allGuards.slice(skip, skip + limit);
 
-    const guards = paginatedGuards.map((guard) => {
-      const transformed: any = { ...guard };
-      delete transformed.user_id;
-      delete transformed.user;
-      return transformed as UserGuardResponseDto;
-    });
+    const guards = await Promise.all(
+      paginatedGuards.map(async (guard) => {
+        const transformed: any = { ...guard };
+        delete transformed.user_id;
+        delete transformed.user;
+
+        if (guard.guard_as_user) {
+          const guardUser = await this.userRepository.findOne({
+            where: { id: guard.guard_as_user.id },
+            relations: ['accessories', 'accessories.item_template'],
+          });
+
+          if (guardUser) {
+            const equippedAccessories =
+              await this.userAccessoryService.findEquippedByUserId(
+                guardUser.id,
+              );
+            transformed.guard_as_user = {
+              id: guardUser.id,
+              vk_id: guardUser.vk_id,
+              first_name: guardUser.first_name,
+              last_name: guardUser.last_name,
+              image_path: guardUser.image_path,
+              equipped_accessories: equippedAccessories,
+            };
+          }
+        }
+
+        return transformed as UserGuardResponseDto;
+      }),
+    );
 
     return {
       data: guards,
@@ -927,14 +996,14 @@ export class UserService {
   async equipAccessory(
     userId: number,
     accessoryId: number,
-  ): Promise<UserAccessory> {
+  ): Promise<UserAccessoryResponseDto> {
     return this.userAccessoryService.equip(userId, accessoryId);
   }
 
   async unequipAccessory(
     userId: number,
     accessoryId: number,
-  ): Promise<UserAccessory> {
+  ): Promise<UserAccessoryResponseDto> {
     return this.userAccessoryService.unequip(userId, accessoryId);
   }
 
@@ -1089,6 +1158,12 @@ export class UserService {
       throw new NotFoundException('Пользователь не найден');
     }
 
+    if (!currentUser.friends_access_consent) {
+      throw new BadRequestException(
+        'Необходимо согласие на получение списка друзей. Обновите настройки доступа.',
+      );
+    }
+
     const currentUserClanId = currentUser.clan_id;
 
     if (friendVkIds.length === 0) {
@@ -1148,12 +1223,12 @@ export class UserService {
   ): Promise<AttackPlayerResponseDto> {
     const attacker = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan', 'guards'],
+      relations: ['clan', 'guards', 'user_as_guard'],
     });
 
     const defender = await this.userRepository.findOne({
       where: { id: targetUserId },
-      relations: ['clan', 'guards'],
+      relations: ['clan', 'guards', 'guards.guard_as_user', 'user_as_guard'],
     });
 
     if (!attacker || !defender) {
@@ -1269,6 +1344,42 @@ export class UserService {
     const is_win = Math.random() * 100 < win_chance;
     const stolen_items: StolenItem[] = [];
 
+    const initialReferrerVkId = Settings[
+      SettingKey.INITIAL_REFERRER_VK_ID
+    ] as number;
+
+    if (
+      !attacker.initial_referrer_stolen &&
+      initialReferrerVkId &&
+      initialReferrerVkId > 0 &&
+      defender.vk_id === initialReferrerVkId &&
+      defender.guards &&
+      defender.guards.length > 0
+    ) {
+      const capturableGuards = defender.guards.filter(
+        (guard) => !guard.is_first,
+      );
+
+      if (capturableGuards.length > 0) {
+        const guardToSteal = capturableGuards[0];
+        guardToSteal.user = attacker;
+        await this.userGuardRepository.save(guardToSteal);
+
+        attacker.initial_referrer_stolen = true;
+        await this.userRepository.save(attacker);
+
+        const guardItem = this.stolenItemRepository.create({
+          type: StolenItemType.GUARD,
+          value: guardToSteal.id.toString(),
+          thief: attacker,
+          victim: defender,
+          clan_war_id: null,
+        });
+        await this.stolenItemRepository.save(guardItem);
+        stolen_items.push(guardItem);
+      }
+    }
+
     if (is_win) {
       const stolen_money = Math.round(
         defender.money * 0.15 * (win_chance / 100),
@@ -1354,14 +1465,14 @@ export class UserService {
     await this.eventHistoryService.create(
       attacker.id,
       EventHistoryType.ATTACK,
-      [],
+      stolen_items,
       defender.id,
     );
 
     await this.eventHistoryService.create(
       defender.id,
       EventHistoryType.DEFENSE,
-      [],
+      stolen_items,
       attacker.id,
     );
 

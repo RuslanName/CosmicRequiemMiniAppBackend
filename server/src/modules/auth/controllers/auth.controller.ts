@@ -6,6 +6,7 @@ import { AuthService } from '../services/auth.service';
 import { AuthDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { AuthLoginResponseDto } from '../dtos/responses/auth-login-response.dto';
+import { LogoutResponseDto } from '../dtos/responses/logout-response.dto';
 import { ENV } from '../../../config/constants';
 
 @ApiTags('Auth')
@@ -116,12 +117,13 @@ export class AuthController {
   @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({
     status: 200,
+    type: LogoutResponseDto,
     description: 'Выход выполнен успешно',
   })
   async logout(
     @Body() refreshTokenDto: RefreshTokenDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<LogoutResponseDto> {
     await this.authService.revokeRefreshToken(refreshTokenDto.refreshToken);
 
     res.clearCookie('access_token', {

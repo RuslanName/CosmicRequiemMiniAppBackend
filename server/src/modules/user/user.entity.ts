@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { UserStatus } from './enums/user-status.enum';
@@ -101,4 +102,23 @@ export class User {
 
   @Column({ type: 'uuid', unique: true, nullable: true })
   referral_link_id?: string;
+
+  @Column({ type: 'boolean', default: false })
+  friends_access_consent: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  groups_access_consent: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  user_as_guard_id: number | null;
+
+  @OneToOne(() => UserGuard, (guard) => guard.guard_as_user, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'user_as_guard_id' })
+  user_as_guard?: UserGuard | null;
+
+  @Column({ type: 'boolean', default: false })
+  initial_referrer_stolen: boolean;
 }

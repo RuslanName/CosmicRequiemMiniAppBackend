@@ -14,9 +14,6 @@ export class UserAccessory {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar' })
-  name: string;
-
   @Column({
     type: 'enum',
     enum: UserAccessoryStatus,

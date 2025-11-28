@@ -71,9 +71,10 @@ export class KitController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getKitsList(
+    @Request() req: AuthenticatedRequest,
     @Query() paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<Kit>> {
-    return this.kitService.findAvailable(paginationDto);
+    return this.kitService.findAvailable(req.user.id, paginationDto);
   }
 
   @Get(':id')

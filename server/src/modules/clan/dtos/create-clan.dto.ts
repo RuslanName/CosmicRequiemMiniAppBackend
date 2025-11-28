@@ -29,10 +29,8 @@ export class CreateClanDto {
 
   @ApiProperty({
     example: 123456789,
-    required: false,
     description: 'ID сообщества VK',
   })
-  @IsOptional()
   @IsNumber()
-  vk_group_id?: number;
+  vk_group_id: number;
 }

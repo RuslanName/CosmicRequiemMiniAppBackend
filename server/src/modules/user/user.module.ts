@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
@@ -14,7 +14,7 @@ import { TaskModule } from '../task/task.module';
   imports: [
     TypeOrmModule.forFeature([User, UserGuard, StolenItem]),
     UserBoostModule,
-    UserAccessoryModule,
+    forwardRef(() => UserAccessoryModule),
     EventHistoryModule,
     TaskModule,
   ],

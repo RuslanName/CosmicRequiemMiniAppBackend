@@ -28,6 +28,13 @@ import { SettingKey } from '../setting/enums/setting-key.enum';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { UserBoostService } from '../user-boost/user-boost.service';
+import { generateRandom8DigitCode } from '../../common/utils/number-format.util';
+import { UserService } from '../user/user.service';
+import { UserAccessoryService } from '../user-accessory/user-accessory.service';
+import { UserMeResponseDto } from '../user/dtos/responses/user-me-response.dto';
+import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
+import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-response.dto';
+import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
 
 @Injectable()
 export class ShopItemService {
@@ -45,7 +52,79 @@ export class ShopItemService {
     @InjectRepository(UserBoost)
     private readonly userBoostRepository: Repository<UserBoost>,
     private readonly userBoostService: UserBoostService,
+    private readonly userService: UserService,
+    private readonly userAccessoryService: UserAccessoryService,
   ) {}
+
+  private transformUserGuardToResponseDto(
+    guard: UserGuard,
+  ): UserGuardResponseDto {
+    return {
+      id: guard.id,
+      name: guard.name,
+      strength: guard.strength,
+      is_first: guard.is_first,
+      created_at: guard.created_at,
+      updated_at: guard.updated_at,
+      guard_as_user: null,
+    };
+  }
+
+  private transformUserBoostToResponseDto(
+    boost: UserBoost,
+  ): UserBoostResponseDto {
+    return {
+      id: boost.id,
+      type: boost.type,
+      end_time: boost.end_time || null,
+      created_at: boost.created_at,
+    };
+  }
+
+  private async transformUserAccessoryToResponseDto(
+    accessory: UserAccessory,
+  ): Promise<UserAccessoryResponseDto> {
+    const accessoryWithRelations = await this.userAccessoryRepository.findOne({
+      where: { id: accessory.id },
+      relations: ['item_template'],
+    });
+    if (!accessoryWithRelations) {
+      throw new NotFoundException('Аксессуар не найден');
+    }
+    return {
+      id: accessoryWithRelations.id,
+      name: accessoryWithRelations.item_template?.name || '',
+      status: accessoryWithRelations.status,
+      type: accessoryWithRelations.item_template?.type || '',
+      value: accessoryWithRelations.item_template?.value || null,
+      image_path: accessoryWithRelations.item_template?.image_path || null,
+      created_at: accessoryWithRelations.created_at,
+    };
+  }
+
+  private async generateUniqueGuardName(): Promise<string> {
+    let name: string;
+    let exists: boolean;
+    let attempts = 0;
+    const maxAttempts = 100;
+
+    do {
+      const randomCode = generateRandom8DigitCode();
+      name = `#${randomCode}`;
+      exists = !!(await this.userGuardRepository.findOne({
+        where: { name },
+      }));
+      attempts++;
+    } while (exists && attempts < maxAttempts);
+
+    if (exists) {
+      throw new BadRequestException(
+        'Не удалось сгенерировать уникальное имя стража',
+      );
+    }
+
+    return name;
+  }
 
   async findAll(
     paginationDto: PaginationDto,
@@ -85,25 +164,24 @@ export class ShopItemService {
 
       categoriesData[category].push({
         id: item.id,
-        name: item.name,
+        name: item.item_template?.name || item.name,
         description: item.item_template?.name || '',
         price: item.price,
         currency: item.currency,
         image_path: item.item_template?.image_path || '',
         value: item.item_template?.value || null,
+        quantity: item.item_template?.quantity || null,
         created_at: item.created_at,
         updated_at: item.updated_at,
       });
     }
 
-    // Общие параметры пагинации (по умолчанию)
     const defaultPage = queryParams?.page ? Number(queryParams.page) : 1;
     const defaultLimit = queryParams?.limit ? Number(queryParams.limit) : 10;
 
     const categories: Record<string, ShopItemsCategoryResponseDto> = {};
 
     for (const [categoryName, items] of Object.entries(categoriesData)) {
-      // Параметры пагинации для конкретной категории
       const categoryPageParam = queryParams?.[`${categoryName}_page`];
       const categoryLimitParam = queryParams?.[`${categoryName}_limit`];
 
@@ -152,7 +230,7 @@ export class ShopItemService {
     }
 
     const shopItem = this.shopItemRepository.create({
-      name: createShopItemDto.name,
+      name: itemTemplate.name,
       currency: createShopItemDto.currency,
       price: createShopItemDto.price,
       status: createShopItemDto.status,
@@ -191,8 +269,11 @@ export class ShopItemService {
       shopItem.item_template = itemTemplate;
     }
 
+    if (updateShopItemDto.item_template_id && shopItem.item_template) {
+      shopItem.name = shopItem.item_template.name;
+    }
+
     Object.assign(shopItem, {
-      name: updateShopItemDto.name,
       currency: updateShopItemDto.currency,
       price: updateShopItemDto.price,
       status: updateShopItemDto.status,
@@ -257,28 +338,39 @@ export class ShopItemService {
         );
       }
       const guardStrength = parseInt(itemTemplate.value, 10);
-      const randomCode = Math.floor(Math.random() * 1000000)
-        .toString()
-        .padStart(6, '0');
-      const guard = this.userGuardRepository.create({
-        name: `Страж #${randomCode}`,
-        strength: guardStrength,
-        is_first: false,
-        user,
-      });
-      const createdGuard = await this.userGuardRepository.save(guard);
+      const quantity = itemTemplate.quantity || 1;
+      const createdGuards: UserGuard[] = [];
+
+      for (let i = 0; i < quantity; i++) {
+        const guardName = await this.generateUniqueGuardName();
+        const guard = this.userGuardRepository.create({
+          name: guardName,
+          strength: guardStrength,
+          is_first: false,
+          user,
+        });
+        const createdGuard = await this.userGuardRepository.save(guard);
+        createdGuards.push(createdGuard);
+      }
+
       await this.userRepository.save(user);
-      return { user, created_guard: createdGuard };
+      const userResponse = await this.userService.findMe(user.id);
+      const guardsResponse = createdGuards.map((guard) =>
+        this.transformUserGuardToResponseDto(guard),
+      );
+      return { user: userResponse, created_guards: guardsResponse };
     } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
       const userAccessory = this.userAccessoryRepository.create({
-        name: shopItem.name,
         user,
         item_template: itemTemplate,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
       await this.userRepository.save(user);
-      return { user, user_accessory: createdUserAccessory };
+      const userResponse = await this.userService.findMe(user.id);
+      const accessoryResponse =
+        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+      return { user: userResponse, user_accessory: accessoryResponse };
     } else if (
       itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
       itemTemplate.type === ItemTemplateType.COOLDOWN_HALVING
@@ -321,31 +413,37 @@ export class ShopItemService {
       }
 
       await this.userRepository.save(user);
-      return { user, user_boost: userBoost };
+      const userResponse = await this.userService.findMe(user.id);
+      const boostResponse = this.transformUserBoostToResponseDto(userBoost);
+      return { user: userResponse, user_boost: boostResponse };
     } else if (
       itemTemplate.type === ItemTemplateType.NICKNAME_COLOR ||
       itemTemplate.type === ItemTemplateType.NICKNAME_ICON ||
       itemTemplate.type === ItemTemplateType.AVATAR_FRAME
     ) {
       const userAccessory = this.userAccessoryRepository.create({
-        name: shopItem.name,
         user,
         item_template: itemTemplate,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
       await this.userRepository.save(user);
-      return { user, user_accessory: createdUserAccessory };
+      const userResponse = await this.userService.findMe(user.id);
+      const accessoryResponse =
+        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+      return { user: userResponse, user_accessory: accessoryResponse };
     } else {
       const userAccessory = this.userAccessoryRepository.create({
-        name: shopItem.name,
         user,
         item_template: itemTemplate,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
       await this.userRepository.save(user);
-      return { user, user_accessory: createdUserAccessory };
+      const userResponse = await this.userService.findMe(user.id);
+      const accessoryResponse =
+        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+      return { user: userResponse, user_accessory: accessoryResponse };
     }
   }
 
@@ -383,28 +481,39 @@ export class ShopItemService {
         );
       }
       const guardStrength = parseInt(itemTemplate.value, 10);
-      const randomCode = Math.floor(Math.random() * 1000000)
-        .toString()
-        .padStart(6, '0');
-      const guard = this.userGuardRepository.create({
-        name: `Страж #${randomCode}`,
-        strength: guardStrength,
-        is_first: false,
-        user,
-      });
-      const createdGuard = await this.userGuardRepository.save(guard);
+      const quantity = itemTemplate.quantity || 1;
+      const createdGuards: UserGuard[] = [];
+
+      for (let i = 0; i < quantity; i++) {
+        const guardName = await this.generateUniqueGuardName();
+        const guard = this.userGuardRepository.create({
+          name: guardName,
+          strength: guardStrength,
+          is_first: false,
+          user,
+        });
+        const createdGuard = await this.userGuardRepository.save(guard);
+        createdGuards.push(createdGuard);
+      }
+
       await this.userRepository.save(user);
-      return { user, created_guard: createdGuard };
+      const userResponse = await this.userService.findMe(user.id);
+      const guardsResponse = createdGuards.map((guard) =>
+        this.transformUserGuardToResponseDto(guard),
+      );
+      return { user: userResponse, created_guards: guardsResponse };
     } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
       const userAccessory = this.userAccessoryRepository.create({
-        name: shopItem.name,
         user,
         item_template: itemTemplate,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
       await this.userRepository.save(user);
-      return { user, user_accessory: createdUserAccessory };
+      const userResponse = await this.userService.findMe(user.id);
+      const accessoryResponse =
+        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+      return { user: userResponse, user_accessory: accessoryResponse };
     } else if (
       itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
       itemTemplate.type === ItemTemplateType.COOLDOWN_HALVING
@@ -447,31 +556,37 @@ export class ShopItemService {
       }
 
       await this.userRepository.save(user);
-      return { user, user_boost: userBoost };
+      const userResponse = await this.userService.findMe(user.id);
+      const boostResponse = this.transformUserBoostToResponseDto(userBoost);
+      return { user: userResponse, user_boost: boostResponse };
     } else if (
       itemTemplate.type === ItemTemplateType.NICKNAME_COLOR ||
       itemTemplate.type === ItemTemplateType.NICKNAME_ICON ||
       itemTemplate.type === ItemTemplateType.AVATAR_FRAME
     ) {
       const userAccessory = this.userAccessoryRepository.create({
-        name: shopItem.name,
         user,
         item_template: itemTemplate,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
       await this.userRepository.save(user);
-      return { user, user_accessory: createdUserAccessory };
+      const userResponse = await this.userService.findMe(user.id);
+      const accessoryResponse =
+        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+      return { user: userResponse, user_accessory: accessoryResponse };
     } else {
       const userAccessory = this.userAccessoryRepository.create({
-        name: shopItem.name,
         user,
         item_template: itemTemplate,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
       await this.userRepository.save(user);
-      return { user, user_accessory: createdUserAccessory };
+      const userResponse = await this.userService.findMe(user.id);
+      const accessoryResponse =
+        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+      return { user: userResponse, user_accessory: accessoryResponse };
     }
   }
 }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { User } from '../../../user/user.entity';
+import { LeaderResponseDto } from './leader-response.dto';
 
 export class ClanWithReferralResponseDto {
   @ApiProperty()
@@ -23,8 +23,11 @@ export class ClanWithReferralResponseDto {
   @ApiProperty()
   updated_at: Date;
 
-  @ApiProperty({ type: () => User, required: false })
-  leader?: User;
+  @ApiProperty({ type: () => LeaderResponseDto, required: false })
+  leader?: LeaderResponseDto;
+
+  @ApiProperty({ required: false, nullable: true })
+  leader_id?: number | null;
 
   @ApiProperty({ required: false })
   money?: number;

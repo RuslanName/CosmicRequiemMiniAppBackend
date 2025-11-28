@@ -68,7 +68,7 @@ const Kits = () => {
   const handleCreate = () => {
     setIsCreateMode(true);
     setEditingKit(null);
-    setFormData({ name: '', currency: 'virtual', price: 0, item_template_ids: [] });
+    setFormData({ name: '', currency: 'virtual', price: 0, money: 0, item_template_ids: [] });
     setIsModalOpen(true);
   };
 
@@ -80,6 +80,7 @@ const Kits = () => {
       name: kit.name,
       currency: kit.currency,
       price: kit.price,
+      money: kit.money || 0,
       status: kit.status,
       item_template_ids: ids,
     });
@@ -170,6 +171,7 @@ const Kits = () => {
             <th>Название</th>
             <th>Валюта</th>
             <th>Цена</th>
+            <th>Деньги</th>
             <th>Статус</th>
             <th>Действия</th>
           </tr>
@@ -181,6 +183,7 @@ const Kits = () => {
               <td>{kit.name}</td>
               <td>{CurrencyLabels[kit.currency as Currency] || kit.currency}</td>
               <td>{kit.price}</td>
+              <td>{kit.money || 0}</td>
               <td>{ShopItemStatusLabels[kit.status as ShopItemStatus] || kit.status}</td>
               <td>
                 <div className="actions">
@@ -257,6 +260,15 @@ const Kits = () => {
               type="number"
               value={(formData as any).price || ''}
               onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Деньги (количество денег, которое даст набор)</label>
+            <input
+              className="form-input"
+              type="number"
+              value={(formData as any).money || ''}
+              onChange={(e) => setFormData({ ...formData, money: parseInt(e.target.value) || 0 })}
             />
           </div>
           <div className="form-group">

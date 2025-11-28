@@ -4,10 +4,6 @@ import { Currency } from '../../../common/enums/currency.enum';
 import { ShopItemStatus } from '../enums/shop-item-status.enum';
 
 export class CreateShopItemDto {
-  @ApiProperty({ example: 'Красный ник' })
-  @IsString()
-  name: string;
-
   @ApiProperty({ example: 'virtual', enum: Currency })
   @IsEnum(Currency)
   currency: Currency;

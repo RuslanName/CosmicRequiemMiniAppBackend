@@ -1,19 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { User } from '../../../user/user.entity';
-import { UserGuard } from '../../../user-guard/user-guard.entity';
-import { UserAccessory } from '../../../user-accessory/user-accessory.entity';
-import { UserBoost } from '../../../user-boost/user-boost.entity';
+import { UserMeResponseDto } from '../../../user/dtos/responses/user-me-response.dto';
+import { UserGuardResponseDto } from '../../../user-guard/dtos/responses/user-guard-response.dto';
+import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/user-accessory-response.dto';
+import { UserBoostResponseDto } from '../../../user-boost/dtos/user-boost-response.dto';
 
 export class KitPurchaseResponseDto {
-  @ApiProperty({ type: () => User })
-  user: User;
+  @ApiProperty({ type: () => UserMeResponseDto })
+  user: UserMeResponseDto;
 
-  @ApiProperty({ type: [UserGuard] })
-  created_guards: UserGuard[];
+  @ApiProperty({ type: [UserGuardResponseDto] })
+  created_guards: UserGuardResponseDto[];
 
-  @ApiProperty({ type: [UserAccessory] })
-  user_accessories: UserAccessory[];
+  @ApiProperty({ type: [UserAccessoryResponseDto] })
+  user_accessories: UserAccessoryResponseDto[];
 
-  @ApiProperty({ type: [UserBoost] })
-  user_boosts: UserBoost[];
+  @ApiProperty({ type: [UserBoostResponseDto] })
+  user_boosts: UserBoostResponseDto[];
 }

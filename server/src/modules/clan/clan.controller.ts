@@ -51,6 +51,7 @@ import { UserWithStatsResponseDto } from './dtos/responses/user-with-stats-respo
 import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
 import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
+import { GetAdminGroupsDto } from './dtos/get-admin-groups.dto';
 import { NotificationResponseDto } from './dtos/responses/notification-response.dto';
 
 @ApiTags('Clans')
@@ -592,33 +593,75 @@ export class ClanController {
     return this.clanService.rejectApplication(req.user.id, +id);
   }
 
+  @Post('my-admin-groups')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Получить список групп, где пользователь является администратором',
+    description:
+      'Возвращает список сообществ VK, где текущий пользователь является администратором. Требуется VK access token пользователя.',
+  })
+  @ApiBody({ type: GetAdminGroupsDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Список групп, где пользователь является администратором',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number', example: 123456789 },
+          name: { type: 'string', example: 'Название группы' },
+          screen_name: { type: 'string', example: 'group_name' },
+          photo_200: { type: 'string', example: 'https://vk.com/...' },
+          is_closed: { type: 'number', example: 0 },
+          type: { type: 'string', example: 'page' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'VK access token не передан или неверен',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async getMyAdminGroups(
+    @Request() req: AuthenticatedRequest,
+    @Body() getAdminGroupsDto?: GetAdminGroupsDto,
+  ) {
+    return this.clanService.getMyAdminGroups(
+      req.user.id,
+      getAdminGroupsDto?.vk_access_token,
+    );
+  }
+
   @Post('me/create')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Создать клан (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Создать клан из сообщества VK (Для Mini App)',
+    description:
+      'Создает новый клан из сообщества VK. Только администратор сообщества может создать клан. Данные (название, изображение) получаются автоматически из VK API.',
+  })
   @ApiBody({ type: CreateClanByUserDto })
   @ApiResponse({
     status: 201,
     type: ClanWithReferralResponseDto,
+    description: 'Клан успешно создан',
   })
   @ApiResponse({
     status: 400,
-    description: 'Пользователь уже состоит в клане или уже имеет клан',
+    description:
+      'Неверные данные, пользователь не является администратором, или клан для этого сообщества уже существует',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async createClan(
     @Request() req: AuthenticatedRequest,
     @Body() createClanByUserDto: CreateClanByUserDto,
-    @UploadedFile() image?: Express.Multer.File,
   ): Promise<ClanWithReferralResponseDto> {
-    return this.clanService.createClanByUser(
-      req.user.id,
-      createClanByUserDto,
-      image,
-    );
+    return this.clanService.createClanByUser(req.user.id, createClanByUserDto);
   }
 
   @Delete('me')

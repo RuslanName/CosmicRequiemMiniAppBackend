@@ -9,6 +9,9 @@ import { UserGuard } from '../user-guard/user-guard.entity';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostModule } from '../user-boost/user-boost.module';
+import { UserKit } from '../user-kit/user-kit.entity';
+import { UserModule } from '../user/user.module';
+import { UserAccessoryModule } from '../user-accessory/user-accessory.module';
 
 @Module({
   imports: [
@@ -19,8 +22,11 @@ import { UserBoostModule } from '../user-boost/user-boost.module';
       UserGuard,
       UserAccessory,
       UserBoost,
+      UserKit,
     ]),
     UserBoostModule,
+    UserModule,
+    UserAccessoryModule,
   ],
   controllers: [KitController],
   providers: [KitService],

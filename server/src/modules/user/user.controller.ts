@@ -44,9 +44,19 @@ import { InventoryResponseDto } from './dtos/responses/inventory-response.dto';
 import { EventHistoryItemResponseDto } from './dtos/responses/event-history-item-response.dto';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
 import { ActivateShieldResponseDto } from './dtos/responses/activate-shield-response.dto';
+import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-response.dto';
 import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
 import { CheckCommunitySubscribeDto } from './dtos/check-community-subscribe.dto';
 import { GetFriendsDto } from './dtos/get-friends.dto';
+import {
+  UpdateFriendsAccessConsentDto,
+  UpdateGroupsAccessConsentDto,
+} from './dtos/update-consent.dto';
+import {
+  FriendsAccessConsentResponseDto,
+  GroupsAccessConsentResponseDto,
+} from './dtos/responses/consent-response.dto';
+import { CommunitySubscribeResponseDto } from './dtos/responses/community-subscribe-response.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -244,6 +254,58 @@ export class UserController {
     );
   }
 
+  @Patch('me/friends-access-consent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Обновить согласие на получение списка друзей (Для Mini App)',
+    description:
+      'Обновляет согласие пользователя на получение списка друзей для функционала атаки.',
+  })
+  @ApiBody({ type: UpdateFriendsAccessConsentDto })
+  @ApiResponse({
+    status: 200,
+    type: FriendsAccessConsentResponseDto,
+    description: 'Согласие успешно обновлено',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async updateFriendsAccessConsent(
+    @Request() req: AuthenticatedRequest,
+    @Body() updateConsentDto: UpdateFriendsAccessConsentDto,
+  ): Promise<FriendsAccessConsentResponseDto> {
+    return this.userService.updateFriendsAccessConsent(
+      req.user.id,
+      updateConsentDto.friends_access_consent,
+    );
+  }
+
+  @Patch('me/groups-access-consent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Обновить согласие на получение списка групп (Для Mini App)',
+    description:
+      'Обновляет согласие пользователя на получение списка своих групп для функционала создания клана.',
+  })
+  @ApiBody({ type: UpdateGroupsAccessConsentDto })
+  @ApiResponse({
+    status: 200,
+    type: GroupsAccessConsentResponseDto,
+    description: 'Согласие успешно обновлено',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async updateGroupsAccessConsent(
+    @Request() req: AuthenticatedRequest,
+    @Body() updateConsentDto: UpdateGroupsAccessConsentDto,
+  ): Promise<GroupsAccessConsentResponseDto> {
+    return this.userService.updateGroupsAccessConsent(
+      req.user.id,
+      updateConsentDto.groups_access_consent,
+    );
+  }
+
   @Get(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
@@ -280,7 +342,7 @@ export class UserController {
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({
     status: 200,
-    type: User,
+    type: UserWithBasicStatsResponseDto,
     description: 'Пользователь успешно обновлен',
   })
   @ApiResponse({
@@ -292,7 +354,7 @@ export class UserController {
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
-  ): Promise<User> {
+  ): Promise<UserWithBasicStatsResponseDto> {
     return this.userService.update(+id, updateUserDto);
   }
 
@@ -377,7 +439,7 @@ export class UserController {
   @ApiBody({ type: EquipAccessoryDto })
   @ApiResponse({
     status: 200,
-    type: UserAccessory,
+    type: UserAccessoryResponseDto,
     description: 'Аксессуар успешно надет',
   })
   @ApiResponse({
@@ -389,7 +451,7 @@ export class UserController {
   async equipAccessory(
     @Request() req: AuthenticatedRequest,
     @Body() equipAccessoryDto: EquipAccessoryDto,
-  ): Promise<UserAccessory> {
+  ): Promise<UserAccessoryResponseDto> {
     return this.userService.equipAccessory(
       req.user.id,
       equipAccessoryDto.accessory_id,
@@ -408,7 +470,7 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    type: UserAccessory,
+    type: UserAccessoryResponseDto,
     description: 'Аксессуар успешно снят',
   })
   @ApiResponse({
@@ -420,7 +482,7 @@ export class UserController {
   async unequipAccessory(
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
-  ): Promise<UserAccessory> {
+  ): Promise<UserAccessoryResponseDto> {
     return this.userService.unequipAccessory(req.user.id, +id);
   }
 
@@ -531,16 +593,8 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
+    type: CommunitySubscribeResponseDto,
     description: 'Проверка выполнена',
-    schema: {
-      type: 'object',
-      properties: {
-        subscribed: {
-          type: 'boolean',
-          description: 'Подписан ли пользователь на сообщество',
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 400,
@@ -555,7 +609,7 @@ export class UserController {
   async checkCommunitySubscribe(
     @Request() req: AuthenticatedRequest,
     @Body() checkCommunitySubscribeDto: CheckCommunitySubscribeDto,
-  ): Promise<{ subscribed: boolean }> {
+  ): Promise<CommunitySubscribeResponseDto> {
     return this.userService.checkCommunitySubscribe(
       req.user.id,
       checkCommunitySubscribeDto.task_id,

@@ -23,6 +23,14 @@ import { SettingKey } from '../setting/enums/setting-key.enum';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { UserBoostService } from '../user-boost/user-boost.service';
+import { generateRandom8DigitCode } from '../../common/utils/number-format.util';
+import { UserKit } from '../user-kit/user-kit.entity';
+import { UserService } from '../user/user.service';
+import { UserAccessoryService } from '../user-accessory/user-accessory.service';
+import { UserMeResponseDto } from '../user/dtos/responses/user-me-response.dto';
+import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
+import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-response.dto';
+import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
 
 @Injectable()
 export class KitService {
@@ -39,41 +47,60 @@ export class KitService {
     private readonly userAccessoryRepository: Repository<UserAccessory>,
     @InjectRepository(UserBoost)
     private readonly userBoostRepository: Repository<UserBoost>,
+    @InjectRepository(UserKit)
+    private readonly userKitRepository: Repository<UserKit>,
     private readonly userBoostService: UserBoostService,
+    private readonly userService: UserService,
+    private readonly userAccessoryService: UserAccessoryService,
   ) {}
 
-  private generateAccessoryName(itemTemplate: ItemTemplate): string {
-    const randomCode = Math.floor(Math.random() * 1000000)
-      .toString()
-      .padStart(6, '0');
-
-    switch (itemTemplate.type) {
-      case ItemTemplateType.SHIELD:
-        return itemTemplate.value
-          ? `Щит ${itemTemplate.value}h`
-          : `Щит #${randomCode}`;
-      case ItemTemplateType.NICKNAME_COLOR:
-        return itemTemplate.value
-          ? `Цвет ника: ${itemTemplate.value}`
-          : `Цвет ника: #${randomCode}`;
-      case ItemTemplateType.NICKNAME_ICON:
-        return itemTemplate.value
-          ? `Иконка ника: ${itemTemplate.value}`
-          : `Иконка ника: #${randomCode}`;
-      case ItemTemplateType.AVATAR_FRAME:
-        return itemTemplate.value
-          ? `Рамка аватара: ${itemTemplate.value}`
-          : `Рамка аватара: #${randomCode}`;
-      default:
-        return itemTemplate.value || itemTemplate.name || `#${randomCode}`;
-    }
+  private transformUserGuardToResponseDto(
+    guard: UserGuard,
+  ): UserGuardResponseDto {
+    return {
+      id: guard.id,
+      name: guard.name,
+      strength: guard.strength,
+      is_first: guard.is_first,
+      created_at: guard.created_at,
+      updated_at: guard.updated_at,
+      guard_as_user: null,
+    };
   }
 
-  private generateGuardName(): string {
-    const randomCode = Math.floor(Math.random() * 1000000)
-      .toString()
-      .padStart(6, '0');
-    return `Страж #${randomCode}`;
+  private transformUserBoostToResponseDto(
+    boost: UserBoost,
+  ): UserBoostResponseDto {
+    return {
+      id: boost.id,
+      type: boost.type,
+      end_time: boost.end_time || null,
+      created_at: boost.created_at,
+    };
+  }
+
+  private async generateUniqueGuardName(): Promise<string> {
+    let name: string;
+    let exists: boolean;
+    let attempts = 0;
+    const maxAttempts = 100;
+
+    do {
+      const randomCode = generateRandom8DigitCode();
+      name = `#${randomCode}`;
+      exists = !!(await this.userGuardRepository.findOne({
+        where: { name },
+      }));
+      attempts++;
+    } while (exists && attempts < maxAttempts);
+
+    if (exists) {
+      throw new BadRequestException(
+        'Не удалось сгенерировать уникальное имя стража',
+      );
+    }
+
+    return name;
   }
 
   async findAll(
@@ -97,18 +124,34 @@ export class KitService {
   }
 
   async findAvailable(
+    userId: number,
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<Kit>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.kitRepository.findAndCount({
-      where: { status: ShopItemStatus.IN_STOCK },
-      relations: ['item_templates'],
-      skip,
-      take: limit,
-      order: { created_at: 'DESC' },
+    const purchasedKits = await this.userKitRepository.find({
+      where: { user: { id: userId } },
+      relations: ['kit'],
     });
+    const purchasedKitIds = purchasedKits.map((uk) => uk.kit.id);
+
+    const queryBuilder = this.kitRepository
+      .createQueryBuilder('kit')
+      .leftJoinAndSelect('kit.item_templates', 'item_template')
+      .where('kit.status = :status', { status: ShopItemStatus.IN_STOCK });
+
+    if (purchasedKitIds.length > 0) {
+      queryBuilder.andWhere('kit.id NOT IN (:...ids)', {
+        ids: purchasedKitIds,
+      });
+    }
+
+    const [data, total] = await queryBuilder
+      .orderBy('kit.created_at', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       data,
@@ -144,6 +187,7 @@ export class KitService {
       name: createKitDto.name,
       currency: createKitDto.currency,
       price: createKitDto.price,
+      money: createKitDto.money || 0,
       status: createKitDto.status,
       item_templates: itemTemplates,
     });
@@ -177,6 +221,7 @@ export class KitService {
       name: updateKitDto.name,
       currency: updateKitDto.currency,
       price: updateKitDto.price,
+      money: updateKitDto.money !== undefined ? updateKitDto.money : kit.money,
       status: updateKitDto.status,
     });
 
@@ -218,16 +263,20 @@ export class KitService {
       throw new BadRequestException('Набор недоступен');
     }
 
-    // Для виртуальной валюты списываем деньги с пользователя
-    // Для голосов (VOICES) деньги уже списаны VK, просто выдаем товары
+    const existingUserKit = await this.userKitRepository.findOne({
+      where: { user: { id: userId }, kit: { id: kitId } },
+    });
+
+    if (existingUserKit) {
+      throw new BadRequestException('Набор уже был куплен');
+    }
+
     if (kit.currency === Currency.VIRTUAL) {
       if (Number(user.money) < kit.price) {
         throw new BadRequestException('Недостаточно средств');
       }
       user.money = Number(user.money) - kit.price;
     } else if (kit.currency === Currency.VOICES) {
-      // Для голосов не списываем деньги - их уже списал VK
-      // Просто выдаем товары
     } else {
       throw new BadRequestException(`Неподдерживаемая валюта: ${kit.currency}`);
     }
@@ -244,17 +293,21 @@ export class KitService {
           );
         }
         const guardStrength = parseInt(itemTemplate.value, 10);
-        const guard = this.userGuardRepository.create({
-          name: this.generateGuardName(),
-          strength: guardStrength,
-          is_first: false,
-          user,
-        });
-        const createdGuard = await this.userGuardRepository.save(guard);
-        createdGuards.push(createdGuard);
+        const quantity = itemTemplate.quantity || 1;
+
+        for (let i = 0; i < quantity; i++) {
+          const guardName = await this.generateUniqueGuardName();
+          const guard = this.userGuardRepository.create({
+            name: guardName,
+            strength: guardStrength,
+            is_first: false,
+            user,
+          });
+          const createdGuard = await this.userGuardRepository.save(guard);
+          createdGuards.push(createdGuard);
+        }
       } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
         const userAccessory = this.userAccessoryRepository.create({
-          name: this.generateAccessoryName(itemTemplate),
           user,
           item_template: itemTemplate,
         });
@@ -311,7 +364,6 @@ export class KitService {
         itemTemplate.type === ItemTemplateType.AVATAR_FRAME
       ) {
         const userAccessory = this.userAccessoryRepository.create({
-          name: this.generateAccessoryName(itemTemplate),
           user,
           item_template: itemTemplate,
         });
@@ -320,7 +372,6 @@ export class KitService {
         userAccessories.push(createdUserAccessory);
       } else {
         const userAccessory = this.userAccessoryRepository.create({
-          name: this.generateAccessoryName(itemTemplate),
           user,
           item_template: itemTemplate,
         });
@@ -330,12 +381,56 @@ export class KitService {
       }
     }
 
-    await this.userRepository.save(user);
-    return {
+    if (kit.money && kit.money > 0) {
+      user.money = Number(user.money) + kit.money;
+    }
+
+    const userKit = this.userKitRepository.create({
       user,
-      created_guards: createdGuards,
-      user_accessories: userAccessories,
-      user_boosts: userBoosts,
+      kit,
+    });
+    await this.userKitRepository.save(userKit);
+
+    await this.userRepository.save(user);
+
+    // Transform entities to response DTOs
+    const userResponse = await this.userService.findMe(user.id);
+    const guardsResponse = createdGuards.map((guard) =>
+      this.transformUserGuardToResponseDto(guard),
+    );
+
+    // Transform only created accessories
+    const accessoriesResponse = await Promise.all(
+      userAccessories.map(async (accessory) => {
+        const accessoryWithRelations =
+          await this.userAccessoryRepository.findOne({
+            where: { id: accessory.id },
+            relations: ['item_template'],
+          });
+        if (!accessoryWithRelations) {
+          throw new NotFoundException('Аксессуар не найден');
+        }
+        return {
+          id: accessoryWithRelations.id,
+          name: accessoryWithRelations.item_template?.name || '',
+          status: accessoryWithRelations.status,
+          type: accessoryWithRelations.item_template?.type || '',
+          value: accessoryWithRelations.item_template?.value || null,
+          image_path: accessoryWithRelations.item_template?.image_path || null,
+          created_at: accessoryWithRelations.created_at,
+        } as UserAccessoryResponseDto;
+      }),
+    );
+
+    const boostsResponse = userBoosts.map((boost) =>
+      this.transformUserBoostToResponseDto(boost),
+    );
+
+    return {
+      user: userResponse,
+      created_guards: guardsResponse,
+      user_accessories: accessoriesResponse,
+      user_boosts: boostsResponse,
     };
   }
 }

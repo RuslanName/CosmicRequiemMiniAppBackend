@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ShopItem } from '../../shop-item.entity';
 import { Currency } from '../../../../common/enums/currency.enum';
 
 export class ShopItemWithoutTemplate {
@@ -23,6 +22,9 @@ export class ShopItemWithoutTemplate {
 
   @ApiProperty({ required: false, nullable: true })
   value: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  quantity: number | null;
 
   @ApiProperty()
   created_at: Date;

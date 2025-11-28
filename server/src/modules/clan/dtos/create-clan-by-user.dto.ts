@@ -1,17 +1,18 @@
-import { IsString, IsNumber, IsOptional } from 'class-validator';
+import { IsNumber, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateClanByUserDto {
-  @ApiProperty({ example: 'Elite Warriors' })
-  @IsString()
-  name: string;
-
   @ApiProperty({
     example: 123456789,
-    required: false,
     description: 'ID сообщества VK',
   })
-  @IsOptional()
   @IsNumber()
-  vk_group_id?: number;
+  vk_group_id: number;
+
+  @ApiProperty({
+    example: 'https://vk.com/club123456789',
+    description: 'URL сообщества VK',
+  })
+  @IsString()
+  group_url: string;
 }

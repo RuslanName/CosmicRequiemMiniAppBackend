@@ -22,6 +22,11 @@ export class CreateKitDto {
   @IsNumber()
   price: number;
 
+  @ApiProperty({ example: 1000, required: false })
+  @IsOptional()
+  @IsNumber()
+  money?: number;
+
   @ApiProperty({ example: 'in_stock', enum: ShopItemStatus, required: false })
   @IsOptional()
   @IsEnum(ShopItemStatus)

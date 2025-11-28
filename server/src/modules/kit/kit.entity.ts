@@ -28,6 +28,9 @@ export class Kit {
   @Column({ type: 'bigint' })
   price: number;
 
+  @Column({ type: 'bigint', default: 0 })
+  money: number;
+
   @Column({
     type: 'enum',
     enum: ShopItemStatus,

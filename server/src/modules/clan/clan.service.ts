@@ -99,7 +99,6 @@ export class ClanService {
       transformed.referral_link = `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`;
     }
     delete transformed.referral_link_id;
-    delete transformed.leader_id;
 
     if (clan.members) {
       transformed.money = this.calculateClanMoney(clan.members);
@@ -296,7 +295,7 @@ export class ClanService {
       ...createClanDto,
       image_path: imagePath,
       referral_link_id: randomUUID(),
-      vk_group_id: createClanDto.vk_group_id || null,
+      vk_group_id: createClanDto.vk_group_id,
     });
     const savedClan = await this.clanRepository.save(clan);
 
@@ -314,7 +313,6 @@ export class ClanService {
   async createClanByUser(
     userId: number,
     createClanByUserDto: CreateClanByUserDto,
-    image?: Express.Multer.File,
   ): Promise<ClanWithReferralResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -336,13 +334,113 @@ export class ClanService {
       throw new BadRequestException('У пользователя уже есть клан');
     }
 
-    const imagePath = image ? this.saveClanImage(image) : '';
+    const existingClanByGroup = await this.clanRepository.findOne({
+      where: { vk_group_id: createClanByUserDto.vk_group_id },
+    });
+
+    if (existingClanByGroup) {
+      throw new BadRequestException('Клан для этого сообщества уже существует');
+    }
+
+    const groupId = String(createClanByUserDto.vk_group_id).replace(/^-/, '');
+    let groupName = '';
+    let groupImageUrl = '';
+    let isAdmin = false;
+
+    try {
+      const vkApiUrl = `https://api.vk.com/method/groups.getById`;
+      const vkApiParams = new URLSearchParams({
+        group_id: groupId,
+        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
+        v: '5.131',
+        fields: 'photo_200',
+      });
+
+      const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
+      const data = await response.json();
+
+      if (data.error || !data.response || !data.response[0]) {
+        throw new BadRequestException(
+          `Не удалось получить данные сообщества: ${data.error?.error_msg || 'Неизвестная ошибка'}`,
+        );
+      }
+
+      const groupData = data.response[0];
+      groupName = groupData.name || '';
+      groupImageUrl =
+        groupData.photo_200 || createClanByUserDto.group_url || '';
+
+      const isMemberUrl = `https://api.vk.com/method/groups.isMember`;
+      const isMemberParams = new URLSearchParams({
+        group_id: groupId,
+        user_id: user.vk_id.toString(),
+        extended: '1',
+        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
+        v: '5.131',
+      });
+
+      const isMemberResponse = await fetch(`${isMemberUrl}?${isMemberParams}`);
+      const isMemberData = await isMemberResponse.json();
+
+      if (isMemberData.error) {
+        console.warn(
+          `Cannot check admin role for user ${userId}: ${isMemberData.error.error_msg}`,
+        );
+        throw new BadRequestException(
+          `Не удалось проверить роль администратора: ${isMemberData.error.error_msg}`,
+        );
+      }
+
+      if (isMemberData.response) {
+        let memberInfo: { member?: number; role?: string } | null = null;
+
+        if (Array.isArray(isMemberData.response)) {
+          memberInfo = isMemberData.response[0] || null;
+        } else if (typeof isMemberData.response === 'object') {
+          memberInfo = isMemberData.response;
+        }
+
+        if (memberInfo && memberInfo.member === 1) {
+          isAdmin =
+            memberInfo.role === 'administrator' || memberInfo.role === 'admin';
+        }
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Ошибка при получении данных сообщества: ${error.message}`,
+      );
+    }
+
+    if (!isAdmin) {
+      throw new BadRequestException(
+        'Только администратор сообщества может создать клан',
+      );
+    }
+
+    if (!groupName) {
+      throw new BadRequestException('Не удалось получить название сообщества');
+    }
+
+    let imagePath = '';
+    if (groupImageUrl) {
+      imagePath = await this.downloadAndSaveGroupImage(groupImageUrl);
+    }
+
+    if (!imagePath) {
+      throw new BadRequestException(
+        'Не удалось получить изображение сообщества',
+      );
+    }
+
     const clan = this.clanRepository.create({
-      name: createClanByUserDto.name,
+      name: groupName,
       leader_id: userId,
       image_path: imagePath,
       referral_link_id: randomUUID(),
-      vk_group_id: createClanByUserDto.vk_group_id || null,
+      vk_group_id: createClanByUserDto.vk_group_id,
     });
     const savedClan = await this.clanRepository.save(clan);
 
@@ -1616,5 +1714,79 @@ export class ClanService {
     }
 
     return this.notificationService.findByUserId(userId);
+  }
+
+  async getMyAdminGroups(
+    userId: number,
+    vkAccessToken?: string,
+  ): Promise<
+    Array<{
+      id: number;
+      name: string;
+      screen_name: string;
+      photo_200: string;
+      is_closed: number;
+      type: string;
+    }>
+  > {
+    if (!vkAccessToken) {
+      throw new BadRequestException(
+        'VK access token обязателен для получения списка групп',
+      );
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    if (!user.groups_access_consent) {
+      throw new BadRequestException(
+        'Необходимо согласие на получение списка групп. Обновите настройки доступа.',
+      );
+    }
+
+    try {
+      const vkApiUrl = `https://api.vk.com/method/groups.get`;
+      const vkApiParams = new URLSearchParams({
+        access_token: vkAccessToken,
+        v: '5.131',
+        filter: 'admin',
+        extended: '1',
+        fields: 'photo_200,screen_name',
+      });
+
+      const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
+      const data = await response.json();
+
+      if (data.error) {
+        throw new BadRequestException(
+          `Ошибка VK API: ${data.error.error_msg || 'Неизвестная ошибка'}`,
+        );
+      }
+
+      if (!data.response || !data.response.items) {
+        return [];
+      }
+
+      return data.response.items.map((group: any) => ({
+        id: Math.abs(group.id),
+        name: group.name || '',
+        screen_name: group.screen_name || '',
+        photo_200: group.photo_200 || '',
+        is_closed: group.is_closed || 0,
+        type: group.type || '',
+      }));
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Ошибка при получении списка групп: ${error.message}`,
+      );
+    }
   }
 }

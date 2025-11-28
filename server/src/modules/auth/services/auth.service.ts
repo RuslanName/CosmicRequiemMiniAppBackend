@@ -17,6 +17,7 @@ import { TaskType } from '../../task/enums/task-type.enum';
 import { ClanService } from '../../clan/clan.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import { formatTo8Digits } from '../../../common/utils/number-format.util';
 
 @Injectable()
 export class AuthService {
@@ -103,7 +104,7 @@ export class AuthService {
       }
 
       const firstGuard = this.userGuardRepository.create({
-        name: `#${dbUser.id}`,
+        name: `#${formatTo8Digits(dbUser.id)}`,
         strength: Settings[
           SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
         ] as number,
@@ -136,8 +137,31 @@ export class AuthService {
 
           if (guardsToCreate > 0) {
             for (let i = 0; i < guardsToCreate; i++) {
+              let guardName: string;
+              let guardNumber = existingGuards.length + i + 1;
+              let attempts = 0;
+              const maxAttempts = 100;
+
+              do {
+                guardName = `#${formatTo8Digits(guardNumber)}`;
+                const exists = await this.userGuardRepository.findOne({
+                  where: { name: guardName },
+                });
+                if (!exists) {
+                  break;
+                }
+                guardNumber++;
+                attempts++;
+              } while (attempts < maxAttempts);
+
+              if (attempts >= maxAttempts) {
+                throw new UnauthorizedException(
+                  'Не удалось сгенерировать уникальное имя стража',
+                );
+              }
+
               const guard = this.userGuardRepository.create({
-                name: `#${referrerUser.id}-${existingGuards.length + i + 1}`,
+                name: guardName,
                 strength: 1,
                 is_first: false,
                 user: referrerUser,
@@ -146,6 +170,22 @@ export class AuthService {
             }
           }
         }
+
+        const referralGuardStrength = Settings[
+          SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
+        ] as number;
+
+        const referralGuard = this.userGuardRepository.create({
+          name: `#${formatTo8Digits(dbUser.id)}`,
+          strength: referralGuardStrength,
+          is_first: false,
+          user: referrerUser,
+          guard_as_user: dbUser,
+        });
+        await this.userGuardRepository.save(referralGuard);
+
+        dbUser.user_as_guard = referralGuard;
+        await this.userRepository.save(dbUser);
 
         await this.userTaskService.updateTaskProgress(
           referrerUser.id,

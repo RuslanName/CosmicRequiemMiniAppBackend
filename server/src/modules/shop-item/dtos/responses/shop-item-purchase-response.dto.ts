@@ -1,21 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { User } from '../../../user/user.entity';
-import { UserGuard } from '../../../user-guard/user-guard.entity';
-import { UserAccessory } from '../../../user-accessory/user-accessory.entity';
-import { UserBoost } from '../../../user-boost/user-boost.entity';
+import { UserMeResponseDto } from '../../../user/dtos/responses/user-me-response.dto';
+import { UserGuardResponseDto } from '../../../user-guard/dtos/responses/user-guard-response.dto';
+import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/user-accessory-response.dto';
+import { UserBoostResponseDto } from '../../../user-boost/dtos/user-boost-response.dto';
 
 export class ShopItemPurchaseResponseDto {
-  @ApiProperty({ type: () => User })
-  user: User;
+  @ApiProperty({ type: () => UserMeResponseDto })
+  user: UserMeResponseDto;
 
-  @ApiProperty({ type: () => UserGuard, required: false })
-  created_guard?: UserGuard;
+  @ApiProperty({ type: () => UserGuardResponseDto, required: false })
+  created_guard?: UserGuardResponseDto;
 
-  @ApiProperty({ type: () => UserAccessory, required: false })
-  user_accessory?: UserAccessory;
+  @ApiProperty({ type: [UserGuardResponseDto], required: false })
+  created_guards?: UserGuardResponseDto[];
 
-  @ApiProperty({ type: () => UserBoost, required: false })
-  user_boost?: UserBoost;
+  @ApiProperty({ type: () => UserAccessoryResponseDto, required: false })
+  user_accessory?: UserAccessoryResponseDto;
+
+  @ApiProperty({ type: () => UserBoostResponseDto, required: false })
+  user_boost?: UserBoostResponseDto;
 
   @ApiProperty({ required: false })
   shield_cooldown_end?: Date;

@@ -139,6 +139,7 @@ const Users = () => {
             <th>VK ID</th>
             <th>Деньги</th>
             <th>Сила</th>
+            <th>Сила как страж</th>
             <th>Количество стражей</th>
             <th>ID клана</th>
             <th>Статус</th>
@@ -153,6 +154,7 @@ const Users = () => {
               <td>{user.vk_id}</td>
               <td>{user.money}</td>
               <td>{user.strength || 0}</td>
+              <td>{user.first_guard_strength ?? '-'}</td>
               <td>{user.guards_count ?? '-'}</td>
               <td>{user.clan_id ?? '-'}</td>
               <td>{UserStatusLabels[user.status as UserStatus] || user.status}</td>

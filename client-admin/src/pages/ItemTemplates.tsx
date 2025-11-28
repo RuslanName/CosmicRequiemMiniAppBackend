@@ -70,7 +70,7 @@ const ItemTemplates = () => {
   const handleCreate = () => {
     setIsCreateMode(true);
     setEditingItemTemplate(null);
-    setFormData({ name: '', type: ItemTemplateType.NICKNAME_COLOR });
+    setFormData({ name: '', type: ItemTemplateType.NICKNAME_COLOR, quantity: undefined });
     setImageFile(null);
     setSelectedColor('#ff0000');
     setIsModalOpen(true);
@@ -83,6 +83,7 @@ const ItemTemplates = () => {
       name: itemTemplate.name,
       type: itemTemplate.type,
       value: itemTemplate.value || undefined,
+      quantity: itemTemplate.quantity || undefined,
     });
     setImageFile(null);
     if (itemTemplate.type === ItemTemplateType.NICKNAME_COLOR && itemTemplate.value) {
@@ -121,6 +122,10 @@ const ItemTemplates = () => {
       if ((formData as any).type === ItemTemplateType.NICKNAME_ICON || 
           (formData as any).type === ItemTemplateType.AVATAR_FRAME) {
         dataToSave.value = undefined;
+      }
+      
+      if ((formData as any).type !== ItemTemplateType.GUARD) {
+        dataToSave.quantity = undefined;
       }
       
       const shouldSendImage = ![
@@ -305,7 +310,7 @@ const ItemTemplates = () => {
               value={(formData as any).type || ItemTemplateType.NICKNAME_COLOR}
               onChange={(e) => {
                 const newType = e.target.value;
-                setFormData({ ...formData, type: newType, value: undefined });
+                setFormData({ ...formData, type: newType, value: undefined, quantity: undefined });
                 if (newType !== ItemTemplateType.NICKNAME_COLOR) {
                   setSelectedColor('#ff0000');
                 }
@@ -318,6 +323,19 @@ const ItemTemplates = () => {
               ))}
             </select>
           </div>
+          {(formData as any).type === ItemTemplateType.GUARD && (
+            <div className="form-group">
+              <label className="form-label">Количество</label>
+              <input
+                className="form-input"
+                type="number"
+                min="1"
+                value={(formData as any).quantity || ''}
+                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || undefined })}
+                placeholder="Введите количество"
+              />
+            </div>
+          )}
           {((formData as any).type !== ItemTemplateType.NICKNAME_ICON && 
             (formData as any).type !== ItemTemplateType.AVATAR_FRAME) && (
           <div className="form-group">

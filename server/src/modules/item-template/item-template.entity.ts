@@ -27,6 +27,9 @@ export class ItemTemplate {
   @Column({ type: 'varchar', nullable: true })
   image_path: string | null;
 
+  @Column({ type: 'integer', nullable: true })
+  quantity: number | null;
+
   @CreateDateColumn()
   created_at: Date;
 

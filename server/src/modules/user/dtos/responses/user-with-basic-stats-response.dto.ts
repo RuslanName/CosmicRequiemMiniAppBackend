@@ -59,6 +59,9 @@ export class UserWithBasicStatsResponseDto {
   @ApiProperty()
   guards_count: number;
 
+  @ApiProperty({ required: false, nullable: true })
+  first_guard_strength?: number | null;
+
   @ApiProperty({ required: false })
   referral_link?: string;
 

@@ -4,11 +4,6 @@ import { Currency } from '../../../common/enums/currency.enum';
 import { ShopItemStatus } from '../enums/shop-item-status.enum';
 
 export class UpdateShopItemDto {
-  @ApiProperty({ example: 'Красный ник', required: false })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
   @ApiProperty({ example: 'virtual', enum: Currency, required: false })
   @IsOptional()
   @IsEnum(Currency)

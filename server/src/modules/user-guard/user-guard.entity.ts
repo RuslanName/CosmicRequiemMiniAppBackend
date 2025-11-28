@@ -4,6 +4,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -29,6 +30,16 @@ export class UserGuard {
   @ManyToOne(() => User, (user) => user.guards, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @Column({ type: 'int', nullable: true })
+  guard_as_user_id: number | null;
+
+  @OneToOne(() => User, (user) => user.user_as_guard, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'guard_as_user_id' })
+  guard_as_user?: User | null;
 
   @CreateDateColumn()
   created_at: Date;
