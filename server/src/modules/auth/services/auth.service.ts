@@ -81,7 +81,7 @@ export class AuthService {
         first_name: user.first_name,
         last_name: user.last_name || null,
         sex: user.sex ?? 0,
-        image_path: photoUrl, // Временно сохраняем URL, потом скачаем
+        image_path: null,
         birthday_date: this.formatBirthday(user.bdate, user.bdate_visibility),
         last_login_at: new Date(),
         referral_link_id: randomUUID(),
@@ -89,9 +89,15 @@ export class AuthService {
       });
       await this.userRepository.save(dbUser);
 
-      // Скачиваем аватар на сервер
       if (photoUrl) {
         await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+        dbUser = await this.userRepository.findOne({
+          where: { id: dbUser.id },
+          relations: ['clan', 'referrer'],
+        });
+        if (!dbUser) {
+          throw new UnauthorizedException('Пользователь не найден после создания');
+        }
       }
 
       const firstGuard = this.userGuardRepository.create({
@@ -150,7 +156,6 @@ export class AuthService {
       dbUser.sex = user.sex ?? dbUser.sex;
       const photoUrl = user.photo_max_orig || user.photo_200 || null;
       if (photoUrl) {
-        // Проверяем, нужно ли обновить аватар
         const needsUpdate =
           !dbUser.image_path ||
           dbUser.image_path.startsWith('http') ||
@@ -159,6 +164,13 @@ export class AuthService {
 
         if (needsUpdate) {
           await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+          dbUser = await this.userRepository.findOne({
+            where: { id: dbUser.id },
+            relations: ['clan', 'referrer'],
+          });
+          if (!dbUser) {
+            throw new UnauthorizedException('Пользователь не найден после обновления аватара');
+          }
         }
       }
       dbUser.birthday_date = this.formatBirthday(
@@ -394,11 +406,31 @@ export class AuthService {
         .join('data', 'user-avatars', fileName)
         .replace(/\\/g, '/');
 
-      // Обновляем image_path в базе данных
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (user) {
+        const oldImagePath = user.image_path;
         user.image_path = imagePath;
         await this.userRepository.save(user);
+
+        const savedUser = await this.userRepository.findOne({
+          where: { id: userId },
+        });
+        if (!savedUser || savedUser.image_path !== imagePath) {
+          console.error(
+            `Failed to save image_path for user ${userId}. Expected: ${imagePath}, Got: ${savedUser?.image_path}`,
+          );
+        }
+
+        if (oldImagePath && !oldImagePath.startsWith('http')) {
+          const oldFilePath = path.join(process.cwd(), oldImagePath);
+          if (fs.existsSync(oldFilePath) && oldFilePath !== filePath) {
+            try {
+              fs.unlinkSync(oldFilePath);
+            } catch (error) {
+              console.error(`Error deleting old avatar file: ${error.message}`);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error(`Error downloading user avatar: ${error.message}`);

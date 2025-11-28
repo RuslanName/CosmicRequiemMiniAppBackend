@@ -146,17 +146,6 @@ export class ClanService {
     return transformed;
   }
 
-  private getUserAvatarUrl(user: User): string {
-    if (!user.image_path) {
-      return '';
-    }
-    if (user.image_path.startsWith('http')) {
-      return user.image_path;
-    }
-    const baseUrl = ENV.VK_APP_URL.replace(/\/$/, '');
-    return `${baseUrl}/${user.image_path.replace(/^\//, '')}`;
-  }
-
   private transformToUserWithStatsResponseDto(
     user: User,
   ): UserWithStatsResponseDto {
@@ -169,7 +158,7 @@ export class ClanService {
       first_name: user.first_name,
       last_name: user.last_name,
       sex: user.sex,
-      avatar_url: this.getUserAvatarUrl(user),
+      image_path: user.image_path || null,
       birthday_date: user.birthday_date,
       money: user.money,
       shield_end_time: user.shield_end_time,

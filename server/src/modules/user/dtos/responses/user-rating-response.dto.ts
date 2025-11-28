@@ -17,8 +17,8 @@ export class UserRatingResponseDto {
   @ApiProperty()
   sex: number;
 
-  @ApiProperty()
-  avatar_url: string;
+  @ApiProperty({ required: false, nullable: true })
+  image_path?: string | null;
 
   @ApiProperty({ required: false, nullable: true })
   birthday_date?: string | null;

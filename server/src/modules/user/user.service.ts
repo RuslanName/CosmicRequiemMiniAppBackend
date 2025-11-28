@@ -68,26 +68,14 @@ export class UserService {
     return guards ? guards.length : 0;
   }
 
-  private getAvatarUrl(user: User): string {
-    if (!user.image_path) {
-      return '';
-    }
-    if (user.image_path.startsWith('http')) {
-      return user.image_path;
-    }
-    const baseUrl = ENV.VK_APP_URL.replace(/\/$/, '');
-    return `${baseUrl}/${user.image_path.replace(/^\//, '')}`;
-  }
-
   private transformUserForResponse(
     user: User,
-  ): User & { referral_link?: string; avatar_url?: string } {
+  ): User & { referral_link?: string } {
     const transformed: any = { ...user };
     if (user.referral_link_id) {
       transformed.referral_link = `${ENV.VK_APP_URL}/?start=ref_${user.referral_link_id}`;
       delete transformed.referral_link_id;
     }
-    transformed.avatar_url = this.getAvatarUrl(user);
     return transformed;
   }
 
@@ -174,7 +162,7 @@ export class UserService {
       first_name: transformed.first_name,
       last_name: transformed.last_name,
       sex: transformed.sex,
-      avatar_url: transformed.avatar_url || '',
+      image_path: transformed.image_path || null,
       birthday_date: transformed.birthday_date,
       money: transformed.money,
       shield_end_time: transformed.shield_end_time,
@@ -211,7 +199,7 @@ export class UserService {
       first_name: transformed.first_name,
       last_name: transformed.last_name,
       sex: transformed.sex,
-      avatar_url: transformed.avatar_url || '',
+      image_path: transformed.image_path || null,
       birthday_date: transformed.birthday_date,
       money: transformed.money,
       shield_end_time: transformed.shield_end_time,
@@ -242,7 +230,7 @@ export class UserService {
       first_name: user.first_name,
       last_name: user.last_name,
       sex: user.sex,
-      avatar_url: this.getAvatarUrl(user),
+      image_path: user.image_path || null,
       birthday_date: user.birthday_date,
       money: user.money,
       shield_end_time: user.shield_end_time,
@@ -372,7 +360,7 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Кулдаун тренировки все еще активен',
+          message: 'Тренировка еще не завершена',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -384,7 +372,7 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Кулдаун контракта все еще активен',
+          message: 'Нельзя начать тренировку, пока идёт контракт',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -526,7 +514,7 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Кулдаун контракта все еще активен',
+          message: 'Контракт еще не завершен',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -538,7 +526,7 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Кулдаун тренировки все еще активен',
+          message: 'Нельзя начать контракт, пока идёт тренировка',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -800,7 +788,11 @@ export class UserService {
       throw new NotFoundException('Задача не найдена');
     }
 
-    if (userTask.task.type !== TaskType.COMMUNITY_SUBSCRIBE) {
+    const taskTypeStr = String(userTask.task.type);
+    if (
+      userTask.task.type !== TaskType.COMMUNITY_SUBSCRIBE &&
+      taskTypeStr !== 'community_subscribe'
+    ) {
       throw new BadRequestException(
         'Задача не является задачей подписки на сообщество',
       );
@@ -813,14 +805,27 @@ export class UserService {
     }
 
     const communityId = userTask.task.value;
+    let groupId = '';
 
     try {
-      let groupId = String(communityId).replace(/^-/, '');
+      let groupIdentifier = String(communityId).replace(/^-/, '');
 
-      if (isNaN(Number(groupId)) || groupId.includes('.')) {
+      if (groupIdentifier.startsWith('http://') || groupIdentifier.startsWith('https://')) {
+        const urlMatch = groupIdentifier.match(/vk\.com\/([^\/\?]+)/);
+        if (urlMatch && urlMatch[1]) {
+          groupIdentifier = urlMatch[1];
+        } else {
+          console.error(
+            `Invalid VK URL format: ${groupIdentifier}`,
+          );
+          return { subscribed: false };
+        }
+      }
+
+      if (isNaN(Number(groupIdentifier)) || groupIdentifier.includes('.')) {
         const getByIdUrl = `https://api.vk.com/method/groups.getById`;
         const getByIdParams = new URLSearchParams({
-          group_id: groupId,
+          group_id: groupIdentifier,
           access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
           v: '5.131',
         });
@@ -829,20 +834,33 @@ export class UserService {
         const getByIdData = await getByIdResponse.json();
 
         if (getByIdData.error) {
+          console.error(
+            `VK API error in groups.getById:`,
+            getByIdData.error,
+            `groupIdentifier: ${groupIdentifier}`,
+          );
           return { subscribed: false };
         }
 
         if (getByIdData.response && getByIdData.response[0]?.id) {
           groupId = String(Math.abs(getByIdData.response[0].id));
         } else {
+          console.error(
+            `No group ID found in response:`,
+            getByIdData,
+            `groupIdentifier: ${groupIdentifier}`,
+          );
           return { subscribed: false };
         }
+      } else {
+        groupId = groupIdentifier;
       }
 
       const vkApiUrl = `https://api.vk.com/method/groups.isMember`;
       const vkApiParams = new URLSearchParams({
         group_id: groupId,
         user_id: user.vk_id.toString(),
+        extended: '0',
         access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
         v: '5.131',
       });
@@ -851,21 +869,37 @@ export class UserService {
       const data = await response.json();
 
       if (data.error) {
+        console.error(
+          `VK API error in checkCommunitySubscribe:`,
+          data.error,
+          `groupId: ${groupId}, userId: ${user.vk_id}`,
+        );
         return { subscribed: false };
       }
 
       let isSubscribed = false;
 
-      if (data.response === 1) {
+      if (typeof data.response === 'number') {
+        isSubscribed = data.response === 1;
+      } else if (data.response === 1) {
         isSubscribed = true;
-      } else if (
-        Array.isArray(data.response) &&
-        data.response[0]?.member === 1
-      ) {
-        isSubscribed = true;
+      } else if (Array.isArray(data.response) && data.response.length > 0) {
+        const firstItem = data.response[0];
+        if (typeof firstItem === 'number') {
+          isSubscribed = firstItem === 1;
+        } else if (firstItem?.member === 1) {
+          isSubscribed = true;
+        }
       } else if (data.response?.member === 1) {
         isSubscribed = true;
       }
+
+      console.log(
+        `checkCommunitySubscribe result:`,
+        `groupId: ${groupId}, userId: ${user.vk_id}, response:`,
+        JSON.stringify(data.response),
+        `isSubscribed: ${isSubscribed}`,
+      );
 
       if (isSubscribed) {
         await this.userTaskService.updateTaskProgressByTaskId(userId, taskId);
@@ -873,6 +907,11 @@ export class UserService {
 
       return { subscribed: isSubscribed };
     } catch (error) {
+      console.error(
+        `Error in checkCommunitySubscribe:`,
+        error.message,
+        `groupId: ${groupId}, userId: ${user.vk_id}`,
+      );
       return { subscribed: false };
     }
   }

@@ -79,7 +79,15 @@ export class UserTaskService {
 
     userTask.progress += increment;
 
-    const requiredValue = task.value ? parseInt(task.value, 10) : 1;
+    let requiredValue = 1;
+    const taskTypeStr = String(task.type);
+    if (task.type === TaskType.COMMUNITY_SUBSCRIBE || taskTypeStr === 'community_subscribe') {
+      requiredValue = 1;
+    } else if (task.value) {
+      const parsedValue = parseInt(task.value, 10);
+      requiredValue = isNaN(parsedValue) ? 1 : parsedValue;
+    }
+
     if (userTask.progress >= requiredValue) {
       userTask.status = UserTaskStatus.COMPLETED;
       userTask.progress = requiredValue;
@@ -140,7 +148,15 @@ export class UserTaskService {
 
     userTask.progress += increment;
 
-    const requiredValue = task.value ? parseInt(task.value, 10) : 1;
+    let requiredValue = 1;
+    const taskTypeStr = String(task.type);
+    if (task.type === TaskType.COMMUNITY_SUBSCRIBE || taskTypeStr === 'community_subscribe') {
+      requiredValue = 1;
+    } else if (task.value) {
+      const parsedValue = parseInt(task.value, 10);
+      requiredValue = isNaN(parsedValue) ? 1 : parsedValue;
+    }
+
     if (userTask.progress >= requiredValue) {
       userTask.status = UserTaskStatus.COMPLETED;
       userTask.progress = requiredValue;
