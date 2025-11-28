@@ -81,7 +81,10 @@ export class UserTaskService {
 
     let requiredValue = 1;
     const taskTypeStr = String(task.type);
-    if (task.type === TaskType.COMMUNITY_SUBSCRIBE || taskTypeStr === 'community_subscribe') {
+    if (
+      task.type === TaskType.COMMUNITY_SUBSCRIBE ||
+      taskTypeStr === 'community_subscribe'
+    ) {
       requiredValue = 1;
     } else if (task.value) {
       const parsedValue = parseInt(task.value, 10);
@@ -150,7 +153,10 @@ export class UserTaskService {
 
     let requiredValue = 1;
     const taskTypeStr = String(task.type);
-    if (task.type === TaskType.COMMUNITY_SUBSCRIBE || taskTypeStr === 'community_subscribe') {
+    if (
+      task.type === TaskType.COMMUNITY_SUBSCRIBE ||
+      taskTypeStr === 'community_subscribe'
+    ) {
       requiredValue = 1;
     } else if (task.value) {
       const parsedValue = parseInt(task.value, 10);

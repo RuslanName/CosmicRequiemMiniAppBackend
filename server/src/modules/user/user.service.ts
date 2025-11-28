@@ -810,14 +810,15 @@ export class UserService {
     try {
       let groupIdentifier = String(communityId).replace(/^-/, '');
 
-      if (groupIdentifier.startsWith('http://') || groupIdentifier.startsWith('https://')) {
+      if (
+        groupIdentifier.startsWith('http://') ||
+        groupIdentifier.startsWith('https://')
+      ) {
         const urlMatch = groupIdentifier.match(/vk\.com\/([^\/\?]+)/);
         if (urlMatch && urlMatch[1]) {
           groupIdentifier = urlMatch[1];
         } else {
-          console.error(
-            `Invalid VK URL format: ${groupIdentifier}`,
-          );
+          console.error(`Invalid VK URL format: ${groupIdentifier}`);
           return { subscribed: false };
         }
       }

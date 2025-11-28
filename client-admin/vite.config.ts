@@ -10,8 +10,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     base: '/',
     server: {
-      host: env.VITE_DEV_SERVER_HOST || 'localhost',
-      port: parseInt(env.VITE_DEV_SERVER_PORT || '5173', 10),
+      allowedHosts: allowedHosts.length > 0 ? allowedHosts : undefined,
       strictPort: false,
       cors: {
         origin: allowedHosts.length > 0 ? allowedHosts : true,

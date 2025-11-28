@@ -96,7 +96,9 @@ export class AuthService {
           relations: ['clan', 'referrer'],
         });
         if (!dbUser) {
-          throw new UnauthorizedException('Пользователь не найден после создания');
+          throw new UnauthorizedException(
+            'Пользователь не найден после создания',
+          );
         }
       }
 
@@ -169,7 +171,9 @@ export class AuthService {
             relations: ['clan', 'referrer'],
           });
           if (!dbUser) {
-            throw new UnauthorizedException('Пользователь не найден после обновления аватара');
+            throw new UnauthorizedException(
+              'Пользователь не найден после обновления аватара',
+            );
           }
         }
       }
