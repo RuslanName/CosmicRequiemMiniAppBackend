@@ -1038,8 +1038,12 @@ export class UserService {
       const currentStrength = this.calculateUserPower(currentUser.guards || []);
       const strengthRange = Math.max(currentStrength * 0.3, 50);
 
+      const initialReferrerVkId = Settings[
+        SettingKey.INITIAL_REFERRER_VK_ID
+      ] as number;
+
       users = await this.userRepository.find({
-        relations: ['clan', 'guards'],
+        relations: ['clan', 'guards', 'referrals'],
         where: {
           id: MoreThan(0),
         },
@@ -1060,6 +1064,15 @@ export class UserService {
             strength >= currentStrength - strengthRange &&
             strength <= currentStrength + strengthRange
           );
+        })
+        .filter((user) => {
+          const hasReferrals = user.referrals && user.referrals.length > 0;
+          const isInitialReferrer =
+            initialReferrerVkId &&
+            initialReferrerVkId > 0 &&
+            user.vk_id === initialReferrerVkId;
+          
+          return !hasReferrals || isInitialReferrer;
         });
 
       const dataWithStrength = await Promise.all(
