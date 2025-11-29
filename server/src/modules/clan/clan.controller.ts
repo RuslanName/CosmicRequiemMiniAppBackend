@@ -599,9 +599,9 @@ export class ClanController {
   @ApiOperation({
     summary: 'Получить список групп, где пользователь является администратором',
     description:
-      'Возвращает список сообществ VK, где текущий пользователь является администратором. Требуется VK access token пользователя.',
+      'Возвращает список сообществ VK, где текущий пользователь является администратором. Использует сервисный токен VK.',
   })
-  @ApiBody({ type: GetAdminGroupsDto })
+  @ApiBody({ type: GetAdminGroupsDto, required: false })
   @ApiResponse({
     status: 200,
     description: 'Список групп, где пользователь является администратором',
@@ -622,7 +622,7 @@ export class ClanController {
   })
   @ApiResponse({
     status: 400,
-    description: 'VK access token не передан или неверен',
+    description: 'Ошибка VK API',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })

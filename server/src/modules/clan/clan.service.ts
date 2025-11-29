@@ -1728,12 +1728,6 @@ export class ClanService {
       type: string;
     }>
   > {
-    if (!vkAccessToken) {
-      throw new BadRequestException(
-        'VK access token обязателен для получения списка групп',
-      );
-    }
-
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -1745,7 +1739,8 @@ export class ClanService {
     try {
       const vkApiUrl = `https://api.vk.com/method/groups.get`;
       const vkApiParams = new URLSearchParams({
-        access_token: vkAccessToken,
+        user_id: user.vk_id.toString(),
+        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
         v: '5.131',
         filter: 'admin',
         extended: '1',

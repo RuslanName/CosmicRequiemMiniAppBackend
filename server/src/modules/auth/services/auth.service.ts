@@ -105,7 +105,7 @@ export class AuthService {
       }
 
       const firstGuard = this.userGuardRepository.create({
-        name: `#${formatTo8Digits(dbUser.id)}`,
+        name: `#${dbUser.id}`,
         strength: Settings[
           SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
         ] as number,
@@ -127,8 +127,11 @@ export class AuthService {
           SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
         ] as number;
 
+        const referralGuardName =
+          `${dbUser.first_name} ${dbUser.last_name || ''}`.trim();
+
         const referralGuard = this.userGuardRepository.create({
-          name: `#${formatTo8Digits(dbUser.id)}`,
+          name: referralGuardName,
           strength: referralGuardStrength,
           is_first: false,
           user: referrerUser,

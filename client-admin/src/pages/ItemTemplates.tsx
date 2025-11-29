@@ -201,6 +201,7 @@ const ItemTemplates = () => {
             <th>Изображение</th>
             <th>Название</th>
             <th>Тип</th>
+            <th>Количество</th>
             <th>Значение</th>
             <th>Действия</th>
           </tr>
@@ -244,6 +245,7 @@ const ItemTemplates = () => {
                 </td>
                 <td>{itemTemplate.name}</td>
                 <td>{ItemTemplateTypeLabels[itemTemplate.type as ItemTemplateType] || itemTemplate.type}</td>
+                <td>{itemTemplate.quantity ?? '-'}</td>
                 <td>
                   {colorPreview}
                   {displayValue}
