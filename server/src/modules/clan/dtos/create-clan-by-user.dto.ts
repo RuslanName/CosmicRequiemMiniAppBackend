@@ -1,4 +1,4 @@
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateClanByUserDto {
@@ -8,11 +8,4 @@ export class CreateClanByUserDto {
   })
   @IsNumber()
   vk_group_id: number;
-
-  @ApiProperty({
-    example: 'https://vk.com/club123456789',
-    description: 'URL сообщества VK',
-  })
-  @IsString()
-  group_url: string;
 }

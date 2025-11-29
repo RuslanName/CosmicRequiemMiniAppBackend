@@ -48,14 +48,6 @@ import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-
 import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
 import { CheckCommunitySubscribeDto } from './dtos/check-community-subscribe.dto';
 import { GetFriendsDto } from './dtos/get-friends.dto';
-import {
-  UpdateFriendsAccessConsentDto,
-  UpdateGroupsAccessConsentDto,
-} from './dtos/update-consent.dto';
-import {
-  FriendsAccessConsentResponseDto,
-  GroupsAccessConsentResponseDto,
-} from './dtos/responses/consent-response.dto';
 import { CommunitySubscribeResponseDto } from './dtos/responses/community-subscribe-response.dto';
 
 @ApiTags('Users')
@@ -251,58 +243,6 @@ export class UserController {
       req.user.id,
       getFriendsDto.friend_vk_ids,
       paginationDto,
-    );
-  }
-
-  @Patch('me/friends-access-consent')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Обновить согласие на получение списка друзей (Для Mini App)',
-    description:
-      'Обновляет согласие пользователя на получение списка друзей для функционала атаки.',
-  })
-  @ApiBody({ type: UpdateFriendsAccessConsentDto })
-  @ApiResponse({
-    status: 200,
-    type: FriendsAccessConsentResponseDto,
-    description: 'Согласие успешно обновлено',
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async updateFriendsAccessConsent(
-    @Request() req: AuthenticatedRequest,
-    @Body() updateConsentDto: UpdateFriendsAccessConsentDto,
-  ): Promise<FriendsAccessConsentResponseDto> {
-    return this.userService.updateFriendsAccessConsent(
-      req.user.id,
-      updateConsentDto.friends_access_consent,
-    );
-  }
-
-  @Patch('me/groups-access-consent')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Обновить согласие на получение списка групп (Для Mini App)',
-    description:
-      'Обновляет согласие пользователя на получение списка своих групп для функционала создания клана.',
-  })
-  @ApiBody({ type: UpdateGroupsAccessConsentDto })
-  @ApiResponse({
-    status: 200,
-    type: GroupsAccessConsentResponseDto,
-    description: 'Согласие успешно обновлено',
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async updateGroupsAccessConsent(
-    @Request() req: AuthenticatedRequest,
-    @Body() updateConsentDto: UpdateGroupsAccessConsentDto,
-  ): Promise<GroupsAccessConsentResponseDto> {
-    return this.userService.updateGroupsAccessConsent(
-      req.user.id,
-      updateConsentDto.groups_access_consent,
     );
   }
 

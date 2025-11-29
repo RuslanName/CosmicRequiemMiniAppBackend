@@ -103,12 +103,6 @@ export class User {
   @Column({ type: 'uuid', unique: true, nullable: true })
   referral_link_id?: string;
 
-  @Column({ type: 'boolean', default: false })
-  friends_access_consent: boolean;
-
-  @Column({ type: 'boolean', default: false })
-  groups_access_consent: boolean;
-
   @Column({ type: 'int', nullable: true })
   user_as_guard_id: number | null;
 

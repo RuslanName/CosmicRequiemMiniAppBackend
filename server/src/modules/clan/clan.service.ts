@@ -367,8 +367,7 @@ export class ClanService {
 
       const groupData = data.response[0];
       groupName = groupData.name || '';
-      groupImageUrl =
-        groupData.photo_200 || createClanByUserDto.group_url || '';
+      groupImageUrl = groupData.photo_200 || '';
 
       const isMemberUrl = `https://api.vk.com/method/groups.isMember`;
       const isMemberParams = new URLSearchParams({
@@ -1741,12 +1740,6 @@ export class ClanService {
 
     if (!user) {
       throw new NotFoundException('Пользователь не найден');
-    }
-
-    if (!user.groups_access_consent) {
-      throw new BadRequestException(
-        'Необходимо согласие на получение списка групп. Обновите настройки доступа.',
-      );
     }
 
     try {

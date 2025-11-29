@@ -336,42 +336,6 @@ export class UserService {
     return this.transformToUserBasicStatsResponseDto(updatedUser);
   }
 
-  async updateFriendsAccessConsent(
-    userId: number,
-    consent: boolean,
-  ): Promise<{ friends_access_consent: boolean }> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-
-    user.friends_access_consent = consent;
-    await this.userRepository.save(user);
-
-    return { friends_access_consent: user.friends_access_consent };
-  }
-
-  async updateGroupsAccessConsent(
-    userId: number,
-    consent: boolean,
-  ): Promise<{ groups_access_consent: boolean }> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-
-    user.groups_access_consent = consent;
-    await this.userRepository.save(user);
-
-    return { groups_access_consent: user.groups_access_consent };
-  }
-
   async training(userId: number): Promise<TrainingResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -1156,12 +1120,6 @@ export class UserService {
 
     if (!currentUser) {
       throw new NotFoundException('Пользователь не найден');
-    }
-
-    if (!currentUser.friends_access_consent) {
-      throw new BadRequestException(
-        'Необходимо согласие на получение списка друзей. Обновите настройки доступа.',
-      );
     }
 
     const currentUserClanId = currentUser.clan_id;
