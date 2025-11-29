@@ -342,100 +342,34 @@ export class ClanService {
       throw new BadRequestException('Клан для этого сообщества уже существует');
     }
 
-    const groupId = String(createClanByUserDto.vk_group_id).replace(/^-/, '');
-    let groupName = '';
-    let groupImageUrl = '';
-    let isAdmin = false;
-
-    try {
-      const vkApiUrl = `https://api.vk.com/method/groups.getById`;
-      const vkApiParams = new URLSearchParams({
-        group_id: groupId,
-        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
-        v: '5.131',
-        fields: 'photo_200',
-      });
-
-      const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
-      const data = await response.json();
-
-      if (data.error || !data.response || !data.response[0]) {
-        throw new BadRequestException(
-          `Не удалось получить данные сообщества: ${data.error?.error_msg || 'Неизвестная ошибка'}`,
-        );
-      }
-
-      const groupData = data.response[0];
-      groupName = groupData.name || '';
-      groupImageUrl = groupData.photo_200 || '';
-
-      const isMemberUrl = `https://api.vk.com/method/groups.isMember`;
-      const isMemberParams = new URLSearchParams({
-        group_id: groupId,
-        user_id: user.vk_id.toString(),
-        extended: '1',
-        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
-        v: '5.131',
-      });
-
-      const isMemberResponse = await fetch(`${isMemberUrl}?${isMemberParams}`);
-      const isMemberData = await isMemberResponse.json();
-
-      if (isMemberData.error) {
-        console.warn(
-          `Cannot check admin role for user ${userId}: ${isMemberData.error.error_msg}`,
-        );
-        throw new BadRequestException(
-          `Не удалось проверить роль администратора: ${isMemberData.error.error_msg}`,
-        );
-      }
-
-      if (isMemberData.response) {
-        let memberInfo: { member?: number; role?: string } | null = null;
-
-        if (Array.isArray(isMemberData.response)) {
-          memberInfo = isMemberData.response[0] || null;
-        } else if (typeof isMemberData.response === 'object') {
-          memberInfo = isMemberData.response;
-        }
-
-        if (memberInfo && memberInfo.member === 1) {
-          isAdmin =
-            memberInfo.role === 'administrator' || memberInfo.role === 'admin';
-        }
-      }
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(
-        `Ошибка при получении данных сообщества: ${error.message}`,
-      );
+    if (!createClanByUserDto.name || !createClanByUserDto.name.trim()) {
+      throw new BadRequestException('Название клана обязательно');
     }
 
-    if (!isAdmin) {
-      throw new BadRequestException(
-        'Только администратор сообщества может создать клан',
-      );
-    }
-
-    if (!groupName) {
-      throw new BadRequestException('Не удалось получить название сообщества');
+    if (
+      !createClanByUserDto.image_url ||
+      !createClanByUserDto.image_url.trim()
+    ) {
+      throw new BadRequestException('URL изображения обязателен');
     }
 
     let imagePath = '';
-    if (groupImageUrl) {
-      imagePath = await this.downloadAndSaveGroupImage(groupImageUrl);
-    }
-
-    if (!imagePath) {
+    try {
+      imagePath = await this.downloadAndSaveGroupImage(
+        createClanByUserDto.image_url,
+      );
+    } catch (error) {
       throw new BadRequestException(
-        'Не удалось получить изображение сообщества',
+        `Не удалось скачать и сохранить изображение: ${error.message}`,
       );
     }
 
+    if (!imagePath) {
+      throw new BadRequestException('Не удалось сохранить изображение клана');
+    }
+
     const clan = this.clanRepository.create({
-      name: groupName,
+      name: createClanByUserDto.name.trim(),
       leader_id: userId,
       image_path: imagePath,
       referral_link_id: randomUUID(),
@@ -1713,102 +1647,5 @@ export class ClanService {
     }
 
     return this.notificationService.findByUserId(userId);
-  }
-
-  async getMyAdminGroups(
-    userId: number,
-    vkAccessToken?: string,
-  ): Promise<
-    Array<{
-      id: number;
-      name: string;
-      screen_name: string;
-      photo_200: string;
-      is_closed: number;
-      type: string;
-    }>
-  > {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-
-    try {
-      const vkApiUrl = `https://api.vk.com/method/groups.get`;
-      const vkApiParams = new URLSearchParams({
-        user_id: user.vk_id.toString(),
-        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
-        v: '5.131',
-        extended: '1',
-        fields: 'photo_200,screen_name',
-      });
-
-      const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
-      const data = await response.json();
-
-      if (data.error) {
-        throw new BadRequestException(
-          `Ошибка VK API: ${data.error.error_msg || 'Неизвестная ошибка'}`,
-        );
-      }
-
-      if (!data.response || !data.response.items) {
-        return [];
-      }
-
-      const allGroups = data.response.items || [];
-      const adminGroups: any[] = [];
-
-      for (const group of allGroups) {
-        const isMemberUrl = `https://api.vk.com/method/groups.isMember`;
-        const isMemberParams = new URLSearchParams({
-          group_id: Math.abs(group.id).toString(),
-          user_id: user.vk_id.toString(),
-          extended: '1',
-          access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
-          v: '5.131',
-        });
-
-        const isMemberResponse = await fetch(`${isMemberUrl}?${isMemberParams}`);
-        const isMemberData = await isMemberResponse.json();
-
-        if (!isMemberData.error && isMemberData.response) {
-          let memberInfo: { member?: number; role?: string } | null = null;
-
-          if (Array.isArray(isMemberData.response)) {
-            memberInfo = isMemberData.response[0] || null;
-          } else if (typeof isMemberData.response === 'object') {
-            memberInfo = isMemberData.response;
-          }
-
-          if (memberInfo && memberInfo.member === 1) {
-            const isAdmin =
-              memberInfo.role === 'administrator' || memberInfo.role === 'admin';
-            if (isAdmin) {
-              adminGroups.push(group);
-            }
-          }
-        }
-      }
-
-      return adminGroups.map((group: any) => ({
-        id: Math.abs(group.id),
-        name: group.name || '',
-        screen_name: group.screen_name || '',
-        photo_200: group.photo_200 || '',
-        is_closed: group.is_closed || 0,
-        type: group.type || '',
-      }));
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(
-        `Ошибка при получении списка групп: ${error.message}`,
-      );
-    }
   }
 }
