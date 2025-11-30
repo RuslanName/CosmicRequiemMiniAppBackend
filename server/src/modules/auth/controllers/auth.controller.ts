@@ -30,8 +30,6 @@ import { ENV } from '../../../config/constants';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  private readonly logger = new Logger(AuthController.name);
-
   constructor(private readonly authService: AuthService) {}
 
   @Post()

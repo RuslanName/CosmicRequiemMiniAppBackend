@@ -458,6 +458,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
+  @CacheKey('user:event-history::user')
   @ApiOperation({
     summary: 'Получить историю событий пользователя (Для Mini App)',
   })

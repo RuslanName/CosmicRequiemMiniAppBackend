@@ -100,7 +100,7 @@ export class ClanController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
-  @CacheKey('clan:me')
+  @CacheKey('clan:me::user')
   @ApiOperation({
     summary: 'Получить клан текущего пользователя (Для Mini App)',
     description:
@@ -124,7 +124,7 @@ export class ClanController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
-  @CacheKey('clan:me:wars:page::page:limit::limit')
+  @CacheKey('clan:me:wars::user')
   @ApiOperation({
     summary:
       'Получить все войны клана текущего пользователя с пагинацией (Для Mini App)',
@@ -172,7 +172,7 @@ export class ClanController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
-  @CacheKey('clan:me:enemy-clans')
+  @CacheKey('clan:me:enemy-clans::user')
   @ApiOperation({
     summary: 'Получить кланы, с которыми война (Для Mini App)',
     description:
@@ -196,7 +196,7 @@ export class ClanController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
-  @CacheKey('clan:me:enemy-clan')
+  @CacheKey('clan:me:enemy-clan::user::id')
   @ApiOperation({
     summary: 'Получить конкретный вражеский клан (Для Mini App)',
     description:
@@ -234,6 +234,7 @@ export class ClanController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
+  @CacheKey('clan:me:enemy-clan:members::user::id')
   @ApiOperation({
     summary: 'Получить участников вражеского клана (Для Mini App)',
     description:
@@ -622,7 +623,7 @@ export class ClanController {
   @Delete('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @InvalidateCache('clan:me', 'clan:list:*')
+  @InvalidateCache('clan:me::user*', 'clan:list:*')
   @ApiOperation({ summary: 'Удалить клан (Для Mini App)' })
   @ApiResponse({
     status: 200,

@@ -67,8 +67,15 @@ export class UserService {
     return guards ? guards.length : 0;
   }
 
-  private isInitialReferrer(userVkId: number, initialReferrerVkId: number | undefined): boolean {
-    return !!(initialReferrerVkId && initialReferrerVkId > 0 && userVkId === initialReferrerVkId);
+  private isInitialReferrer(
+    userVkId: number,
+    initialReferrerVkId: number | undefined,
+  ): boolean {
+    return !!(
+      initialReferrerVkId &&
+      initialReferrerVkId > 0 &&
+      Number(userVkId) === Number(initialReferrerVkId)
+    );
   }
 
   private transformUserForResponse(
@@ -938,13 +945,6 @@ export class UserService {
         isSubscribed = true;
       }
 
-      console.log(
-        `checkCommunitySubscribe result:`,
-        `groupId: ${groupId}, userId: ${user.vk_id}, response:`,
-        JSON.stringify(data.response),
-        `isSubscribed: ${isSubscribed}`,
-      );
-
       if (isSubscribed) {
         await this.userTaskService.updateTaskProgressByTaskId(userId, taskId);
       }
@@ -1059,13 +1059,18 @@ export class UserService {
         },
       });
 
+      const currentUserIsInitialReferrer = this.isInitialReferrer(
+        currentUser.vk_id,
+        initialReferrerVkId,
+      );
+
       if (initialReferrerVkId && initialReferrerVkId > 0) {
         const initialReferrerExists = users.some(
-          (user) => user.vk_id === initialReferrerVkId,
+          (user) => Number(user.vk_id) === Number(initialReferrerVkId),
         );
-        if (!initialReferrerExists) {
+        if (!initialReferrerExists && !currentUserIsInitialReferrer) {
           const initialReferrer = await this.userRepository.findOne({
-            where: { vk_id: initialReferrerVkId },
+            where: { vk_id: Number(initialReferrerVkId) },
             relations: ['clan', 'guards', 'referrals'],
           });
           if (initialReferrer && initialReferrer.id !== userId) {
@@ -1077,7 +1082,7 @@ export class UserService {
       const filteredUsers = users
         .filter((user) => {
           if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
-            return true;
+            return !currentUserIsInitialReferrer;
           }
           return user.id !== userId;
         })
@@ -1124,8 +1129,14 @@ export class UserService {
       );
 
       dataWithStrength.sort((a, b) => {
-        const isAInitialReferrer = this.isInitialReferrer(a.vk_id, initialReferrerVkId);
-        const isBInitialReferrer = this.isInitialReferrer(b.vk_id, initialReferrerVkId);
+        const isAInitialReferrer = this.isInitialReferrer(
+          a.vk_id,
+          initialReferrerVkId,
+        );
+        const isBInitialReferrer = this.isInitialReferrer(
+          b.vk_id,
+          initialReferrerVkId,
+        );
 
         if (isAInitialReferrer && !isBInitialReferrer) {
           return -1;
@@ -1181,12 +1192,6 @@ export class UserService {
 
     if (!currentUser) {
       throw new NotFoundException('Пользователь не найден');
-    }
-
-    if (vkAccessToken && friendVkIds.length > 0) {
-      console.log(
-        'Токен доступа получен, список друзей уже проверен на клиенте через VKWebAppCallAPIMethod',
-      );
     }
 
     const currentUserClanId = currentUser.clan_id;
@@ -1361,17 +1366,16 @@ export class UserService {
       SettingKey.INITIAL_REFERRER_VK_ID
     ] as number;
 
-    const isInitialReferrerAttack =
-      !attacker.initial_referrer_stolen &&
+    const isAttackingInitialReferrer =
       initialReferrerVkId &&
       initialReferrerVkId > 0 &&
-      defender.vk_id === initialReferrerVkId;
+      Number(defender.vk_id) === Number(initialReferrerVkId);
 
-    const isInitialReferrerAlreadyStolen =
-      attacker.initial_referrer_stolen &&
-      initialReferrerVkId &&
-      initialReferrerVkId > 0 &&
-      defender.vk_id === initialReferrerVkId;
+    const isFirstInitialReferrerAttack =
+      isAttackingInitialReferrer && !attacker.initial_referrer_stolen;
+
+    const isSubsequentInitialReferrerAttack =
+      isAttackingInitialReferrer && attacker.initial_referrer_stolen;
 
     const win_chance = Math.min(
       75,
@@ -1382,13 +1386,14 @@ export class UserService {
           100,
       ),
     );
-    const is_win = isInitialReferrerAttack || Math.random() * 100 < win_chance;
+    const is_win =
+      isAttackingInitialReferrer || Math.random() * 100 < win_chance;
     const stolen_items: StolenItem[] = [];
 
-    let initialReferrerGuardStolen = false;
+    let firstInitialReferrerGuardStolen = false;
 
     if (
-      isInitialReferrerAttack &&
+      isFirstInitialReferrerAttack &&
       defender.guards &&
       defender.guards.length > 0
     ) {
@@ -1398,26 +1403,29 @@ export class UserService {
 
       if (capturableGuards.length > 0) {
         const guardToSteal = capturableGuards[0];
-        guardToSteal.user = attacker;
-        await this.userGuardRepository.save(guardToSteal);
+        const stolenGuardId = guardToSteal.id;
 
         attacker.initial_referrer_stolen = true;
         await this.userRepository.save(attacker);
 
+        await this.userGuardRepository.update(stolenGuardId, {
+          user_id: attacker.id,
+        });
+
         const guardItem = this.stolenItemRepository.create({
           type: StolenItemType.GUARD,
-          value: guardToSteal.id.toString(),
+          value: stolenGuardId.toString(),
           thief: attacker,
           victim: defender,
           clan_war_id: null,
         });
         await this.stolenItemRepository.save(guardItem);
         stolen_items.push(guardItem);
-        initialReferrerGuardStolen = true;
+        firstInitialReferrerGuardStolen = true;
       }
     }
 
-    if (isInitialReferrerAttack && !initialReferrerGuardStolen) {
+    if (isFirstInitialReferrerAttack && !firstInitialReferrerGuardStolen) {
       attacker.last_attack_time = new Date();
       await this.userRepository.save(attacker);
       return {
@@ -1429,11 +1437,23 @@ export class UserService {
       };
     }
 
-    if (is_win && !isInitialReferrerAlreadyStolen) {
+    if (isSubsequentInitialReferrerAttack) {
+      attacker.last_attack_time = new Date();
+      await this.userRepository.save(attacker);
+      return {
+        win_chance: 100,
+        is_win: true,
+        stolen_money: 0,
+        captured_guards: 0,
+        attack_cooldown_end: new Date(new Date().getTime() + attackCooldown),
+      };
+    }
+
+    if (is_win) {
       let stolen_money = 0;
       let captured_guards = 0;
 
-      if (!isInitialReferrerAttack) {
+      if (!isFirstInitialReferrerAttack) {
         stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
 
         if (stolen_money > 0) {
@@ -1467,12 +1487,14 @@ export class UserService {
           const guardsToCapture = capturableGuards.slice(0, captured_guards);
 
           for (const guard of guardsToCapture) {
-            guard.user = attacker;
-            await this.userGuardRepository.save(guard);
+            const guardId = guard.id;
+            await this.userGuardRepository.update(guardId, {
+              user_id: attacker.id,
+            });
 
             const guardItem = this.stolenItemRepository.create({
               type: StolenItemType.GUARD,
-              value: guard.id.toString(),
+              value: guardId.toString(),
               thief: attacker,
               victim: defender,
               clan_war_id: null,
@@ -1486,7 +1508,7 @@ export class UserService {
       attacker.last_attack_time = new Date();
       await this.userRepository.save(attacker);
 
-      if (!isInitialReferrerAttack || stolen_items.length > 0) {
+      if (stolen_items.length > 0) {
         await this.eventHistoryService.create(
           attacker.id,
           EventHistoryType.ATTACK,
@@ -1505,10 +1527,11 @@ export class UserService {
       const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
 
       return {
-        win_chance,
+        win_chance: isAttackingInitialReferrer ? 100 : win_chance,
         is_win: true,
         stolen_money: stolen_money || 0,
-        captured_guards: captured_guards || 0,
+        captured_guards:
+          captured_guards || (firstInitialReferrerGuardStolen ? 1 : 0),
         attack_cooldown_end: attackCooldownEnd,
       };
     }
@@ -1516,7 +1539,6 @@ export class UserService {
     attacker.last_attack_time = new Date();
     await this.userRepository.save(attacker);
 
-    if (!isInitialReferrerAlreadyStolen) {
     await this.eventHistoryService.create(
       attacker.id,
       EventHistoryType.ATTACK,
@@ -1530,13 +1552,12 @@ export class UserService {
       stolen_items,
       attacker.id,
     );
-    }
 
     const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
 
     return {
       win_chance,
-      is_win: is_win,
+      is_win: false,
       stolen_money: 0,
       captured_guards: 0,
       attack_cooldown_end: attackCooldownEnd,

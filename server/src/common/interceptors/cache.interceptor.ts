@@ -130,13 +130,15 @@ export class CacheInterceptor implements NestInterceptor {
   ): string {
     const params = request.params || {};
     const query = request.query || {};
+    const user = request.user || {};
     const paramsStr = Object.keys(params).length
       ? `:${Object.values(params).join(':')}`
       : '';
     const queryStr = Object.keys(query).length
       ? `:${JSON.stringify(query)}`
       : '';
+    const userStr = user.id ? `:user:${user.id}` : '';
 
-    return `cache:${controller}:${handler}${paramsStr}${queryStr}`;
+    return `cache:${controller}:${handler}${userStr}${paramsStr}${queryStr}`;
   }
 }

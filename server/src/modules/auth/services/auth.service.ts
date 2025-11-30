@@ -1,11 +1,9 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
-import { Clan } from '../../clan/entities/clan.entity';
-import { ClanApplication } from '../../clan/entities/clan-application.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { createHmac, randomUUID } from 'crypto';
 import { AuthDto } from '../dtos/auth.dto';
@@ -14,28 +12,20 @@ import { Settings } from '../../../config/setting.config';
 import { SettingKey } from '../../setting/enums/setting-key.enum';
 import { UserTaskService } from '../../task/services/user-task.service';
 import { TaskType } from '../../task/enums/task-type.enum';
-import { ClanService } from '../../clan/clan.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly jwtService: JwtService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
-    @InjectRepository(Clan)
-    private readonly clanRepository: Repository<Clan>,
-    @InjectRepository(ClanApplication)
-    private readonly clanApplicationRepository: Repository<ClanApplication>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly userTaskService: UserTaskService,
-    private readonly clanService: ClanService,
   ) {}
 
   async validateAuth(dto: AuthDto): Promise<{
@@ -119,7 +109,7 @@ export class AuthService {
         ] as number;
         if (initialReferrerVkId && initialReferrerVkId > 0) {
           const initialReferrer = await this.userRepository.findOne({
-            where: { vk_id: initialReferrerVkId },
+            where: { vk_id: Number(initialReferrerVkId) },
           });
 
           if (initialReferrer) {
@@ -299,10 +289,6 @@ export class AuthService {
     if (tokenEntity) {
       await this.refreshTokenRepository.remove(tokenEntity);
     }
-  }
-
-  async revokeAllUserTokens(userId: number): Promise<void> {
-    await this.refreshTokenRepository.delete({ user_id: userId });
   }
 
   async processReferral(
