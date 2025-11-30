@@ -1552,9 +1552,13 @@ export class UserService {
         const guardToSteal = capturableGuards[0];
         const stolenGuardId = guardToSteal.id;
 
-        await this.userGuardRepository.update(stolenGuardId, {
-          user_id: attacker.id,
+        const guardToUpdate = await this.userGuardRepository.findOne({
+          where: { id: stolenGuardId },
         });
+        if (guardToUpdate) {
+          guardToUpdate.user = { id: attacker.id } as any;
+          await this.userGuardRepository.save(guardToUpdate);
+        }
 
         const guardItem = this.stolenItemRepository.create({
           type: StolenItemType.GUARD,
@@ -1569,14 +1573,32 @@ export class UserService {
       }
     }
 
-    if (isAttackingInitialReferrer && !initialReferrerGuardStolen) {
-      attacker.last_attack_time = new Date();
-      await this.userRepository.save(attacker);
+    if (isAttackingInitialReferrer) {
+      await this.userRepository.update(attacker.id, {
+        last_attack_time: new Date(),
+      });
+
+      if (stolen_items.length > 0) {
+        await this.eventHistoryService.create(
+          attacker.id,
+          EventHistoryType.ATTACK,
+          stolen_items,
+          defender.id,
+        );
+
+        await this.eventHistoryService.create(
+          defender.id,
+          EventHistoryType.DEFENSE,
+          stolen_items,
+          attacker.id,
+        );
+      }
+
       return {
         win_chance: 100,
         is_win: true,
         stolen_money: 0,
-        captured_guards: 0,
+        captured_guards: initialReferrerGuardStolen ? 1 : 0,
         attack_cooldown_end: new Date(new Date().getTime() + attackCooldown),
       };
     }
@@ -1620,9 +1642,13 @@ export class UserService {
 
           for (const guard of guardsToCapture) {
             const guardId = guard.id;
-            await this.userGuardRepository.update(guardId, {
-              user_id: attacker.id,
+            const guardToUpdate = await this.userGuardRepository.findOne({
+              where: { id: guardId },
             });
+            if (guardToUpdate) {
+              guardToUpdate.user = { id: attacker.id } as any;
+              await this.userGuardRepository.save(guardToUpdate);
+            }
 
             const guardItem = this.stolenItemRepository.create({
               type: StolenItemType.GUARD,
