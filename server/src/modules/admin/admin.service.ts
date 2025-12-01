@@ -112,13 +112,18 @@ export class AdminService {
       }
     }
 
-    if (updateAdminDto.user_id !== undefined && updateAdminDto.user_id !== admin.user_id) {
+    if (
+      updateAdminDto.user_id !== undefined &&
+      updateAdminDto.user_id !== admin.user_id
+    ) {
       const user = await this.userRepository.findOne({
         where: { id: updateAdminDto.user_id },
       });
 
       if (!user) {
-        throw new NotFoundException(`Пользователь с ID ${updateAdminDto.user_id} не найден`);
+        throw new NotFoundException(
+          `Пользователь с ID ${updateAdminDto.user_id} не найден`,
+        );
       }
 
       const existingAdmin = await this.adminRepository.findOne({

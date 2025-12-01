@@ -82,9 +82,7 @@ export class UserBoostService {
     });
   }
 
-  async checkAndCompleteExpiredShieldBoosts(
-    userId: number,
-  ): Promise<void> {
+  async checkAndCompleteExpiredShieldBoosts(userId: number): Promise<void> {
     const now = new Date();
     const shieldBoosts = await this.userBoostRepository.find({
       where: {

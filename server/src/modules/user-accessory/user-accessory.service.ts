@@ -250,7 +250,8 @@ export class UserAccessoryService {
 
     if (lastShieldBoostForCooldown && lastShieldBoostForCooldown.created_at) {
       const cooldownEndTime = new Date(
-        lastShieldBoostForCooldown.created_at.getTime() + activateShieldCooldown,
+        lastShieldBoostForCooldown.created_at.getTime() +
+          activateShieldCooldown,
       );
       if (cooldownEndTime > now) {
         throw new BadRequestException({
@@ -272,11 +273,12 @@ export class UserAccessoryService {
     });
 
     const activeShieldBoost = activeBoosts[0];
-    const shieldEndTime = activeShieldBoost && activeShieldBoost.end_time
-      ? new Date(
-          activeShieldBoost.end_time.getTime() + shieldHours * 60 * 60 * 1000,
-        )
-      : new Date(now.getTime() + shieldHours * 60 * 60 * 1000);
+    const shieldEndTime =
+      activeShieldBoost && activeShieldBoost.end_time
+        ? new Date(
+            activeShieldBoost.end_time.getTime() + shieldHours * 60 * 60 * 1000,
+          )
+        : new Date(now.getTime() + shieldHours * 60 * 60 * 1000);
 
     const userBoost = this.userBoostRepository.create({
       type: UserBoostType.SHIELD,

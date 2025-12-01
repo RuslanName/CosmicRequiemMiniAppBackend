@@ -508,7 +508,10 @@ export class ClanController {
       'Пользователь не состоит в клане, не является лидером или пытается исключить себя',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь или участник не найден' })
+  @ApiResponse({
+    status: 404,
+    description: 'Пользователь или участник не найден',
+  })
   async kickMember(
     @Request() req: AuthenticatedRequest,
     @Param('id') memberId: string,

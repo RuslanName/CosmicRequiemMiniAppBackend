@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClanWar } from '../entities/clan-war.entity';
@@ -76,7 +80,9 @@ export class ClanWarService {
         where: { id: updateClanWarDto.clan_1_id },
       });
       if (!clan1) {
-        throw new NotFoundException(`Клан с ID ${updateClanWarDto.clan_1_id} не найден`);
+        throw new NotFoundException(
+          `Клан с ID ${updateClanWarDto.clan_1_id} не найден`,
+        );
       }
       clanWar.clan_1_id = updateClanWarDto.clan_1_id;
     }
@@ -86,7 +92,9 @@ export class ClanWarService {
         where: { id: updateClanWarDto.clan_2_id },
       });
       if (!clan2) {
-        throw new NotFoundException(`Клан с ID ${updateClanWarDto.clan_2_id} не найден`);
+        throw new NotFoundException(
+          `Клан с ID ${updateClanWarDto.clan_2_id} не найден`,
+        );
       }
       clanWar.clan_2_id = updateClanWarDto.clan_2_id;
     }

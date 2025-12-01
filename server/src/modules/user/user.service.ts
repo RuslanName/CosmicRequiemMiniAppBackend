@@ -1637,7 +1637,9 @@ export class UserService {
       .filter((id): id is number => id !== undefined && id !== null);
     const shieldBoostsMap =
       opponentIds.length > 0
-        ? await this.userBoostService.findActiveShieldBoostsByUserIds(opponentIds)
+        ? await this.userBoostService.findActiveShieldBoostsByUserIds(
+            opponentIds,
+          )
         : new Map<number, Date | null>();
 
     const guardIds = result.data
@@ -1699,10 +1701,11 @@ export class UserService {
             await this.userAccessoryService.findEquippedByUserId(
               event.opponent.id,
             );
-          const opponentBasicStats = await this.transformToUserBasicStatsResponseDto(
-            event.opponent,
-            shieldBoostsMap,
-          );
+          const opponentBasicStats =
+            await this.transformToUserBasicStatsResponseDto(
+              event.opponent,
+              shieldBoostsMap,
+            );
           opponentDto = {
             ...opponentBasicStats,
             equipped_accessories: equippedAccessories,

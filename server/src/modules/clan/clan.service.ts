@@ -418,7 +418,10 @@ export class ClanService {
       } as UpdateClanDto;
     }
 
-    if (updateClanDto.leader_id !== undefined && updateClanDto.leader_id !== clan.leader_id) {
+    if (
+      updateClanDto.leader_id !== undefined &&
+      updateClanDto.leader_id !== clan.leader_id
+    ) {
       const newLeader = await this.userRepository.findOne({
         where: { id: updateClanDto.leader_id },
       });
@@ -428,7 +431,9 @@ export class ClanService {
       }
 
       if (newLeader.clan_id !== clan.id) {
-        throw new BadRequestException('Новый лидер должен состоять в этом клане');
+        throw new BadRequestException(
+          'Новый лидер должен состоять в этом клане',
+        );
       }
 
       clan.leader_id = updateClanDto.leader_id;
@@ -437,11 +442,11 @@ export class ClanService {
     if (updateClanDto.member_ids !== undefined) {
       const currentMembers = clan.members || [];
       const currentMemberIds = currentMembers.map((m) => m.id);
-      
+
       const newMemberIds = updateClanDto.member_ids;
-      
+
       const finalMemberIds = [...new Set([...newMemberIds, clan.leader_id])];
-      
+
       const newMembers = await this.userRepository.find({
         where: { id: In(finalMemberIds) },
       });
@@ -451,7 +456,10 @@ export class ClanService {
       }
 
       for (const member of currentMembers) {
-        if (member.id !== clan.leader_id && !finalMemberIds.includes(member.id)) {
+        if (
+          member.id !== clan.leader_id &&
+          !finalMemberIds.includes(member.id)
+        ) {
           member.clan_id = null;
           await this.userRepository.save(member);
         }
@@ -1123,7 +1131,9 @@ export class ClanService {
     }
 
     if (leader.clan.leader?.id !== leaderId) {
-      throw new BadRequestException('Только лидер клана может исключать участников');
+      throw new BadRequestException(
+        'Только лидер клана может исключать участников',
+      );
     }
 
     if (memberId === leaderId) {

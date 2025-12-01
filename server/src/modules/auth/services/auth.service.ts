@@ -224,11 +224,14 @@ export class AuthService {
       user_id: dbUser.id,
       expires_at: expiresAt,
     });
-    
+
     try {
       await this.refreshTokenRepository.save(refreshTokenEntity);
     } catch (error) {
-      if (error instanceof QueryFailedError && error.message.includes('duplicate key')) {
+      if (
+        error instanceof QueryFailedError &&
+        error.message.includes('duplicate key')
+      ) {
         const newRefreshToken = this.jwtService.sign(refreshTokenPayload, {
           secret: ENV.JWT_REFRESH_SECRET,
           expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
