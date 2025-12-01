@@ -65,6 +65,9 @@ export class UserWithBasicStatsResponseDto {
   @ApiProperty({ required: false })
   referral_link?: string;
 
+  @ApiProperty()
+  referrals_count: number;
+
   @ApiProperty({
     type: [UserAccessoryResponseDto],
     required: false,

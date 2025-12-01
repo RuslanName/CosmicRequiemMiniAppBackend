@@ -43,7 +43,10 @@ RUN npm ci --only=production
 
 COPY --from=server-builder /app/dist ./dist
 
+COPY server/start.sh ./start.sh
+RUN chmod +x ./start.sh
+
 EXPOSE 5000
 
-CMD ["node", "dist/main.js"]
+CMD ["./start.sh"]
 

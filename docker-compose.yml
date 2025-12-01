@@ -35,6 +35,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./server/.env
+    environment:
+      - NODE_MAX_OLD_SPACE_SIZE=${NODE_MAX_OLD_SPACE_SIZE:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -1017,6 +1017,49 @@ export class ClanService {
     return user;
   }
 
+  async kickMember(leaderId: number, memberId: number): Promise<User> {
+    const leader = await this.userRepository.findOne({
+      where: { id: leaderId },
+      relations: ['clan', 'clan.leader'],
+    });
+
+    if (!leader) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    if (!leader.clan) {
+      throw new BadRequestException('Пользователь не состоит в клане');
+    }
+
+    if (leader.clan.leader?.id !== leaderId) {
+      throw new BadRequestException('Только лидер клана может исключать участников');
+    }
+
+    if (memberId === leaderId) {
+      throw new BadRequestException('Лидер не может исключить самого себя');
+    }
+
+    const member = await this.userRepository.findOne({
+      where: { id: memberId },
+      relations: ['clan'],
+    });
+
+    if (!member) {
+      throw new NotFoundException('Участник не найден');
+    }
+
+    if (!member.clan || member.clan.id !== leader.clan.id) {
+      throw new BadRequestException('Пользователь не состоит в вашем клане');
+    }
+
+    member.clan_leave_time = new Date();
+    member.clan_id = null;
+    member.clan = undefined;
+    await this.userRepository.save(member);
+
+    return member;
+  }
+
   async createApplication(
     userId: number,
     clanId: number,
@@ -1403,6 +1446,14 @@ export class ClanService {
   ): Promise<UserWithStatsResponseDto[]> {
     await this.getEnemyClanById(userId, enemyClanId);
 
+    const enemyClan = await this.clanRepository.findOne({
+      where: { id: enemyClanId },
+    });
+
+    if (!enemyClan) {
+      throw new NotFoundException('Вражеский клан не найден');
+    }
+
     const members = await this.userRepository.find({
       where: { clan_id: enemyClanId },
       relations: ['guards'],
@@ -1413,6 +1464,16 @@ export class ClanService {
     );
 
     membersWithStats.sort((a, b) => {
+      const isALeader = a.id === enemyClan.leader_id;
+      const isBLeader = b.id === enemyClan.leader_id;
+
+      if (isALeader && !isBLeader) {
+        return -1;
+      }
+      if (!isALeader && isBLeader) {
+        return 1;
+      }
+
       const scoreA = (a.strength || 0) * 1000 + (a.money || 0);
       const scoreB = (b.strength || 0) * 1000 + (b.money || 0);
       return scoreB - scoreA;
@@ -1440,6 +1501,16 @@ export class ClanService {
     );
 
     membersWithStats.sort((a, b) => {
+      const isALeader = a.id === clan.leader_id;
+      const isBLeader = b.id === clan.leader_id;
+
+      if (isALeader && !isBLeader) {
+        return -1;
+      }
+      if (!isALeader && isBLeader) {
+        return 1;
+      }
+
       const scoreA = (a.strength || 0) * 1000 + (a.money || 0);
       const scoreB = (b.strength || 0) * 1000 + (b.money || 0);
       return scoreB - scoreA;

@@ -223,6 +223,7 @@ export class UserService {
     const guardAsUserStrength = user.user_as_guard
       ? Number(user.user_as_guard.strength)
       : null;
+    const referralsCount = user.referrals ? user.referrals.length : 0;
 
     return {
       id: transformed.id,
@@ -246,6 +247,7 @@ export class UserService {
       guards_count: guardsCount,
       first_guard_strength: guardAsUserStrength,
       referral_link: transformed.referral_link,
+      referrals_count: referralsCount,
     };
   }
 
@@ -287,7 +289,7 @@ export class UserService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.userRepository.findAndCount({
-      relations: ['guards', 'user_as_guard'],
+      relations: ['guards', 'user_as_guard', 'referrals'],
       skip,
       take: limit,
     });
@@ -307,7 +309,7 @@ export class UserService {
   async findOne(id: number): Promise<UserWithBasicStatsResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['guards', 'user_as_guard'],
+      relations: ['guards', 'user_as_guard', 'referrals'],
     });
 
     if (!user) {
@@ -1417,13 +1419,9 @@ export class UserService {
         const guardToSteal = capturableGuards[0];
         const stolenGuardId = guardToSteal.id;
 
-        const guardToUpdate = await this.userGuardRepository.findOne({
-          where: { id: stolenGuardId },
+        await this.userGuardRepository.update(stolenGuardId, {
+          user_id: attacker.id,
         });
-        if (guardToUpdate) {
-          guardToUpdate.user = { id: attacker.id } as any;
-          await this.userGuardRepository.save(guardToUpdate);
-        }
 
         const guardItem = this.stolenItemRepository.create({
           type: StolenItemType.GUARD,
@@ -1507,13 +1505,9 @@ export class UserService {
 
           for (const guard of guardsToCapture) {
             const guardId = guard.id;
-            const guardToUpdate = await this.userGuardRepository.findOne({
-              where: { id: guardId },
+            await this.userGuardRepository.update(guardId, {
+              user_id: attacker.id,
             });
-            if (guardToUpdate) {
-              guardToUpdate.user = { id: attacker.id } as any;
-              await this.userGuardRepository.save(guardToUpdate);
-            }
 
             const guardItem = this.stolenItemRepository.create({
               type: StolenItemType.GUARD,

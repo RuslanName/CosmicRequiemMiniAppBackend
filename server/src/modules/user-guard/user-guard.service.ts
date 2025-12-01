@@ -107,7 +107,7 @@ export class UserGuardService {
 
     Object.assign(userGuard, rest);
     if (user_id !== undefined) {
-      userGuard.user = { id: user_id } as any;
+      userGuard.user_id = user_id;
     }
     return this.userGuardRepository.save(userGuard);
   }

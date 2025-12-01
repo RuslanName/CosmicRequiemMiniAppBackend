@@ -20,6 +20,7 @@ export interface User {
   guards_count?: number;
   first_guard_strength?: number | null;
   referral_link?: string;
+  referrals_count?: number;
 }
 
 export interface UpdateUserDto {

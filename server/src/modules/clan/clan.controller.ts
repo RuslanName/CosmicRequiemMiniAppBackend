@@ -151,13 +151,13 @@ export class ClanController {
   @ApiOperation({
     summary: 'Получить всех участников своего клана (Для Mini App)',
     description:
-      'Возвращает список участников клана, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money',
+      'Возвращает список участников клана. Лидер всегда первый в списке, остальные отсортированы по рейтингу (strength * 1000 + money, от самых крутых к менее крутым)',
   })
   @ApiResponse({
     status: 200,
     type: [UserWithStatsResponseDto],
     description:
-      'Список участников клана, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
+      'Список участников клана. Лидер всегда первый, остальные отсортированы по рейтингу',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
@@ -238,7 +238,7 @@ export class ClanController {
   @ApiOperation({
     summary: 'Получить участников вражеского клана (Для Mini App)',
     description:
-      'Возвращает список участников вражеского клана, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money',
+      'Возвращает список участников вражеского клана. Лидер всегда первый в списке, остальные отсортированы по рейтингу (strength * 1000 + money, от самых крутых к менее крутым)',
   })
   @ApiParam({
     name: 'id',
@@ -250,7 +250,7 @@ export class ClanController {
     status: 200,
     type: [UserWithStatsResponseDto],
     description:
-      'Список участников вражеского клана, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
+      'Список участников вражеского клана. Лидер всегда первый, остальные отсортированы по рейтингу',
   })
   @ApiResponse({
     status: 400,
@@ -483,6 +483,37 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async leaveClan(@Request() req: AuthenticatedRequest): Promise<User> {
     return this.clanService.leaveClan(req.user.id);
+  }
+
+  @Post('me/members/:id/kick')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @InvalidateCache('clan:me::user*', 'clan:list:*')
+  @ApiOperation({ summary: 'Исключить участника из клана (Для Mini App)' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    example: 5,
+    description: 'ID участника для исключения',
+  })
+  @ApiResponse({
+    status: 200,
+    type: User,
+    description: 'Участник успешно исключен из клана',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Пользователь не состоит в клане, не является лидером или пытается исключить себя',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь или участник не найден' })
+  async kickMember(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') memberId: string,
+  ): Promise<User> {
+    return this.clanService.kickMember(req.user.id, +memberId);
   }
 
   @Post('application')
