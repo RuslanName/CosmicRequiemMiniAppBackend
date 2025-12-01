@@ -98,7 +98,7 @@ export class UserAccessoryService {
         user: { id: In(userIds) },
         status: UserAccessoryStatus.EQUIPPED,
       },
-      relations: ['item_template'],
+      relations: ['user', 'item_template'],
     });
 
     const accessoriesMap = new Map<number, UserAccessoryResponseDto[]>();
@@ -107,10 +107,13 @@ export class UserAccessoryService {
     }
 
     for (const accessory of accessories) {
-      if (!accessory.user || !accessory.user.id) {
+      if (!accessory || !accessory.user || typeof accessory.user.id !== 'number') {
         continue;
       }
       const userId = accessory.user.id;
+      if (!accessoriesMap.has(userId)) {
+        continue;
+      }
       const userAccessories = accessoriesMap.get(userId) || [];
       userAccessories.push(this.transformToUserAccessoryResponseDto(accessory));
       accessoriesMap.set(userId, userAccessories);
