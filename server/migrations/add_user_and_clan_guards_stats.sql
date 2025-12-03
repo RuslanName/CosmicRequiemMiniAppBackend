@@ -79,19 +79,3 @@ SET
         FROM "user" u
         WHERE u.clan_id = c.id
     ), 0);
-
--- ============================================
--- Создание индексов для оптимизации запросов
--- ============================================
-
--- Индексы для таблицы user
-CREATE INDEX IF NOT EXISTS "IDX_user_strength" ON "user" ("strength");
-CREATE INDEX IF NOT EXISTS "IDX_user_guards_count" ON "user" ("guards_count");
-CREATE INDEX IF NOT EXISTS "IDX_user_referrals_count" ON "user" ("referrals_count");
-CREATE INDEX IF NOT EXISTS "IDX_user_strength_guards_count" ON "user" ("strength", "guards_count");
-
--- Индексы для таблицы clan
-CREATE INDEX IF NOT EXISTS "IDX_clan_strength" ON "clan" ("strength");
-CREATE INDEX IF NOT EXISTS "IDX_clan_guards_count" ON "clan" ("guards_count");
-CREATE INDEX IF NOT EXISTS "IDX_clan_strength_guards_count" ON "clan" ("strength", "guards_count");
-

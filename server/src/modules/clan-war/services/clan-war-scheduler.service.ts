@@ -58,6 +58,7 @@ export class ClanWarSchedulerService {
     let clan2StolenCount = 0;
 
     for (const item of stolenItems) {
+      if (!item.thief) continue;
       if (item.thief.clan?.id === war.clan_1.id) {
         clan1StolenCount++;
       } else if (item.thief.clan?.id === war.clan_2.id) {
@@ -116,6 +117,7 @@ export class ClanWarSchedulerService {
     );
 
     for (const item of stolenItems) {
+      if (!item.thief || !item.victim) continue;
       const thiefClanId = item.thief.clan?.id;
       const victimClanId = item.victim.clan?.id;
 
