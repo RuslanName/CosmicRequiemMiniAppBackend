@@ -246,6 +246,36 @@ export class UserService {
       ? shieldBoostsMap.get(user.id) || null
       : await this.getShieldEndTimeFromBoost(user.id);
 
+    const activeBoosts = await this.userBoostService.findActiveByUserId(
+      user.id,
+    );
+    const cooldownHalvingBoost = activeBoosts.find(
+      (b) => b.type === UserBoostType.COOLDOWN_HALVING,
+    );
+
+    let trainingCooldown = Settings[SettingKey.TRAINING_COOLDOWN];
+    let contractCooldown = Settings[SettingKey.CONTRACT_COOLDOWN];
+    let attackCooldown = Settings[SettingKey.ATTACK_COOLDOWN];
+    if (
+      cooldownHalvingBoost &&
+      cooldownHalvingBoost.end_time &&
+      cooldownHalvingBoost.end_time > new Date()
+    ) {
+      trainingCooldown = trainingCooldown / 2;
+      contractCooldown = contractCooldown / 2;
+      attackCooldown = attackCooldown / 2;
+    }
+
+    const trainingEndTime = user.last_training_time
+      ? new Date(user.last_training_time.getTime() + trainingCooldown)
+      : undefined;
+    const contractEndTime = user.last_contract_time
+      ? new Date(user.last_contract_time.getTime() + contractCooldown)
+      : undefined;
+    const attackEndTime = user.last_attack_time
+      ? new Date(user.last_attack_time.getTime() + attackCooldown)
+      : undefined;
+
     return {
       id: transformed.id,
       vk_id: transformed.vk_id,
@@ -265,6 +295,16 @@ export class UserService {
       show_adv: showAdv,
       adv_disable_cost_voices_count: advDisableCost,
       referrals_count: referralsCount,
+      training_end_time:
+        trainingEndTime && trainingEndTime > new Date()
+          ? trainingEndTime
+          : undefined,
+      contract_end_time:
+        contractEndTime && contractEndTime > new Date()
+          ? contractEndTime
+          : undefined,
+      attack_end_time:
+        attackEndTime && attackEndTime > new Date() ? attackEndTime : undefined,
     };
   }
 
@@ -1128,6 +1168,7 @@ export class UserService {
     userId: number,
     filter?: 'top' | 'suitable' | 'friends',
     paginationDto?: PaginationDto,
+    vkAccessToken?: string,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
@@ -1307,12 +1348,53 @@ export class UserService {
         limit,
       };
     } else if (filter === 'friends') {
-      return {
-        data: [],
-        total: 0,
-        page,
-        limit,
-      };
+      const currentUser = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['id', 'vk_id'],
+      });
+
+      if (!currentUser) {
+        throw new NotFoundException('Пользователь не найден');
+      }
+
+      let friendVkIds: number[] = [];
+
+      if (vkAccessToken) {
+        try {
+          const vkApiUrl = 'https://api.vk.com/method/friends.get';
+          const vkApiParams = new URLSearchParams({
+            user_id: currentUser.vk_id.toString(),
+            access_token: vkAccessToken,
+            v: '5.131',
+          });
+
+          const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
+          const data = await response.json();
+
+          if (data.error) {
+            console.error('VK API error in friends.get:', data.error);
+          } else if (data.response && data.response.items) {
+            friendVkIds = data.response.items;
+          }
+        } catch (error) {
+          console.error('Error fetching friends from VK API:', error);
+        }
+      }
+
+      if (friendVkIds.length === 0) {
+        return {
+          data: [],
+          total: 0,
+          page,
+          limit,
+        };
+      }
+
+      return this.getAttackableFriendsByVkIds(
+        userId,
+        friendVkIds,
+        paginationDto,
+      );
     }
 
     throw new BadRequestException('Неверный параметр фильтра');

@@ -203,6 +203,7 @@ export class UserController {
   async getAttackableUsers(
     @Request() req: AuthenticatedRequest,
     @Query('filter') filter?: 'top' | 'suitable' | 'friends',
+    @Query('vk_access_token') vkAccessToken?: string,
     @Query() paginationDto?: PaginationDto,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     if (filter && !['top', 'suitable', 'friends'].includes(filter)) {
@@ -214,6 +215,7 @@ export class UserController {
       req.user.id,
       filter,
       paginationDto,
+      vkAccessToken,
     );
   }
 

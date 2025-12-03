@@ -55,4 +55,13 @@ export class CurrentUserResponseDto {
 
   @ApiProperty()
   referrals_count: number;
+
+  @ApiProperty({ required: false, nullable: true })
+  training_end_time?: Date;
+
+  @ApiProperty({ required: false, nullable: true })
+  contract_end_time?: Date;
+
+  @ApiProperty({ required: false, nullable: true })
+  attack_end_time?: Date;
 }
