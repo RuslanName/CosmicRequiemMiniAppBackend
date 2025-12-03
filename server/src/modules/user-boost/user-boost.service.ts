@@ -91,11 +91,15 @@ export class UserBoostService {
       },
     });
 
-    for (const boost of shieldBoosts) {
-      if (boost.end_time && boost.end_time <= now) {
+    const expiredBoosts = shieldBoosts.filter(
+      (boost) => boost.end_time && boost.end_time <= now,
+    );
+
+    if (expiredBoosts.length > 0) {
+      expiredBoosts.forEach((boost) => {
         boost.end_time = now;
-        await this.userBoostRepository.save(boost);
-      }
+      });
+      await this.userBoostRepository.save(expiredBoosts);
     }
   }
 

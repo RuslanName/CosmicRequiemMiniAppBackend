@@ -48,4 +48,12 @@ export const ENV = {
   ALLOWED_ORIGINS: getAllowedOrigins(),
   THROTTLER_TTL: Number(process.env.THROTTLER_TTL || 30000),
   THROTTLER_LIMIT: Number(process.env.THROTTLER_LIMIT || 60),
+  POSTGRES_POOL_MAX: Number(process.env.POSTGRES_POOL_MAX || 20),
+  POSTGRES_POOL_MIN: Number(process.env.POSTGRES_POOL_MIN || 5),
+  POSTGRES_POOL_IDLE_TIMEOUT: Number(
+    process.env.POSTGRES_POOL_IDLE_TIMEOUT || 30000,
+  ),
+  POSTGRES_POOL_CONNECTION_TIMEOUT: Number(
+    process.env.POSTGRES_POOL_CONNECTION_TIMEOUT || 5000,
+  ),
 };

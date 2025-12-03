@@ -3,8 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Like, MoreThan, Not, Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { In, Like, Not, Repository, DataSource } from 'typeorm';
 import { Clan } from './entities/clan.entity';
 import { CreateClanDto } from './dtos/create-clan.dto';
 import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
@@ -54,10 +54,10 @@ export class ClanService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
-    @InjectRepository(StolenItem)
-    private readonly stolenItemRepository: Repository<StolenItem>,
     @InjectRepository(ClanApplication)
     private readonly clanApplicationRepository: Repository<ClanApplication>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly userBoostService: UserBoostService,
     private readonly eventHistoryService: EventHistoryService,
     private readonly notificationService: NotificationService,
@@ -79,32 +79,9 @@ export class ClanService {
     });
   }
 
-  private calculateUserPower(guards: UserGuard[]): number {
-    if (!guards || guards.length === 0) return 0;
-    return guards.reduce((sum, guard) => sum + Number(guard.strength), 0);
-  }
-
-  private getGuardsCount(guards: UserGuard[]): number {
-    return guards ? guards.length : 0;
-  }
-
   private calculateClanMoney(members: User[]): number {
     if (!members || members.length === 0) return 0;
     return members.reduce((sum, member) => sum + Number(member.money || 0), 0);
-  }
-
-  private calculateClanStrength(members: User[]): number {
-    if (!members || members.length === 0) return 0;
-    return members.reduce((sum, member) => {
-      return sum + (member.strength ?? 0);
-    }, 0);
-  }
-
-  private calculateClanGuardsCount(members: User[]): number {
-    if (!members || members.length === 0) return 0;
-    return members.reduce((sum, member) => {
-      return sum + (member.guards_count ?? 0);
-    }, 0);
   }
 
   async updateClanStats(clanId: number): Promise<void> {
@@ -642,7 +619,6 @@ export class ClanService {
 
     if (updateClanDto.member_ids !== undefined) {
       const currentMembers = clan.members || [];
-      const currentMemberIds = currentMembers.map((m) => m.id);
 
       const newMemberIds = updateClanDto.member_ids;
 
@@ -986,65 +962,22 @@ export class ClanService {
     return this.transformClanWarToResponseDto(warWithRelations!);
   }
 
-  async getEnemyClanMembers(userId: number): Promise<UserStatsResponseDto[]> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['clan'],
-    });
-
-    if (!user || !user.clan) {
-      throw new BadRequestException('Пользователь не состоит в клане');
-    }
-
-    const activeWars = await this.clanWarRepository.find({
-      where: [
-        { clan_1_id: user.clan.id, status: ClanWarStatus.IN_PROGRESS },
-        { clan_2_id: user.clan.id, status: ClanWarStatus.IN_PROGRESS },
-      ],
-      relations: ['clan_1', 'clan_2'],
-    });
-
-    if (activeWars.length === 0) {
-      return [];
-    }
-
-    const enemyClanIds = activeWars.map((war) =>
-      war.clan_1_id === user.clan!.id ? war.clan_2_id : war.clan_1_id,
-    );
-
-    const members = await this.userRepository.find({
-      where: { clan_id: In(enemyClanIds) },
-      relations: ['guards'],
-    });
-
-    const userIds = members.map((m) => m.id);
-    const shieldBoostsMap =
-      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
-
-    return await Promise.all(
-      members.map((member) =>
-        this.transformToUserStatsResponseDto(member, shieldBoostsMap),
-      ),
-    );
-  }
-
   async attackEnemy(
     userId: number,
     targetUserId: number,
     enemyClanId?: number,
   ): Promise<ClanAttackEnemyResponseDto> {
-    const attacker = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['clan', 'guards'],
-    });
-
     const defender = await this.userRepository.findOne({
       where: { id: targetUserId },
       relations: ['clan', 'guards'],
     });
 
-    if (!attacker || !defender) {
-      throw new NotFoundException('Атакующий или защищающийся не найден');
+    if (!defender) {
+      throw new NotFoundException('Защищающийся не найден');
+    }
+
+    if (!defender.clan) {
+      throw new BadRequestException('Защищающийся не состоит в клане');
     }
 
     await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
@@ -1089,25 +1022,20 @@ export class ClanService {
       attackCooldown = attackCooldown / 2;
     }
 
-    if (attacker.last_attack_time) {
-      const cooldownEndTime = new Date(
-        attacker.last_attack_time.getTime() + attackCooldown,
-      );
-      if (cooldownEndTime > new Date()) {
-        throw new BadRequestException({
-          message: 'Кулдаун атаки все еще активен',
-          cooldown_end: cooldownEndTime,
-        });
-      }
+    const attackerForCheck = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan', 'guards'],
+    });
+
+    if (!attackerForCheck) {
+      throw new NotFoundException('Атакующий не найден');
     }
 
-    if (!attacker.clan || !defender.clan) {
-      throw new BadRequestException(
-        'Атакующий или защищающийся не состоит в клане',
-      );
+    if (!attackerForCheck.clan) {
+      throw new BadRequestException('Атакующий не состоит в клане');
     }
 
-    if (attacker.clan.id === defender.clan.id) {
+    if (attackerForCheck.clan.id === defender.clan.id) {
       throw new BadRequestException('Нельзя атаковать участника своего клана');
     }
 
@@ -1120,13 +1048,13 @@ export class ClanService {
     const activeWar = await this.clanWarRepository.findOne({
       where: [
         {
-          clan_1_id: attacker.clan.id,
+          clan_1_id: attackerForCheck.clan.id,
           clan_2_id: defender.clan.id,
           status: ClanWarStatus.IN_PROGRESS,
         },
         {
           clan_1_id: defender.clan.id,
-          clan_2_id: attacker.clan.id,
+          clan_2_id: attackerForCheck.clan.id,
           status: ClanWarStatus.IN_PROGRESS,
         },
       ],
@@ -1138,9 +1066,9 @@ export class ClanService {
 
     if (enemyClanId) {
       const isEnemyClanInWar =
-        (activeWar.clan_1_id === attacker.clan.id &&
+        (activeWar.clan_1_id === attackerForCheck.clan.id &&
           activeWar.clan_2_id === enemyClanId) ||
-        (activeWar.clan_2_id === attacker.clan.id &&
+        (activeWar.clan_2_id === attackerForCheck.clan.id &&
           activeWar.clan_1_id === enemyClanId);
       if (!isEnemyClanInWar) {
         throw new BadRequestException(
@@ -1149,8 +1077,8 @@ export class ClanService {
       }
     }
 
-    const attacker_power = attacker.strength ?? 0;
-    const attacker_guards = attacker.guards_count ?? 0;
+    const attacker_power = attackerForCheck.strength ?? 0;
+    const attacker_guards = attackerForCheck.guards_count ?? 0;
     const defender_power = defender.strength ?? 0;
     const capturableDefenderGuards = defender.guards
       ? defender.guards.filter((guard) => !guard.is_first)
@@ -1184,85 +1112,158 @@ export class ClanService {
     );
     const is_win = Math.random() * 100 < win_chance;
 
-    const stolen_items: StolenItem[] = [];
+    return await this.dataSource.transaction(async (manager) => {
+      const attacker = await manager
+        .createQueryBuilder(User, 'user')
+        .leftJoinAndSelect('user.clan', 'clan')
+        .leftJoinAndSelect('user.guards', 'guards')
+        .where('user.id = :userId', { userId })
+        .select([
+          'user.id',
+          'user.vk_id',
+          'user.clan_id',
+          'user.strength',
+          'user.guards_count',
+          'user.last_attack_time',
+          'user.money',
+          'clan.id',
+          'guards',
+        ])
+        .setLock('pessimistic_write')
+        .getOne();
 
-    if (is_win) {
-      const stolen_money = Math.round(
-        defender.money * 0.15 * (win_chance / 100),
-      );
-
-      if (stolen_money > 0) {
-        defender.money = Number(defender.money) - stolen_money;
-        attacker.money = Number(attacker.money) + stolen_money;
-        await this.userRepository.save([defender, attacker]);
-
-        const moneyItem = this.stolenItemRepository.create({
-          type: StolenItemType.MONEY,
-          value: stolen_money.toString(),
-          thief: attacker,
-          victim: defender,
-          clan_war: activeWar,
-        });
-        await this.stolenItemRepository.save(moneyItem);
-        stolen_items.push(moneyItem);
+      if (!attacker) {
+        throw new NotFoundException('Атакующий не найден');
       }
 
-      const captured_guards = Math.round(
-        defender_guards * 0.08 * (win_chance / 100),
-      );
-
-      if (
-        captured_guards > 0 &&
-        defender.guards &&
-        defender.guards.length > 0
-      ) {
-        const capturableGuards = defender.guards.filter(
-          (guard) => !guard.is_first,
+      if (attacker.last_attack_time) {
+        const cooldownEndTime = new Date(
+          attacker.last_attack_time.getTime() + attackCooldown,
         );
-        const guardsToCapture = capturableGuards.slice(0, captured_guards);
-
-        for (const guard of guardsToCapture) {
-          guard.user = attacker;
-          await this.userGuardRepository.save(guard);
+        if (cooldownEndTime > new Date()) {
+          throw new BadRequestException({
+            message: 'Кулдаун атаки все еще активен',
+            cooldown_end: cooldownEndTime,
+          });
         }
+      }
 
-        await this.updateUserGuardsStats(attacker.id);
-        await this.updateUserGuardsStats(defender.id);
+      const stolen_items: StolenItem[] = [];
+      let stolen_money = 0;
+      let captured_guards = 0;
 
-        if (attacker.clan_id) {
-          await this.updateClanStats(attacker.clan_id);
-        }
-        if (defender.clan_id) {
-          await this.updateClanStats(defender.clan_id);
-        }
+      if (is_win) {
+        stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
 
-        for (const guard of guardsToCapture) {
-          const guardItem = this.stolenItemRepository.create({
-            type: StolenItemType.GUARD,
-            value: guard.id.toString(),
+        if (stolen_money > 0) {
+          defender.money = Number(defender.money) - stolen_money;
+          attacker.money = Number(attacker.money) + stolen_money;
+          await manager.save(User, [defender, attacker]);
+
+          const moneyItem = manager.create(StolenItem, {
+            type: StolenItemType.MONEY,
+            value: stolen_money.toString(),
             thief: attacker,
             victim: defender,
             clan_war: activeWar,
           });
-          await this.stolenItemRepository.save(guardItem);
-          stolen_items.push(guardItem);
+          await manager.save(StolenItem, moneyItem);
+          stolen_items.push(moneyItem);
         }
+
+        captured_guards = Math.round(
+          defender_guards * 0.08 * (win_chance / 100),
+        );
+
+        if (
+          captured_guards > 0 &&
+          defender.guards &&
+          defender.guards.length > 0
+        ) {
+          const capturableGuards = defender.guards.filter(
+            (guard) => !guard.is_first,
+          );
+          const guardsToCapture = capturableGuards.slice(0, captured_guards);
+
+          guardsToCapture.forEach((guard) => {
+            guard.user = attacker;
+          });
+          await manager.save(UserGuard, guardsToCapture);
+
+          await Promise.all([
+            this.updateUserGuardsStats(attacker.id),
+            this.updateUserGuardsStats(defender.id),
+          ]);
+
+          const clanStatsUpdates: Promise<void>[] = [];
+          if (attacker.clan_id) {
+            clanStatsUpdates.push(this.updateClanStats(attacker.clan_id));
+          }
+          if (defender.clan_id) {
+            clanStatsUpdates.push(this.updateClanStats(defender.clan_id));
+          }
+          if (clanStatsUpdates.length > 0) {
+            await Promise.all(clanStatsUpdates);
+          }
+
+          const guardItems = guardsToCapture.map((guard) =>
+            manager.create(StolenItem, {
+              type: StolenItemType.GUARD,
+              value: guard.id.toString(),
+              thief: attacker,
+              victim: defender,
+              clan_war: activeWar,
+            }),
+          );
+          const savedGuardItems = await manager.save(StolenItem, guardItems);
+          stolen_items.push(...savedGuardItems);
+        }
+
+        attacker.last_attack_time = new Date();
+        await manager.save(User, attacker);
+
+        await this.eventHistoryService.create(
+          attacker.id,
+          EventHistoryType.ATTACK,
+          stolen_items,
+          defender.id,
+        );
+
+        await this.eventHistoryService.create(
+          defender.id,
+          EventHistoryType.DEFENSE,
+          stolen_items,
+          attacker.id,
+        );
+
+        const attackCooldownEnd = new Date(
+          new Date().getTime() + attackCooldown,
+        );
+
+        return {
+          win_chance,
+          is_win: true,
+          stolen_money: stolen_money || 0,
+          captured_guards: captured_guards || 0,
+          stolen_items,
+          attack_cooldown_end: attackCooldownEnd,
+        };
       }
 
       attacker.last_attack_time = new Date();
-      await this.userRepository.save(attacker);
+      await manager.save(User, attacker);
 
       await this.eventHistoryService.create(
         attacker.id,
         EventHistoryType.ATTACK,
-        stolen_items,
+        [],
         defender.id,
       );
 
       await this.eventHistoryService.create(
         defender.id,
         EventHistoryType.DEFENSE,
-        stolen_items,
+        [],
         attacker.id,
       );
 
@@ -1270,41 +1271,13 @@ export class ClanService {
 
       return {
         win_chance,
-        is_win: true,
-        stolen_money: stolen_money || 0,
-        captured_guards: captured_guards || 0,
-        stolen_items,
+        is_win: false,
+        stolen_money: 0,
+        captured_guards: 0,
+        stolen_items: [],
         attack_cooldown_end: attackCooldownEnd,
       };
-    }
-
-    attacker.last_attack_time = new Date();
-    await this.userRepository.save(attacker);
-
-    await this.eventHistoryService.create(
-      attacker.id,
-      EventHistoryType.ATTACK,
-      [],
-      defender.id,
-    );
-
-    await this.eventHistoryService.create(
-      defender.id,
-      EventHistoryType.DEFENSE,
-      [],
-      attacker.id,
-    );
-
-    const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
-
-    return {
-      win_chance,
-      is_win: false,
-      stolen_money: 0,
-      captured_guards: 0,
-      stolen_items: [],
-      attack_cooldown_end: attackCooldownEnd,
-    };
+    });
   }
 
   async leaveClan(userId: number): Promise<LeaveClanResponseDto> {
@@ -1623,19 +1596,6 @@ export class ClanService {
     );
   }
 
-  async getActiveWars(clanId: number): Promise<ClanWarResponseDto[]> {
-    const wars = await this.clanWarRepository.find({
-      where: [
-        { clan_1_id: clanId, status: ClanWarStatus.IN_PROGRESS },
-        { clan_2_id: clanId, status: ClanWarStatus.IN_PROGRESS },
-      ],
-      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader'],
-      order: { start_time: 'DESC' },
-    });
-
-    return wars.map((war) => this.transformClanWarToResponseDto(war));
-  }
-
   async getAllWars(
     clanId: number,
     paginationDto: PaginationDto,
@@ -1936,7 +1896,6 @@ export class ClanService {
     }
 
     const clansWithRating = allClans.map((clan) => {
-      const stats = statsMap.get(clan.id) || { wins: 0, losses: 0 };
       const guardsCount = clan.guards_count ?? 0;
       const strength = clan.strength ?? 0;
 
@@ -1969,89 +1928,6 @@ export class ClanService {
       page,
       limit,
     };
-  }
-
-  async syncClanWithVkGroup(
-    userId: number,
-    vkGroupId: string,
-    vkViewerGroupRole: string,
-  ): Promise<void> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['clan'],
-    });
-
-    if (!user) {
-      return;
-    }
-
-    const groupId = String(vkGroupId).replace(/^-/, '');
-    const isAdmin = vkViewerGroupRole === 'admin';
-
-    let groupData: { id: number; name: string; photo_200?: string } | null =
-      null;
-
-    try {
-      const vkApiUrl = `https://api.vk.com/method/groups.getById`;
-      const vkApiParams = new URLSearchParams({
-        group_id: groupId,
-        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
-        v: '5.131',
-        fields: 'photo_200',
-      });
-
-      const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
-      const data = await response.json();
-
-      if (data.error || !data.response || !data.response[0]) {
-        console.warn(
-          `Failed to get VK group data for group_id ${groupId}:`,
-          data.error,
-        );
-        return;
-      }
-
-      groupData = {
-        id: Math.abs(data.response[0].id),
-        name: data.response[0].name || '',
-        photo_200: data.response[0].photo_200 || null,
-      };
-    } catch (error) {
-      console.error(`Error fetching VK group data: ${error.message}`);
-      return;
-    }
-
-    if (!groupData) {
-      return;
-    }
-
-    const existingClan = await this.clanRepository.findOne({
-      where: { vk_group_id: groupData.id },
-      relations: ['members'],
-    });
-
-    const userCurrentClanId = user.clan_id;
-
-    if (existingClan) {
-      existingClan.name = groupData.name;
-      if (groupData.photo_200) {
-        if (!this.verifyVkImageUrl(groupData.photo_200)) {
-          throw new BadRequestException('Неверный URL изображения сообщества');
-        }
-        existingClan.image_path = await this.downloadAndSaveGroupImage(
-          groupData.photo_200,
-        );
-      }
-      await this.clanRepository.save(existingClan);
-
-      if (
-        isAdmin &&
-        (userCurrentClanId !== existingClan.id || !userCurrentClanId)
-      ) {
-        user.clan_id = existingClan.id;
-        await this.userRepository.save(user);
-      }
-    }
   }
 
   private verifyVkImageUrl(url: string): boolean {
