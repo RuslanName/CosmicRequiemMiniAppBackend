@@ -14,4 +14,3 @@ export class UserBoostResponseDto {
   @ApiProperty()
   created_at: Date;
 }
-

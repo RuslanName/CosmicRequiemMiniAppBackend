@@ -5,4 +5,3 @@ export class KickMemberResponseDto {
   @ApiProperty({ type: () => UserBasicStatsResponseDto })
   user: UserBasicStatsResponseDto;
 }
-

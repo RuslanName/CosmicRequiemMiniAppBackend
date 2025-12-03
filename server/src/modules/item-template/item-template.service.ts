@@ -166,7 +166,8 @@ export class ItemTemplateService {
       ...createItemTemplateDto,
       image_path: imagePath,
     });
-    const savedItemTemplate = await this.itemTemplateRepository.save(itemTemplate);
+    const savedItemTemplate =
+      await this.itemTemplateRepository.save(itemTemplate);
     return this.transformToItemTemplateResponseDto(savedItemTemplate);
   }
 
@@ -208,7 +209,8 @@ export class ItemTemplateService {
     }
 
     Object.assign(itemTemplate, updateItemTemplateDto);
-    const savedItemTemplate = await this.itemTemplateRepository.save(itemTemplate);
+    const savedItemTemplate =
+      await this.itemTemplateRepository.save(itemTemplate);
     return this.transformToItemTemplateResponseDto(savedItemTemplate);
   }
 

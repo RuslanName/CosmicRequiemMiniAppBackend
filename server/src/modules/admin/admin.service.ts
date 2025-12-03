@@ -105,7 +105,10 @@ export class AdminService {
     return this.transformToAdminResponseDto(savedAdmin);
   }
 
-  async update(id: number, updateAdminDto: UpdateAdminDto): Promise<AdminResponseDto> {
+  async update(
+    id: number,
+    updateAdminDto: UpdateAdminDto,
+  ): Promise<AdminResponseDto> {
     const admin = await this.adminRepository.findOne({
       where: { id },
       relations: ['user'],

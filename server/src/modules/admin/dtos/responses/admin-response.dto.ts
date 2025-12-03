@@ -19,4 +19,3 @@ export class AdminResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

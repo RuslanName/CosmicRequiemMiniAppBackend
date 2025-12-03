@@ -26,4 +26,3 @@ export class ClanWarAdminResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

@@ -138,7 +138,9 @@ export class ShopItemService {
     };
   }
 
-  private transformToShopItemResponseDto(shopItem: ShopItem): ShopItemResponseDto {
+  private transformToShopItemResponseDto(
+    shopItem: ShopItem,
+  ): ShopItemResponseDto {
     return {
       id: shopItem.id,
       name: shopItem.name,
@@ -246,7 +248,9 @@ export class ShopItemService {
     return this.transformToShopItemResponseDto(shopItem);
   }
 
-  async create(createShopItemDto: CreateShopItemDto): Promise<ShopItemResponseDto> {
+  async create(
+    createShopItemDto: CreateShopItemDto,
+  ): Promise<ShopItemResponseDto> {
     const itemTemplate = await this.itemTemplateRepository.findOne({
       where: { id: createShopItemDto.item_template_id },
     });
@@ -388,6 +392,7 @@ export class ShopItemService {
         createdGuards.push(createdGuard);
       }
 
+      await this.userService.updateUserGuardsStats(user.id);
       await this.userRepository.save(user);
       const userResponse = await this.userService.findMe(user.id);
       const guardsResponse = createdGuards.map((guard) =>
@@ -534,6 +539,7 @@ export class ShopItemService {
         createdGuards.push(createdGuard);
       }
 
+      await this.userService.updateUserGuardsStats(user.id);
       await this.userRepository.save(user);
       const userResponse = await this.userService.findMe(user.id);
       const guardsResponse = createdGuards.map((guard) =>

@@ -36,4 +36,3 @@ export class ClanDetailResponseDto {
   @ApiProperty({ type: [UserStatsResponseDto] })
   members: UserStatsResponseDto[];
 }
-

@@ -15,6 +15,9 @@ import { ClanWar } from '../../clan-war/entities/clan-war.entity';
 
 @Entity()
 @Index(['leader_id'])
+@Index(['strength'])
+@Index(['guards_count'])
+@Index(['strength', 'guards_count'])
 export class Clan {
   @PrimaryGeneratedColumn()
   id: number;
@@ -57,6 +60,12 @@ export class Clan {
 
   @Column({ type: 'bigint', unique: true })
   vk_group_id: number;
+
+  @Column({ type: 'bigint', default: 0 })
+  strength: number;
+
+  @Column({ type: 'int', default: 0 })
+  guards_count: number;
 
   @AfterLoad()
   combineWars() {

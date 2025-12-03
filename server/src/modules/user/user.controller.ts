@@ -260,9 +260,7 @@ export class UserController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<UserBasicStatsResponseDto> {
+  async findOne(@Param('id') id: string): Promise<UserBasicStatsResponseDto> {
     return this.userService.findOne(+id);
   }
 

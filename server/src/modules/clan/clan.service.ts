@@ -63,6 +63,22 @@ export class ClanService {
     private readonly notificationService: NotificationService,
   ) {}
 
+  private async updateUserGuardsStats(userId: number): Promise<void> {
+    const guards = await this.userGuardRepository.find({
+      where: { user_id: userId },
+    });
+    const guardsCount = guards.length;
+    const strength = guards.reduce(
+      (sum, guard) => sum + Number(guard.strength),
+      0,
+    );
+
+    await this.userRepository.update(userId, {
+      guards_count: guardsCount,
+      strength: strength,
+    });
+  }
+
   private calculateUserPower(guards: UserGuard[]): number {
     if (!guards || guards.length === 0) return 0;
     return guards.reduce((sum, guard) => sum + Number(guard.strength), 0);
@@ -80,7 +96,8 @@ export class ClanService {
   private calculateClanStrength(members: User[]): number {
     if (!members || members.length === 0) return 0;
     return members.reduce((sum, member) => {
-      const userStrength = this.calculateUserPower(member.guards || []);
+      const userStrength =
+        member.strength ?? this.calculateUserPower(member.guards || []);
       return sum + userStrength;
     }, 0);
   }
@@ -88,8 +105,20 @@ export class ClanService {
   private calculateClanGuardsCount(members: User[]): number {
     if (!members || members.length === 0) return 0;
     return members.reduce((sum, member) => {
-      return sum + this.getGuardsCount(member.guards || []);
+      const guardsCount =
+        member.guards_count ?? this.getGuardsCount(member.guards || []);
+      return sum + guardsCount;
     }, 0);
+  }
+
+  async updateClanStats(clanId: number): Promise<void> {
+    await this.clanRepository.manager.query(
+      `UPDATE clan SET 
+        strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+        guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1)
+      WHERE id = $1`,
+      [clanId],
+    );
   }
 
   private transformClanForResponse(
@@ -108,8 +137,10 @@ export class ClanService {
 
     if (clan.members) {
       transformed.money = this.calculateClanMoney(clan.members);
-      transformed.strength = this.calculateClanStrength(clan.members);
-      transformed.guards_count = this.calculateClanGuardsCount(clan.members);
+      transformed.strength =
+        clan.strength ?? this.calculateClanStrength(clan.members);
+      transformed.guards_count =
+        clan.guards_count ?? this.calculateClanGuardsCount(clan.members);
       transformed.members_count = clan.members.length;
     }
 
@@ -130,9 +161,7 @@ export class ClanService {
     return transformed as ClanStatsResponseDto;
   }
 
-  private transformToClanStatsResponseDto(
-    clan: Clan,
-  ): ClanStatsResponseDto {
+  private transformToClanStatsResponseDto(clan: Clan): ClanStatsResponseDto {
     return this.transformClanForResponse(clan, {
       includeReferralLink: false,
       includeMembers: false,
@@ -198,7 +227,8 @@ export class ClanService {
     const guardAsUserStrength = user.user_as_guard
       ? Number(user.user_as_guard.strength)
       : null;
-    const referralsCount = user.referrals ? user.referrals.length : 0;
+    const referralsCount =
+      user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
     const shieldEndTime = shieldBoostsMap
       ? shieldBoostsMap.get(user.id) || null
       : (await this.userBoostService.findActiveByUserId(user.id)).find(
@@ -265,9 +295,11 @@ export class ClanService {
             referral_link: application.user.referral_link_id
               ? `${ENV.VK_APP_URL}#ref_${application.user.referral_link_id}`
               : undefined,
-            referrals_count: application.user.referrals
-              ? application.user.referrals.length
-              : 0,
+            referrals_count:
+              application.user.referrals_count ??
+              (application.user.referrals
+                ? application.user.referrals.length
+                : 0),
           }
         : undefined,
       created_at: application.created_at,
@@ -308,9 +340,11 @@ export class ClanService {
     activeWarsCount?: number,
     warEndTime?: Date,
   ): Promise<ClanDetailResponseDto> {
-    const strength = this.calculateClanStrength(clan.members || []);
+    const strength =
+      clan.strength ?? this.calculateClanStrength(clan.members || []);
     const membersCount = clan.members?.length || 0;
-    const hasActiveWars = activeWarsCount !== undefined ? activeWarsCount > 0 : false;
+    const hasActiveWars =
+      activeWarsCount !== undefined ? activeWarsCount > 0 : false;
 
     const allUserIds = [
       ...(clan.leader ? [clan.leader.id] : []),
@@ -318,11 +352,16 @@ export class ClanService {
     ];
     const shieldBoostsMap =
       allUserIds.length > 0
-        ? await this.userBoostService.findActiveShieldBoostsByUserIds(allUserIds)
+        ? await this.userBoostService.findActiveShieldBoostsByUserIds(
+            allUserIds,
+          )
         : new Map<number, Date | null>();
 
     const leader = clan.leader
-      ? await this.transformToUserBasicStatsResponseDto(clan.leader, shieldBoostsMap)
+      ? await this.transformToUserBasicStatsResponseDto(
+          clan.leader,
+          shieldBoostsMap,
+        )
       : null;
 
     if (!leader) {
@@ -474,6 +513,7 @@ export class ClanService {
 
     leader.clan_id = savedClan.id;
     await this.userRepository.save(leader);
+    await this.updateClanStats(savedClan.id);
 
     const clanWithRelations = await this.clanRepository.findOne({
       where: { id: savedClan.id },
@@ -556,6 +596,7 @@ export class ClanService {
 
     user.clan_id = savedClan.id;
     await this.userRepository.save(user);
+    await this.updateClanStats(savedClan.id);
 
     const clanWithRelations = await this.clanRepository.findOne({
       where: { id: savedClan.id },
@@ -648,6 +689,8 @@ export class ClanService {
           await this.userRepository.save(member);
         }
       }
+
+      await this.updateClanStats(clan.id);
     }
 
     if (updateClanDto.war_ids !== undefined) {
@@ -679,6 +722,9 @@ export class ClanService {
     }
 
     const savedClan = await this.clanRepository.save(clan);
+    if (updateClanDto.member_ids !== undefined) {
+      await this.updateClanStats(clan.id);
+    }
 
     const clanWithRelations = await this.clanRepository.findOne({
       where: { id: savedClan.id },
@@ -952,9 +998,7 @@ export class ClanService {
     return this.transformClanWarToResponseDto(warWithRelations!);
   }
 
-  async getEnemyClanMembers(
-    userId: number,
-  ): Promise<UserStatsResponseDto[]> {
+  async getEnemyClanMembers(userId: number): Promise<UserStatsResponseDto[]> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan'],
@@ -1192,7 +1236,19 @@ export class ClanService {
         for (const guard of guardsToCapture) {
           guard.user = attacker;
           await this.userGuardRepository.save(guard);
+        }
 
+        await this.updateUserGuardsStats(attacker.id);
+        await this.updateUserGuardsStats(defender.id);
+
+        if (attacker.clan_id) {
+          await this.updateClanStats(attacker.clan_id);
+        }
+        if (defender.clan_id) {
+          await this.updateClanStats(defender.clan_id);
+        }
+
+        for (const guard of guardsToCapture) {
           const guardItem = this.stolenItemRepository.create({
             type: StolenItemType.GUARD,
             value: guard.id.toString(),
@@ -1281,16 +1337,21 @@ export class ClanService {
       throw new BadRequestException('Лидер клана не может покинуть клан');
     }
 
+    const clanId = user.clan.id;
     user.clan_leave_time = new Date();
     user.clan_id = null;
     user.clan = undefined;
     await this.userRepository.save(user);
+    await this.updateClanStats(clanId);
 
     const userDto = await this.transformToUserBasicStatsResponseDto(user);
     return { user: userDto };
   }
 
-  async kickMember(leaderId: number, memberId: number): Promise<KickMemberResponseDto> {
+  async kickMember(
+    leaderId: number,
+    memberId: number,
+  ): Promise<KickMemberResponseDto> {
     const leader = await this.userRepository.findOne({
       where: { id: leaderId },
       relations: ['clan'],
@@ -1396,14 +1457,18 @@ export class ClanService {
       status: ClanApplicationStatus.PENDING,
     });
 
-    const savedApplication = await this.clanApplicationRepository.save(application);
-    
-    const applicationWithRelations = await this.clanApplicationRepository.findOne({
-      where: { id: savedApplication.id },
-      relations: ['user', 'user.guards', 'user.referrals'],
-    });
+    const savedApplication =
+      await this.clanApplicationRepository.save(application);
 
-    return this.transformToClanApplicationResponseDto(applicationWithRelations!);
+    const applicationWithRelations =
+      await this.clanApplicationRepository.findOne({
+        where: { id: savedApplication.id },
+        relations: ['user', 'user.guards', 'user.referrals'],
+      });
+
+    return this.transformToClanApplicationResponseDto(
+      applicationWithRelations!,
+    );
   }
 
   async getApplications(userId: number): Promise<ClanApplicationResponseDto[]> {
@@ -1418,7 +1483,9 @@ export class ClanService {
       order: { created_at: 'DESC' },
     });
 
-    return applications.map((app) => this.transformToClanApplicationResponseDto(app));
+    return applications.map((app) =>
+      this.transformToClanApplicationResponseDto(app),
+    );
   }
 
   async acceptApplication(
@@ -1483,13 +1550,17 @@ export class ClanService {
 
     user.clan = updatedClan;
     await this.userRepository.save(user);
+    await this.updateClanStats(clan.id);
 
-    const applicationWithRelations = await this.clanApplicationRepository.findOne({
-      where: { id: application.id },
-      relations: ['user', 'user.guards', 'user.referrals'],
-    });
+    const applicationWithRelations =
+      await this.clanApplicationRepository.findOne({
+        where: { id: application.id },
+        relations: ['user', 'user.guards', 'user.referrals'],
+      });
 
-    return this.transformToClanApplicationResponseDto(applicationWithRelations!);
+    return this.transformToClanApplicationResponseDto(
+      applicationWithRelations!,
+    );
   }
 
   async rejectApplication(
@@ -1516,14 +1587,18 @@ export class ClanService {
     }
 
     application.status = ClanApplicationStatus.REJECTED;
-    const savedApplication = await this.clanApplicationRepository.save(application);
-    
-    const applicationWithRelations = await this.clanApplicationRepository.findOne({
-      where: { id: savedApplication.id },
-      relations: ['user', 'user.guards', 'user.referrals'],
-    });
+    const savedApplication =
+      await this.clanApplicationRepository.save(application);
 
-    return this.transformToClanApplicationResponseDto(applicationWithRelations!);
+    const applicationWithRelations =
+      await this.clanApplicationRepository.findOne({
+        where: { id: savedApplication.id },
+        relations: ['user', 'user.guards', 'user.referrals'],
+      });
+
+    return this.transformToClanApplicationResponseDto(
+      applicationWithRelations!,
+    );
   }
 
   async getUserClan(userId: number): Promise<ClanDetailResponseDto> {
@@ -1554,7 +1629,10 @@ export class ClanService {
       ],
     });
 
-    return await this.transformToClanDetailResponseDto(user.clan, activeWarsCount);
+    return await this.transformToClanDetailResponseDto(
+      user.clan,
+      activeWarsCount,
+    );
   }
 
   async getActiveWars(clanId: number): Promise<ClanWarResponseDto[]> {
@@ -1563,12 +1641,7 @@ export class ClanService {
         { clan_1_id: clanId, status: ClanWarStatus.IN_PROGRESS },
         { clan_2_id: clanId, status: ClanWarStatus.IN_PROGRESS },
       ],
-      relations: [
-        'clan_1',
-        'clan_2',
-        'clan_1.leader',
-        'clan_2.leader',
-      ],
+      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader'],
       order: { start_time: 'DESC' },
     });
 
@@ -1584,12 +1657,7 @@ export class ClanService {
 
     const [wars, total] = await this.clanWarRepository.findAndCount({
       where: [{ clan_1_id: clanId }, { clan_2_id: clanId }],
-      relations: [
-        'clan_1',
-        'clan_2',
-        'clan_1.leader',
-        'clan_2.leader',
-      ],
+      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader'],
       order: { start_time: 'DESC' },
       skip,
       take: limit,
@@ -1881,8 +1949,10 @@ export class ClanService {
 
     const clansWithRating = allClans.map((clan) => {
       const stats = statsMap.get(clan.id) || { wins: 0, losses: 0 };
-      const guardsCount = this.calculateClanGuardsCount(clan.members || []);
-      const strength = this.calculateClanStrength(clan.members || []);
+      const guardsCount =
+        clan.guards_count ?? this.calculateClanGuardsCount(clan.members || []);
+      const strength =
+        clan.strength ?? this.calculateClanStrength(clan.members || []);
 
       return {
         id: clan.id,

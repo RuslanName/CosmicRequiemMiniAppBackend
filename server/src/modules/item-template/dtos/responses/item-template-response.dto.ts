@@ -29,4 +29,3 @@ export class ItemTemplateResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

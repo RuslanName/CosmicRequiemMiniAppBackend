@@ -28,6 +28,32 @@ export class AuthService {
     private readonly userTaskService: UserTaskService,
   ) {}
 
+  private async updateUserReferralsCount(referrerId: number): Promise<void> {
+    const referralsCount = await this.userRepository.count({
+      where: { referrerId: referrerId },
+    });
+
+    await this.userRepository.update(referrerId, {
+      referrals_count: referralsCount,
+    });
+  }
+
+  private async updateUserGuardsStats(userId: number): Promise<void> {
+    const guards = await this.userGuardRepository.find({
+      where: { user_id: userId },
+    });
+    const guardsCount = guards.length;
+    const strength = guards.reduce(
+      (sum, guard) => sum + Number(guard.strength),
+      0,
+    );
+
+    await this.userRepository.update(userId, {
+      guards_count: guardsCount,
+      strength: strength,
+    });
+  }
+
   async validateAuth(
     dto: AuthDto,
     startParam?: string,
@@ -105,6 +131,7 @@ export class AuthService {
         user: dbUser,
       });
       await this.userGuardRepository.save(firstGuard);
+      await this.updateUserGuardsStats(dbUser.id);
 
       await this.processReferralLink(dbUser, startParam);
 
@@ -120,6 +147,7 @@ export class AuthService {
           if (initialReferrer) {
             dbUser.referrer = initialReferrer;
             await this.userRepository.save(dbUser);
+            await this.updateUserReferralsCount(initialReferrer.id);
 
             const referralGuardStrength = Settings[
               SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
@@ -136,6 +164,7 @@ export class AuthService {
               guard_as_user: dbUser,
             });
             await this.userGuardRepository.save(referralGuard);
+            await this.updateUserGuardsStats(initialReferrer.id);
 
             dbUser.user_as_guard = referralGuard;
             await this.userRepository.save(dbUser);
@@ -377,6 +406,8 @@ export class AuthService {
       guard_as_user: dbUser,
     });
     await this.userGuardRepository.save(referralGuard);
+    await this.updateUserGuardsStats(referrerUser.id);
+    await this.updateUserReferralsCount(referrerUser.id);
 
     dbUser.user_as_guard = referralGuard;
     await this.userRepository.save(dbUser);

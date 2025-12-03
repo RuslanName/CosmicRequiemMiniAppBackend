@@ -20,7 +20,9 @@ export class GiveawayService {
     private readonly giveawayRepository: Repository<Giveaway>,
   ) {}
 
-  private transformToGiveawayResponseDto(giveaway: Giveaway): GiveawayResponseDto {
+  private transformToGiveawayResponseDto(
+    giveaway: Giveaway,
+  ): GiveawayResponseDto {
     return {
       id: giveaway.id,
       url: giveaway.url,

@@ -13,4 +13,3 @@ export class ClanApplicationResponseDto {
   @ApiProperty()
   created_at: Date;
 }
-

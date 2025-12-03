@@ -43,4 +43,3 @@ export class UserTaskResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

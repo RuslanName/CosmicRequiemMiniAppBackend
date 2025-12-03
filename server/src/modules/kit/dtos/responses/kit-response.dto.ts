@@ -31,4 +31,3 @@ export class KitResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

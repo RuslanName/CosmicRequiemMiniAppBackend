@@ -16,4 +16,3 @@ export class SettingResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

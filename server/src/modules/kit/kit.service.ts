@@ -128,7 +128,9 @@ export class KitService {
       money: kit.money,
       status: kit.status,
       item_templates: kit.item_templates
-        ? kit.item_templates.map((it) => this.transformItemTemplateToResponseDto(it))
+        ? kit.item_templates.map((it) =>
+            this.transformItemTemplateToResponseDto(it),
+          )
         : undefined,
       created_at: kit.created_at,
       updated_at: kit.updated_at,
@@ -231,7 +233,10 @@ export class KitService {
     return this.transformToKitResponseDto(kitWithRelations!);
   }
 
-  async update(id: number, updateKitDto: UpdateKitDto): Promise<KitResponseDto> {
+  async update(
+    id: number,
+    updateKitDto: UpdateKitDto,
+  ): Promise<KitResponseDto> {
     const kit = await this.kitRepository.findOne({
       where: { id },
       relations: ['item_templates'],
@@ -347,6 +352,7 @@ export class KitService {
           const createdGuard = await this.userGuardRepository.save(guard);
           createdGuards.push(createdGuard);
         }
+        await this.userService.updateUserGuardsStats(user.id);
       } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
         const userAccessory = this.userAccessoryRepository.create({
           user,

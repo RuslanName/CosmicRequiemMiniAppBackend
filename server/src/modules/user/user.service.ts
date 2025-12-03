@@ -4,7 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, In, Not, IsNull } from 'typeorm';
+import {
+  Repository,
+  MoreThan,
+  In,
+  Not,
+  IsNull,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -66,6 +73,48 @@ export class UserService {
 
   private getGuardsCount(guards: UserGuard[]): number {
     return guards ? guards.length : 0;
+  }
+
+  async updateUserGuardsStats(userId: number): Promise<void> {
+    const result = await this.userGuardRepository
+      .createQueryBuilder('guard')
+      .select('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(guard.strength), 0)', 'strength')
+      .where('guard.user_id = :userId', { userId })
+      .getRawOne();
+
+    const guardsCount = parseInt(result.count, 10) || 0;
+    const strength = parseInt(result.strength, 10) || 0;
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'clan_id'],
+    });
+
+    await this.userRepository.update(userId, {
+      guards_count: guardsCount,
+      strength: strength,
+    });
+
+    if (user?.clan_id) {
+      await this.userRepository.manager.query(
+        `UPDATE clan SET 
+          strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+          guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1)
+        WHERE id = $1`,
+        [user.clan_id],
+      );
+    }
+  }
+
+  async updateUserReferralsCount(referrerId: number): Promise<void> {
+    const referralsCount = await this.userRepository.count({
+      where: { referrerId: referrerId },
+    });
+
+    await this.userRepository.update(referrerId, {
+      referrals_count: referralsCount,
+    });
   }
 
   private isInitialReferrer(
@@ -186,13 +235,16 @@ export class UserService {
     shieldBoostsMap?: Map<number, Date | null>,
   ): Promise<CurrentUserResponseDto> {
     const transformed = this.transformUserForResponse(user);
-    const guardsCount = this.getGuardsCount(user.guards || []);
-    const strength = this.calculateUserPower(user.guards || []);
+    const guardsCount =
+      user.guards_count ?? this.getGuardsCount(user.guards || []);
+    const strength =
+      user.strength ?? this.calculateUserPower(user.guards || []);
     const showAdv = this.getShowAdv(user);
     const advDisableCost = Settings[
       SettingKey.ADV_DISABLE_COST_VOICES_COUNT
     ] as number;
-    const referralsCount = user.referrals ? user.referrals.length : 0;
+    const referralsCount =
+      user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
     const shieldEndTime = shieldBoostsMap
       ? shieldBoostsMap.get(user.id) || null
       : await this.getShieldEndTimeFromBoost(user.id);
@@ -224,12 +276,15 @@ export class UserService {
     shieldBoostsMap?: Map<number, Date | null>,
   ): Promise<UserBasicStatsResponseDto> {
     const transformed = this.transformUserForResponse(user);
-    const guardsCount = this.getGuardsCount(user.guards || []);
-    const strength = this.calculateUserPower(user.guards || []);
+    const guardsCount =
+      user.guards_count ?? this.getGuardsCount(user.guards || []);
+    const strength =
+      user.strength ?? this.calculateUserPower(user.guards || []);
     const guardAsUserStrength = user.user_as_guard
       ? Number(user.user_as_guard.strength)
       : null;
-    const referralsCount = user.referrals ? user.referrals.length : 0;
+    const referralsCount =
+      user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
     const shieldEndTime = shieldBoostsMap
       ? shieldBoostsMap.get(user.id) || null
       : await this.getShieldEndTimeFromBoost(user.id);
@@ -265,8 +320,10 @@ export class UserService {
     equippedAccessories?: any[],
     shieldBoostsMap?: Map<number, Date | null>,
   ): UserRatingResponseDto {
-    const guardsCount = this.getGuardsCount(user.guards || []);
-    const strength = this.calculateUserPower(user.guards || []);
+    const guardsCount =
+      user.guards_count ?? this.getGuardsCount(user.guards || []);
+    const strength =
+      user.strength ?? this.calculateUserPower(user.guards || []);
 
     return {
       id: user.id,
@@ -300,7 +357,8 @@ export class UserService {
     const dataWithStrength = users.map((user) => {
       const guardsCount = this.getGuardsCount(user.guards || []);
       const strength = this.calculateUserPower(user.guards || []);
-      const referralsCount = user.referrals ? user.referrals.length : 0;
+      const referralsCount =
+        user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
       const firstGuardStrength = user.user_as_guard?.strength
         ? Number(user.user_as_guard.strength)
         : null;
@@ -310,30 +368,30 @@ export class UserService {
         ? shieldBoostsMap.get(user.id) || null
         : null;
 
-        return {
-          id: transformed.id,
-          vk_id: transformed.vk_id,
-          first_name: transformed.first_name,
-          last_name: transformed.last_name,
-          sex: transformed.sex,
-          image_path: transformed.image_path || null,
-          birthday_date: transformed.birthday_date,
-          money: transformed.money,
-          shield_end_time: shieldEndTime || undefined,
-          last_training_time: transformed.last_training_time,
-          last_contract_time: transformed.last_contract_time,
-          last_attack_time: transformed.last_attack_time,
-          clan_leave_time: transformed.clan_leave_time,
-          status: transformed.status,
-          registered_at: transformed.registered_at,
-          last_login_at: transformed.last_login_at,
-          clan_id: transformed.clan_id,
-          strength,
-          guards_count: guardsCount,
-          first_guard_strength: firstGuardStrength,
-          referral_link: transformed.referral_link,
-          referrals_count: referralsCount,
-        } as UserBasicStatsResponseDto;
+      return {
+        id: transformed.id,
+        vk_id: transformed.vk_id,
+        first_name: transformed.first_name,
+        last_name: transformed.last_name,
+        sex: transformed.sex,
+        image_path: transformed.image_path || null,
+        birthday_date: transformed.birthday_date,
+        money: transformed.money,
+        shield_end_time: shieldEndTime || undefined,
+        last_training_time: transformed.last_training_time,
+        last_contract_time: transformed.last_contract_time,
+        last_attack_time: transformed.last_attack_time,
+        clan_leave_time: transformed.clan_leave_time,
+        status: transformed.status,
+        registered_at: transformed.registered_at,
+        last_login_at: transformed.last_login_at,
+        clan_id: transformed.clan_id,
+        strength,
+        guards_count: guardsCount,
+        first_guard_strength: firstGuardStrength,
+        referral_link: transformed.referral_link,
+        referrals_count: referralsCount,
+      } as UserBasicStatsResponseDto;
     });
 
     return {
@@ -356,7 +414,8 @@ export class UserService {
 
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
-    const referralsCount = user.referrals ? user.referrals.length : 0;
+    const referralsCount =
+      user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
     const firstGuardStrength = user.user_as_guard?.strength
       ? Number(user.user_as_guard.strength)
       : null;
@@ -537,6 +596,8 @@ export class UserService {
 
       await this.userGuardRepository.save(guard);
     }
+
+    await this.updateUserGuardsStats(userId);
 
     user.money = Number(user.money) - training_cost;
     user.last_training_time = new Date();
@@ -773,29 +834,22 @@ export class UserService {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
 
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['guards'],
+    const [allGuards, total] = await this.userGuardRepository.findAndCount({
+      where: { user_id: userId },
+      relations: ['guard_as_user'],
+      order: { strength: 'DESC' },
+      skip,
+      take: limit,
     });
 
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-
-    const allGuards = (user.guards || []).slice();
-    allGuards.sort((a, b) => Number(b.strength) - Number(a.strength));
-    const total = allGuards.length;
-    const paginatedGuards = allGuards.slice(skip, skip + limit);
-
-    const guardUserIds = paginatedGuards
-      .filter((guard) => guard.guard_as_user?.id)
-      .map((guard) => guard.guard_as_user!.id);
+    const guardUserIds = allGuards
+      .filter((guard) => guard.guard_as_user_id)
+      .map((guard) => guard.guard_as_user_id!);
 
     const guardUsers =
       guardUserIds.length > 0
         ? await this.userRepository.find({
             where: { id: In(guardUserIds) },
-            relations: ['accessories', 'accessories.item_template'],
           })
         : [];
 
@@ -805,13 +859,13 @@ export class UserService {
         ? await this.userAccessoryService.findEquippedByUserIds(guardUserIds)
         : new Map<number, any[]>();
 
-    const guards = paginatedGuards.map((guard) => {
+    const guards = allGuards.map((guard) => {
       const transformed: any = { ...guard };
       delete transformed.user_id;
       delete transformed.user;
 
-      if (guard.guard_as_user) {
-        const guardUser = guardUsersMap.get(guard.guard_as_user.id);
+      if (guard.guard_as_user_id) {
+        const guardUser = guardUsersMap.get(guard.guard_as_user_id);
 
         if (guardUser) {
           const equippedAccessories =
@@ -1090,14 +1144,14 @@ export class UserService {
 
     const currentUser = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan', 'guards'],
+      select: ['id', 'vk_id', 'clan_id', 'strength', 'guards_count'],
     });
 
     if (!currentUser) {
       throw new NotFoundException('Пользователь не найден');
     }
 
-    const currentUserClanId = currentUser.clan?.id || null;
+    const currentUserClanId = currentUser.clan_id || null;
 
     let users: User[];
     let total: number;
@@ -1107,30 +1161,34 @@ export class UserService {
     ] as number;
 
     if (!filter || filter === 'top') {
-      users = await this.userRepository.find({
-        relations: ['clan', 'guards'],
-      });
+      const queryBuilder = this.userRepository
+        .createQueryBuilder('user')
+        .where('user.id != :userId', { userId })
+        .andWhere('user.guards_count > 1');
 
-      const filteredUsers = users
-        .filter((user) => user.id !== userId)
-        .filter(
-          (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
-        )
-        .filter((user) => {
-          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
-            return true;
-          }
-          const guardsCount = this.getGuardsCount(user.guards || []);
-          return guardsCount > 1;
-        });
+      if (currentUserClanId) {
+        queryBuilder.andWhere(
+          '(user.clan_id IS NULL OR user.clan_id != :clanId)',
+          { clanId: currentUserClanId },
+        );
+      }
 
-      const userIds = filteredUsers.map((user) => user.id);
+
+      total = await queryBuilder.getCount();
+
+      users = await queryBuilder
+        .orderBy('user.strength * 1000 + user.guards_count', 'DESC')
+        .skip(skip)
+        .take(limit)
+        .getMany();
+
+      const userIds = users.map((user) => user.id);
       const shieldBoostsMap =
         await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
       const equippedAccessoriesMap =
         await this.userAccessoryService.findEquippedByUserIds(userIds);
 
-      const dataWithStrength = filteredUsers.map((user) => {
+      const dataWithStrength = users.map((user) => {
         const equippedAccessories = equippedAccessoriesMap.get(user.id) || [];
         return this.transformToUserRatingResponseDto(
           user,
@@ -1139,102 +1197,114 @@ export class UserService {
         );
       });
 
-      dataWithStrength.sort((a, b) => {
-        const scoreA = a.strength * 1000 + a.guards_count;
-        const scoreB = b.strength * 1000 + b.guards_count;
-        return scoreB - scoreA;
-      });
-
-      total = dataWithStrength.length;
-      const paginatedData = dataWithStrength.slice(skip, skip + limit);
-
       return {
-        data: paginatedData,
+        data: dataWithStrength,
         total,
         page,
         limit,
       };
     } else if (filter === 'suitable') {
-      const currentStrength = this.calculateUserPower(currentUser.guards || []);
+      const currentStrength =
+        currentUser.strength ??
+        this.calculateUserPower(currentUser.guards || []);
       const strengthRange = Math.max(currentStrength * 0.3, 50);
 
       const initialReferrerVkId = Settings[
         SettingKey.INITIAL_REFERRER_VK_ID
       ] as number;
 
-      users = await this.userRepository.find({
-        relations: ['clan', 'guards', 'referrals'],
-        where: {
-          id: MoreThan(0),
-        },
-      });
-
       const currentUserIsInitialReferrer = this.isInitialReferrer(
         currentUser.vk_id,
         initialReferrerVkId,
       );
 
-      if (initialReferrerVkId && initialReferrerVkId > 0) {
-        const initialReferrerExists = users.some(
-          (user) => Number(user.vk_id) === Number(initialReferrerVkId),
+      const baseQueryBuilder = this.userRepository
+        .createQueryBuilder('user')
+        .where('user.id != :userId', { userId })
+        .andWhere('user.guards_count > 1')
+        .andWhere('user.strength >= :minStrength', {
+          minStrength: currentStrength - strengthRange,
+        })
+        .andWhere('user.strength <= :maxStrength', {
+          maxStrength: currentStrength + strengthRange,
+        })
+        .andWhere('user.referrals_count = 0');
+
+      if (currentUserClanId) {
+        baseQueryBuilder.andWhere(
+          '(user.clan_id IS NULL OR user.clan_id != :clanId)',
+          { clanId: currentUserClanId },
         );
-        if (!initialReferrerExists && !currentUserIsInitialReferrer) {
-          const initialReferrer = await this.userRepository.findOne({
-            where: { vk_id: Number(initialReferrerVkId) },
-            relations: ['clan', 'guards'],
-          });
-          if (initialReferrer && initialReferrer.id !== userId) {
-            users.push(initialReferrer);
+      }
+
+      let initialReferrer: User | null = null;
+      if (
+        initialReferrerVkId &&
+        initialReferrerVkId > 0 &&
+        !currentUserIsInitialReferrer
+      ) {
+        initialReferrer = await this.userRepository.findOne({
+          where: { vk_id: Number(initialReferrerVkId) },
+        });
+
+        if (initialReferrer) {
+          if (
+            initialReferrer.id === userId ||
+            initialReferrer.guards_count <= 1 ||
+            initialReferrer.strength < currentStrength - strengthRange ||
+            initialReferrer.strength > currentStrength + strengthRange ||
+            (currentUserClanId &&
+              initialReferrer.clan_id === currentUserClanId) ||
+            initialReferrer.referrals_count > 0
+          ) {
+            initialReferrer = null;
           }
         }
       }
 
-      const filteredUsers = users
-        .filter((user) => {
-          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
-            return !currentUserIsInitialReferrer;
-          }
-          return user.id !== userId;
-        })
-        .filter((user) => {
-          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
-            return true;
-          }
-          return !currentUserClanId || user.clan?.id !== currentUserClanId;
-        })
-        .filter((user) => {
-          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
-            return true;
-          }
-          const guardsCount = this.getGuardsCount(user.guards || []);
-          return guardsCount > 1;
-        })
-        .filter((user) => {
-          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
-            return true;
-          }
-          const strength = this.calculateUserPower(user.guards || []);
-          return (
-            strength >= currentStrength - strengthRange &&
-            strength <= currentStrength + strengthRange
-          );
-        })
-        .filter((user) => user.id !== userId);
+      const totalCountQuery = baseQueryBuilder.clone();
+      if (initialReferrer) {
+        totalCountQuery.andWhere('user.id != :initialReferrerId', {
+          initialReferrerId: initialReferrer.id,
+        });
+      }
+      total = await totalCountQuery.getCount();
+      if (initialReferrer) {
+        total += 1;
+      }
 
-      const finalFilteredUsers = filteredUsers.filter((user) => {
-        if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
-          return true;
+      const sortedQueryBuilder = baseQueryBuilder.clone();
+      if (initialReferrer) {
+        sortedQueryBuilder.andWhere('user.id != :initialReferrerId', {
+          initialReferrerId: initialReferrer.id,
+        });
+      }
+
+      sortedQueryBuilder
+        .addSelect(`ABS(user.strength - :currentStrength)`, 'distance')
+        .addSelect(`user.strength * 1000 + user.guards_count`, 'score')
+        .setParameter('currentStrength', currentStrength)
+        .orderBy('distance', 'ASC')
+        .addOrderBy('score', 'DESC')
+        .skip(skip)
+        .take(limit);
+
+      users = await sortedQueryBuilder.getMany();
+
+      if (initialReferrer && page === 1) {
+        users = [initialReferrer, ...users];
+        if (users.length > limit) {
+          users = users.slice(0, limit);
         }
-        return !user.referrals || user.referrals.length === 0;
-      });
+      }
 
-      const userIds = finalFilteredUsers.map((user) => user.id);
+      const userIds = users.map((user) => user.id);
       const shieldBoostsMap =
         await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
       const equippedAccessoriesMap =
         await this.userAccessoryService.findEquippedByUserIds(userIds);
 
-      const dataWithStrength = finalFilteredUsers.map((user) => {
+      const dataWithStrength = users.map((user) => {
         const equippedAccessories = equippedAccessoriesMap.get(user.id) || [];
         return this.transformToUserRatingResponseDto(
           user,
@@ -1243,38 +1313,8 @@ export class UserService {
         );
       });
 
-      dataWithStrength.sort((a, b) => {
-        const isAInitialReferrer = this.isInitialReferrer(
-          a.vk_id,
-          initialReferrerVkId,
-        );
-        const isBInitialReferrer = this.isInitialReferrer(
-          b.vk_id,
-          initialReferrerVkId,
-        );
-
-        if (isAInitialReferrer && !isBInitialReferrer) {
-          return -1;
-        }
-        if (!isAInitialReferrer && isBInitialReferrer) {
-          return 1;
-        }
-
-        const distanceA = Math.abs(a.strength - currentStrength);
-        const distanceB = Math.abs(b.strength - currentStrength);
-        if (distanceA !== distanceB) {
-          return distanceA - distanceB;
-        }
-        const scoreA = a.strength * 1000 + a.guards_count;
-        const scoreB = b.strength * 1000 + b.guards_count;
-        return scoreB - scoreA;
-      });
-
-      total = dataWithStrength.length;
-      const paginatedData = dataWithStrength.slice(skip, skip + limit);
-
       return {
-        data: paginatedData,
+        data: dataWithStrength,
         total,
         page,
         limit,
@@ -1302,7 +1342,7 @@ export class UserService {
 
     const currentUser = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan'],
+      select: ['id', 'clan_id'],
     });
 
     if (!currentUser) {
@@ -1375,7 +1415,7 @@ export class UserService {
   ): Promise<UserAttackPlayerResponseDto> {
     const attacker = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan', 'guards'],
+      select: ['id', 'vk_id', 'clan_id', 'strength', 'guards_count'],
     });
 
     const defender = await this.userRepository.findOne({
@@ -1517,6 +1557,8 @@ export class UserService {
 
         guardToSteal.user = attacker;
         await this.userGuardRepository.save(guardToSteal);
+        await this.updateUserGuardsStats(attacker.id);
+        await this.updateUserGuardsStats(defender.id);
 
         const guardItem = this.stolenItemRepository.create({
           type: StolenItemType.GUARD,
@@ -1602,7 +1644,13 @@ export class UserService {
             const guardId = guard.id;
             guard.user = attacker;
             await this.userGuardRepository.save(guard);
+          }
 
+          await this.updateUserGuardsStats(attacker.id);
+          await this.updateUserGuardsStats(defender.id);
+
+          for (const guard of guardsToCapture) {
+            const guardId = guard.id;
             const guardItem = this.stolenItemRepository.create({
               type: StolenItemType.GUARD,
               value: guardId.toString(),
@@ -1727,53 +1775,53 @@ export class UserService {
 
     const transformedData = await Promise.all(
       result.data.map(async (event) => {
-      const { stolen_items, ...eventWithoutStolenItems } = event;
+        const { stolen_items, ...eventWithoutStolenItems } = event;
 
-      let stolenMoney = 0;
-      let stolenGuardsCount = 0;
-      let stolenStrength = 0;
+        let stolenMoney = 0;
+        let stolenGuardsCount = 0;
+        let stolenStrength = 0;
 
-      if (stolen_items && stolen_items.length > 0) {
-        const relevantItems =
-          event.type === EventHistoryType.ATTACK
-            ? stolen_items.filter(
-                (item) => item.thief && item.thief.id === userId,
-              )
-            : stolen_items.filter(
-                (item) => item.victim && item.victim.id === userId,
-              );
+        if (stolen_items && stolen_items.length > 0) {
+          const relevantItems =
+            event.type === EventHistoryType.ATTACK
+              ? stolen_items.filter(
+                  (item) => item.thief && item.thief.id === userId,
+                )
+              : stolen_items.filter(
+                  (item) => item.victim && item.victim.id === userId,
+                );
 
-        for (const item of relevantItems) {
-          if (item.type === StolenItemType.MONEY) {
-            stolenMoney += parseInt(item.value, 10) || 0;
-          } else if (item.type === StolenItemType.GUARD) {
-            stolenGuardsCount++;
-            const guardId = parseInt(item.value, 10);
-            if (guardId) {
-              const guard = guardsMap.get(guardId);
-              if (guard) {
-                stolenStrength += Number(guard.strength) || 0;
+          for (const item of relevantItems) {
+            if (item.type === StolenItemType.MONEY) {
+              stolenMoney += parseInt(item.value, 10) || 0;
+            } else if (item.type === StolenItemType.GUARD) {
+              stolenGuardsCount++;
+              const guardId = parseInt(item.value, 10);
+              if (guardId) {
+                const guard = guardsMap.get(guardId);
+                if (guard) {
+                  stolenStrength += Number(guard.strength) || 0;
+                }
               }
             }
           }
         }
-      }
 
-      let opponentDto: UserBasicStatsResponseDto | null = null;
+        let opponentDto: UserBasicStatsResponseDto | null = null;
 
-      if (event.opponent?.id) {
-        const equippedAccessories =
-          opponentAccessoriesMap.get(event.opponent.id) || [];
-        const opponentBasicStats =
-          await this.transformToUserBasicStatsResponseDto(
-            event.opponent,
-            shieldBoostsMap,
-          );
-        opponentDto = {
-          ...opponentBasicStats,
-          equipped_accessories: equippedAccessories,
-        };
-      }
+        if (event.opponent?.id) {
+          const equippedAccessories =
+            opponentAccessoriesMap.get(event.opponent.id) || [];
+          const opponentBasicStats =
+            await this.transformToUserBasicStatsResponseDto(
+              event.opponent,
+              shieldBoostsMap,
+            );
+          opponentDto = {
+            ...opponentBasicStats,
+            equipped_accessories: equippedAccessories,
+          };
+        }
 
         const { user_id, opponent_id, user, opponent, ...eventWithoutIds } =
           eventWithoutStolenItems;

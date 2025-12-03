@@ -22,4 +22,3 @@ export class UserGuardAdminResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

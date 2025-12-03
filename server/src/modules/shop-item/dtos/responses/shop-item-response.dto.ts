@@ -31,4 +31,3 @@ export class ShopItemResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

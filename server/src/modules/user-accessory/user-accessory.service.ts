@@ -218,7 +218,10 @@ export class UserAccessoryService {
   async activateShield(
     userId: number,
     accessoryId: number,
-  ): Promise<{ user: CurrentUserResponseDto; user_boost: UserBoostResponseDto }> {
+  ): Promise<{
+    user: CurrentUserResponseDto;
+    user_boost: UserBoostResponseDto;
+  }> {
     const accessory = await this.userAccessoryRepository.findOne({
       where: { id: accessoryId },
       relations: ['user', 'item_template'],

@@ -73,7 +73,9 @@ export class ClanWarService {
     return this.transformToClanWarAdminResponseDto(clanWar);
   }
 
-  async create(createClanWarDto: CreateClanWarDto): Promise<ClanWarAdminResponseDto> {
+  async create(
+    createClanWarDto: CreateClanWarDto,
+  ): Promise<ClanWarAdminResponseDto> {
     const clanWar = this.clanWarRepository.create(createClanWarDto);
     const savedClanWar = await this.clanWarRepository.save(clanWar);
     return this.transformToClanWarAdminResponseDto(savedClanWar);

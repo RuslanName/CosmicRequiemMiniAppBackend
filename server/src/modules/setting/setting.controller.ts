@@ -62,7 +62,9 @@ export class SettingController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Настройка не найдена' })
-  async findByKey(@Param('key') key: string): Promise<SettingResponseDto | null> {
+  async findByKey(
+    @Param('key') key: string,
+  ): Promise<SettingResponseDto | null> {
     return this.settingService.findByKey(key);
   }
 

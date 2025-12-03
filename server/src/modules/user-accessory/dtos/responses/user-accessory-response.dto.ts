@@ -23,4 +23,3 @@ export class UserAccessoryResponseDto {
   @ApiProperty()
   created_at: Date;
 }
-

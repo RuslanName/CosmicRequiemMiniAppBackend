@@ -64,7 +64,9 @@ export class AdminController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
-  async findMe(@Request() req: AuthenticatedRequest): Promise<AdminResponseDto> {
+  async findMe(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<AdminResponseDto> {
     if (!req.user.adminId) {
       throw new NotFoundException('ID администратора не найден в запросе');
     }
@@ -103,7 +105,9 @@ export class AdminController {
       'Неверные данные или администратор с таким username/user_id уже существует',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async create(@Body() createAdminDto: CreateAdminDto): Promise<AdminResponseDto> {
+  async create(
+    @Body() createAdminDto: CreateAdminDto,
+  ): Promise<AdminResponseDto> {
     return this.adminService.create(createAdminDto);
   }
 

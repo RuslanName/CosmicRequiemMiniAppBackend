@@ -479,7 +479,9 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async leaveClan(@Request() req: AuthenticatedRequest): Promise<LeaveClanResponseDto> {
+  async leaveClan(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<LeaveClanResponseDto> {
     return this.clanService.leaveClan(req.user.id);
   }
 

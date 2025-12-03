@@ -24,6 +24,22 @@ export class UserGuardService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  private async updateUserGuardsStats(userId: number): Promise<void> {
+    const guards = await this.userGuardRepository.find({
+      where: { user_id: userId },
+    });
+    const guardsCount = guards.length;
+    const strength = guards.reduce(
+      (sum, guard) => sum + Number(guard.strength),
+      0,
+    );
+
+    await this.userRepository.update(userId, {
+      guards_count: guardsCount,
+      strength: strength,
+    });
+  }
+
   private transformToUserGuardAdminResponseDto(
     userGuard: UserGuard,
   ): UserGuardAdminResponseDto {
@@ -93,6 +109,7 @@ export class UserGuardService {
       user: { id: user_id } as any,
     });
     const savedUserGuard = await this.userGuardRepository.save(userGuard);
+    await this.updateUserGuardsStats(user_id);
     return this.transformToUserGuardAdminResponseDto(savedUserGuard);
   }
 
@@ -141,6 +158,10 @@ export class UserGuardService {
 
     Object.assign(userGuard, rest);
     const savedUserGuard = await this.userGuardRepository.save(userGuard);
+    await this.updateUserGuardsStats(userGuard.user_id);
+    if (user_id !== undefined && user_id !== userGuard.user_id) {
+      await this.updateUserGuardsStats(user_id);
+    }
     return this.transformToUserGuardAdminResponseDto(savedUserGuard);
   }
 
@@ -151,6 +172,8 @@ export class UserGuardService {
       throw new NotFoundException(`Страж с ID ${id} не найден`);
     }
 
+    const userId = userGuard.user_id;
     await this.userGuardRepository.remove(userGuard);
+    await this.updateUserGuardsStats(userId);
   }
 }

@@ -20,6 +20,10 @@ import { UserTask } from '../task/entities/user-task.entity';
 @Index(['clan_id'])
 @Index(['status'])
 @Index(['referrerId'])
+@Index(['strength'])
+@Index(['guards_count'])
+@Index(['referrals_count'])
+@Index(['strength', 'guards_count'])
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -44,6 +48,15 @@ export class User {
 
   @Column({ type: 'bigint', default: 0 })
   money: number;
+
+  @Column({ type: 'bigint', default: 0 })
+  strength: number;
+
+  @Column({ type: 'int', default: 0 })
+  guards_count: number;
+
+  @Column({ type: 'int', default: 0 })
+  referrals_count: number;
 
   @Column({ type: 'timestamp', nullable: true })
   last_training_time?: Date;

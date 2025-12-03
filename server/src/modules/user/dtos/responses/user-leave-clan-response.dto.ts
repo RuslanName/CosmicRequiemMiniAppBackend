@@ -5,4 +5,3 @@ export class LeaveClanResponseDto {
   @ApiProperty({ type: () => UserBasicStatsResponseDto })
   user: UserBasicStatsResponseDto;
 }
-
