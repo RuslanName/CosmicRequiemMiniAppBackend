@@ -19,7 +19,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "migration:run": "ts-node -r tsconfig-paths/register scripts/run-migration.ts"
+    "migration:run": "node scripts/run-migration.js"
   },
   "dependencies": {
     "@nestjs-modules/ioredis": "^2.0.2",
@@ -37,6 +37,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
     "ioredis": "^5.8.2",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.3",

@@ -1,9 +1,7 @@
-import { Client } from 'pg';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import * as dotenv from 'dotenv';
-
-dotenv.config({ path: join(__dirname, '..', '.env') });
+const { Client } = require('pg');
+const { readFileSync } = require('fs');
+const { join } = require('path');
+require('dotenv').config({ path: join(__dirname, '..', '.env') });
 
 async function runMigration() {
   const client = new Client({
@@ -19,10 +17,10 @@ async function runMigration() {
     console.log('Connected to database');
 
     const migrationPath = join(
-      __dirname,
-      '..',
-      'migrations',
-      'add_user_and_clan_guards_stats.sql',
+        __dirname,
+        '..',
+        'migrations',
+        'add_user_and_clan_guards_stats.sql',
     );
     const migrationSQL = readFileSync(migrationPath, 'utf-8');
 
@@ -38,4 +36,3 @@ async function runMigration() {
 }
 
 runMigration();
-
