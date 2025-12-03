@@ -24,7 +24,7 @@ import {
 } from '@nestjs/swagger';
 import { Express } from 'express';
 import { ItemTemplateService } from './item-template.service';
-import { ItemTemplate } from './item-template.entity';
+import { ItemTemplateResponseDto } from './dtos/responses/item-template-response.dto';
 import { CreateItemTemplateDto } from './dtos/create-item-template.dto';
 import { UpdateItemTemplateDto } from './dtos/update-item-template.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -40,17 +40,17 @@ export class ItemTemplateController {
 
   @Get()
   @ApiOperation({ summary: 'Получить все шаблоны предметов с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<ItemTemplate>,
+    type: PaginatedResponseDto<ItemTemplateResponseDto>,
     description: 'Список шаблонов предметов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ItemTemplate>> {
+  ): Promise<PaginatedResponseDto<ItemTemplateResponseDto>> {
     return this.itemTemplateService.findAll(paginationDto);
   }
 
@@ -59,17 +59,16 @@ export class ItemTemplateController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID шаблона предмета',
   })
   @ApiResponse({
     status: 200,
-    type: ItemTemplate,
+    type: ItemTemplateResponseDto,
     description: 'Информация о шаблоне предмета',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })
-  async findOne(@Param('id') id: string): Promise<ItemTemplate> {
+  async findOne(@Param('id') id: string): Promise<ItemTemplateResponseDto> {
     return this.itemTemplateService.findOne(+id);
   }
 
@@ -80,7 +79,7 @@ export class ItemTemplateController {
   @ApiBody({ type: CreateItemTemplateDto })
   @ApiResponse({
     status: 201,
-    type: ItemTemplate,
+    type: ItemTemplateResponseDto,
     description: 'Шаблон предмета успешно создан',
   })
   @ApiResponse({
@@ -91,7 +90,7 @@ export class ItemTemplateController {
   async create(
     @Body() createItemTemplateDto: CreateItemTemplateDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<ItemTemplate> {
+  ): Promise<ItemTemplateResponseDto> {
     return this.itemTemplateService.create(createItemTemplateDto, image);
   }
 
@@ -102,13 +101,12 @@ export class ItemTemplateController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID шаблона предмета',
   })
   @ApiBody({ type: UpdateItemTemplateDto })
   @ApiResponse({
     status: 200,
-    type: ItemTemplate,
+    type: ItemTemplateResponseDto,
     description: 'Шаблон предмета успешно обновлен',
   })
   @ApiResponse({
@@ -121,7 +119,7 @@ export class ItemTemplateController {
     @Param('id') id: string,
     @Body() updateItemTemplateDto: UpdateItemTemplateDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<ItemTemplate> {
+  ): Promise<ItemTemplateResponseDto> {
     return this.itemTemplateService.update(+id, updateItemTemplateDto, image);
   }
 
@@ -130,7 +128,6 @@ export class ItemTemplateController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID шаблона предмета',
   })
   @ApiResponse({

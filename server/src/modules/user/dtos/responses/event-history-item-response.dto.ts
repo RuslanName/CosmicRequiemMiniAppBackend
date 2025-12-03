@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { EventHistoryType } from '../../../event-history/enums/event-history-type.enum';
-import { UserWithBasicStatsResponseDto } from './user-with-basic-stats-response.dto';
+import { UserBasicStatsResponseDto } from './user-with-basic-stats-response.dto';
 
 export class EventHistoryItemResponseDto {
   @ApiProperty()
@@ -22,9 +22,9 @@ export class EventHistoryItemResponseDto {
   stolen_guards_count: number;
 
   @ApiProperty({
-    type: () => UserWithBasicStatsResponseDto,
+    type: () => UserBasicStatsResponseDto,
     required: false,
     nullable: true,
   })
-  opponent?: UserWithBasicStatsResponseDto | null;
+  opponent?: UserBasicStatsResponseDto | null;
 }

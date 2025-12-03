@@ -18,7 +18,7 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { ClanWarService } from './services/clan-war.service';
-import { ClanWar } from './entities/clan-war.entity';
+import { ClanWarAdminResponseDto } from './dtos/responses/clan-war-admin-response.dto';
 import { UpdateClanWarDto } from './dtos/update-clan-war.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
@@ -33,41 +33,41 @@ export class ClanWarController {
 
   @Get()
   @ApiOperation({ summary: 'Получить все войны с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<ClanWar>,
+    type: PaginatedResponseDto<ClanWarAdminResponseDto>,
     description: 'Список войн с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ClanWar>> {
+  ): Promise<PaginatedResponseDto<ClanWarAdminResponseDto>> {
     return this.clanWarService.findAll(paginationDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить войну по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID войны' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID войны' })
   @ApiResponse({
     status: 200,
-    type: ClanWar,
+    type: ClanWarAdminResponseDto,
     description: 'Информация о войне',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Война не найдена' })
-  async findOne(@Param('id') id: string): Promise<ClanWar> {
+  async findOne(@Param('id') id: string): Promise<ClanWarAdminResponseDto> {
     return this.clanWarService.findOne(+id);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить войну' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID войны' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID войны' })
   @ApiBody({ type: UpdateClanWarDto })
   @ApiResponse({
     status: 200,
-    type: ClanWar,
+    type: ClanWarAdminResponseDto,
     description: 'Война успешно обновлена',
   })
   @ApiResponse({
@@ -79,13 +79,13 @@ export class ClanWarController {
   async update(
     @Param('id') id: string,
     @Body() updateClanWarDto: UpdateClanWarDto,
-  ): Promise<ClanWar> {
+  ): Promise<ClanWarAdminResponseDto> {
     return this.clanWarService.update(+id, updateClanWarDto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить войну' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID войны' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID войны' })
   @ApiResponse({
     status: 200,
     description: 'Война успешно удалена',

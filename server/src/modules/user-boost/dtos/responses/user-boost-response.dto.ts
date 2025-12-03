@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserBoostType } from '../enums/user-boost-type.enum';
+import { UserBoostType } from '../../enums/user-boost-type.enum';
 
 export class UserBoostResponseDto {
   @ApiProperty()
@@ -14,3 +14,4 @@ export class UserBoostResponseDto {
   @ApiProperty()
   created_at: Date;
 }
+

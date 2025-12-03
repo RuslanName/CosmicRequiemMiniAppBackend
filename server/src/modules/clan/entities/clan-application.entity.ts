@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,6 +13,9 @@ import { User } from '../../user/user.entity';
 import { Clan } from './clan.entity';
 
 @Entity()
+@Index(['user_id'])
+@Index(['clan_id'])
+@Index(['user_id', 'clan_id', 'status'])
 export class ClanApplication {
   @PrimaryGeneratedColumn()
   id: number;

@@ -19,7 +19,7 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { TaskService } from './services/task.service';
-import { Task } from './entities/task.entity';
+import { TaskResponseDto } from './dtos/responses/user-task-response.dto';
 import { CreateTaskDto } from './dtos/create-task.dto';
 import { UpdateTaskDto } from './dtos/update-task.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -35,31 +35,31 @@ export class TaskController {
 
   @Get()
   @ApiOperation({ summary: 'Получить все задания с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<Task>,
+    type: PaginatedResponseDto<TaskResponseDto>,
     description: 'Список заданий с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<Task>> {
+  ): Promise<PaginatedResponseDto<TaskResponseDto>> {
     return this.taskService.findAll(paginationDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить задание по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID задания' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID задания' })
   @ApiResponse({
     status: 200,
-    type: Task,
+    type: TaskResponseDto,
     description: 'Информация о задании',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Задание не найдено' })
-  async findOne(@Param('id') id: string): Promise<Task> {
+  async findOne(@Param('id') id: string): Promise<TaskResponseDto> {
     return this.taskService.findOne(+id);
   }
 
@@ -68,7 +68,7 @@ export class TaskController {
   @ApiBody({ type: CreateTaskDto })
   @ApiResponse({
     status: 201,
-    type: Task,
+    type: TaskResponseDto,
     description: 'Задание успешно создано',
   })
   @ApiResponse({
@@ -76,17 +76,17 @@ export class TaskController {
     description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async create(@Body() createTaskDto: CreateTaskDto): Promise<Task> {
+  async create(@Body() createTaskDto: CreateTaskDto): Promise<TaskResponseDto> {
     return this.taskService.create(createTaskDto);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить задание' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID задания' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID задания' })
   @ApiBody({ type: UpdateTaskDto })
   @ApiResponse({
     status: 200,
-    type: Task,
+    type: TaskResponseDto,
     description: 'Задание успешно обновлено',
   })
   @ApiResponse({
@@ -98,13 +98,13 @@ export class TaskController {
   async update(
     @Param('id') id: string,
     @Body() updateTaskDto: UpdateTaskDto,
-  ): Promise<Task> {
+  ): Promise<TaskResponseDto> {
     return this.taskService.update(+id, updateTaskDto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить задание' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID задания' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID задания' })
   @ApiResponse({
     status: 200,
     description: 'Задание успешно удалено',

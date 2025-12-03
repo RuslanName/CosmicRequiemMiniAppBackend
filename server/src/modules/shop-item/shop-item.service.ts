@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ShopItem } from './shop-item.entity';
+import { ShopItemResponseDto } from './dtos/responses/shop-item-response.dto';
 import { CreateShopItemDto } from './dtos/create-shop-item.dto';
 import { UpdateShopItemDto } from './dtos/update-shop-item.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -31,10 +32,11 @@ import { UserBoostService } from '../user-boost/user-boost.service';
 import { generateRandom8DigitCode } from '../../common/utils/number-format.util';
 import { UserService } from '../user/user.service';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
-import { UserMeResponseDto } from '../user/dtos/responses/user-me-response.dto';
+import { CurrentUserResponseDto } from '../user/dtos/responses/user-me-response.dto';
 import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
-import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-response.dto';
-import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
+import { UserAccessoryResponseDto } from '../user-accessory/dtos/responses/user-accessory-response.dto';
+import { UserBoostResponseDto } from '../user-boost/dtos/responses/user-boost-response.dto';
+import { ItemTemplateResponseDto } from '../item-template/dtos/responses/item-template-response.dto';
 
 @Injectable()
 export class ShopItemService {
@@ -64,8 +66,6 @@ export class ShopItemService {
       name: guard.name,
       strength: guard.strength,
       is_first: guard.is_first,
-      created_at: guard.created_at,
-      updated_at: guard.updated_at,
       guard_as_user: null,
     };
   }
@@ -81,24 +81,20 @@ export class ShopItemService {
     };
   }
 
-  private async transformUserAccessoryToResponseDto(
+  private transformUserAccessoryToResponseDto(
     accessory: UserAccessory,
-  ): Promise<UserAccessoryResponseDto> {
-    const accessoryWithRelations = await this.userAccessoryRepository.findOne({
-      where: { id: accessory.id },
-      relations: ['item_template'],
-    });
-    if (!accessoryWithRelations) {
-      throw new NotFoundException('Аксессуар не найден');
+  ): UserAccessoryResponseDto {
+    if (!accessory.item_template) {
+      throw new NotFoundException('Item template не загружен для аксессуара');
     }
     return {
-      id: accessoryWithRelations.id,
-      name: accessoryWithRelations.item_template?.name || '',
-      status: accessoryWithRelations.status,
-      type: accessoryWithRelations.item_template?.type || '',
-      value: accessoryWithRelations.item_template?.value || null,
-      image_path: accessoryWithRelations.item_template?.image_path || null,
-      created_at: accessoryWithRelations.created_at,
+      id: accessory.id,
+      name: accessory.item_template.name || '',
+      status: accessory.status,
+      type: accessory.item_template.type || '',
+      value: accessory.item_template.value || null,
+      image_path: accessory.item_template.image_path || null,
+      created_at: accessory.created_at,
     };
   }
 
@@ -126,9 +122,41 @@ export class ShopItemService {
     return name;
   }
 
+  private transformItemTemplateToResponseDto(
+    itemTemplate: ItemTemplate,
+  ): ItemTemplateResponseDto {
+    return {
+      id: itemTemplate.id,
+      name: itemTemplate.name,
+      type: itemTemplate.type,
+      value: itemTemplate.value,
+      image_path: itemTemplate.image_path,
+      quantity: itemTemplate.quantity,
+      name_in_kit: itemTemplate.name_in_kit,
+      created_at: itemTemplate.created_at,
+      updated_at: itemTemplate.updated_at,
+    };
+  }
+
+  private transformToShopItemResponseDto(shopItem: ShopItem): ShopItemResponseDto {
+    return {
+      id: shopItem.id,
+      name: shopItem.name,
+      currency: shopItem.currency,
+      price: shopItem.price,
+      status: shopItem.status,
+      item_template_id: shopItem.item_template_id,
+      item_template: shopItem.item_template
+        ? this.transformItemTemplateToResponseDto(shopItem.item_template)
+        : undefined,
+      created_at: shopItem.created_at,
+      updated_at: shopItem.updated_at,
+    };
+  }
+
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ShopItem>> {
+  ): Promise<PaginatedResponseDto<ShopItemResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -139,7 +167,7 @@ export class ShopItemService {
     });
 
     return {
-      data,
+      data: data.map((item) => this.transformToShopItemResponseDto(item)),
       total,
       page,
       limit,
@@ -205,7 +233,7 @@ export class ShopItemService {
     return { categories };
   }
 
-  async findOne(id: number): Promise<ShopItem> {
+  async findOne(id: number): Promise<ShopItemResponseDto> {
     const shopItem = await this.shopItemRepository.findOne({
       where: { id },
       relations: ['item_template'],
@@ -215,10 +243,10 @@ export class ShopItemService {
       throw new NotFoundException(`Товар магазина с ID ${id} не найден`);
     }
 
-    return shopItem;
+    return this.transformToShopItemResponseDto(shopItem);
   }
 
-  async create(createShopItemDto: CreateShopItemDto): Promise<ShopItem> {
+  async create(createShopItemDto: CreateShopItemDto): Promise<ShopItemResponseDto> {
     const itemTemplate = await this.itemTemplateRepository.findOne({
       where: { id: createShopItemDto.item_template_id },
     });
@@ -238,13 +266,18 @@ export class ShopItemService {
       item_template: itemTemplate,
     });
 
-    return this.shopItemRepository.save(shopItem);
+    const savedShopItem = await this.shopItemRepository.save(shopItem);
+    const shopItemWithRelations = await this.shopItemRepository.findOne({
+      where: { id: savedShopItem.id },
+      relations: ['item_template'],
+    });
+    return this.transformToShopItemResponseDto(shopItemWithRelations!);
   }
 
   async update(
     id: number,
     updateShopItemDto: UpdateShopItemDto,
-  ): Promise<ShopItem> {
+  ): Promise<ShopItemResponseDto> {
     const shopItem = await this.shopItemRepository.findOne({
       where: { id },
       relations: ['item_template'],
@@ -276,7 +309,12 @@ export class ShopItemService {
       status: updateShopItemDto.status,
     });
 
-    return this.shopItemRepository.save(shopItem);
+    const savedShopItem = await this.shopItemRepository.save(shopItem);
+    const shopItemWithRelations = await this.shopItemRepository.findOne({
+      where: { id: savedShopItem.id },
+      relations: ['item_template'],
+    });
+    return this.transformToShopItemResponseDto(shopItemWithRelations!);
   }
 
   async remove(id: number): Promise<void> {
@@ -363,10 +401,11 @@ export class ShopItemService {
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
+      createdUserAccessory.item_template = itemTemplate;
       await this.userRepository.save(user);
       const userResponse = await this.userService.findMe(user.id);
       const accessoryResponse =
-        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+        this.transformUserAccessoryToResponseDto(createdUserAccessory);
       return { user: userResponse, user_accessory: accessoryResponse };
     } else if (
       itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
@@ -424,10 +463,11 @@ export class ShopItemService {
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
+      createdUserAccessory.item_template = itemTemplate;
       await this.userRepository.save(user);
       const userResponse = await this.userService.findMe(user.id);
       const accessoryResponse =
-        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+        this.transformUserAccessoryToResponseDto(createdUserAccessory);
       return { user: userResponse, user_accessory: accessoryResponse };
     } else {
       const userAccessory = this.userAccessoryRepository.create({
@@ -436,10 +476,11 @@ export class ShopItemService {
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
+      createdUserAccessory.item_template = itemTemplate;
       await this.userRepository.save(user);
       const userResponse = await this.userService.findMe(user.id);
       const accessoryResponse =
-        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+        this.transformUserAccessoryToResponseDto(createdUserAccessory);
       return { user: userResponse, user_accessory: accessoryResponse };
     }
   }
@@ -506,10 +547,11 @@ export class ShopItemService {
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
+      createdUserAccessory.item_template = itemTemplate;
       await this.userRepository.save(user);
       const userResponse = await this.userService.findMe(user.id);
       const accessoryResponse =
-        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+        this.transformUserAccessoryToResponseDto(createdUserAccessory);
       return { user: userResponse, user_accessory: accessoryResponse };
     } else if (
       itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
@@ -567,10 +609,11 @@ export class ShopItemService {
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
+      createdUserAccessory.item_template = itemTemplate;
       await this.userRepository.save(user);
       const userResponse = await this.userService.findMe(user.id);
       const accessoryResponse =
-        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+        this.transformUserAccessoryToResponseDto(createdUserAccessory);
       return { user: userResponse, user_accessory: accessoryResponse };
     } else {
       const userAccessory = this.userAccessoryRepository.create({
@@ -579,10 +622,11 @@ export class ShopItemService {
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
+      createdUserAccessory.item_template = itemTemplate;
       await this.userRepository.save(user);
       const userResponse = await this.userService.findMe(user.id);
       const accessoryResponse =
-        await this.transformUserAccessoryToResponseDto(createdUserAccessory);
+        this.transformUserAccessoryToResponseDto(createdUserAccessory);
       return { user: userResponse, user_accessory: accessoryResponse };
     }
   }

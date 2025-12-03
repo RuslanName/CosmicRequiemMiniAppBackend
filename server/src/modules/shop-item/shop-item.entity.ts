@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -11,6 +12,7 @@ import { ShopItemStatus } from './enums/shop-item-status.enum';
 import { ItemTemplate } from '../item-template/item-template.entity';
 
 @Entity()
+@Index(['status'])
 export class ShopItem {
   @PrimaryGeneratedColumn()
   id: number;

@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LeaderResponseDto } from './leader-response.dto';
 
-export class ClanWithStatsResponseDto {
+export class ClanStatsResponseDto {
   @ApiProperty()
   id: number;
 
@@ -15,16 +14,10 @@ export class ClanWithStatsResponseDto {
   image_path: string;
 
   @ApiProperty()
-  status: string;
-
-  @ApiProperty()
   created_at: Date;
 
   @ApiProperty()
   updated_at: Date;
-
-  @ApiProperty({ type: () => LeaderResponseDto, required: false })
-  leader?: LeaderResponseDto;
 
   @ApiProperty({ required: false, nullable: true })
   leader_id?: number | null;
@@ -36,9 +29,6 @@ export class ClanWithStatsResponseDto {
   strength?: number;
 
   @ApiProperty({ required: false })
-  power?: number;
-
-  @ApiProperty({ required: false })
   guards_count?: number;
 
   @ApiProperty({ required: false })
@@ -46,10 +36,4 @@ export class ClanWithStatsResponseDto {
 
   @ApiProperty({ required: false })
   wars_count?: number;
-
-  @ApiProperty({ required: false })
-  war_start_time?: Date;
-
-  @ApiProperty({ required: false })
-  war_end_time?: Date;
 }

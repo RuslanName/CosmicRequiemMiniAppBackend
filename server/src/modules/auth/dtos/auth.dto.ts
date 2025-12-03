@@ -2,16 +2,7 @@ import { IsObject, IsString, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AuthDto {
-  @ApiProperty({
-    example: {
-      id: 123456789,
-      first_name: 'John',
-      last_name: 'Doe',
-      sex: 2,
-      photo_max_orig: 'https://example.com/photo.jpg',
-    },
-    description: 'Данные пользователя из VK',
-  })
+  @ApiProperty()
   @IsObject()
   user: {
     id: number;
@@ -24,20 +15,11 @@ export class AuthDto {
     sex?: number;
   };
 
-  @ApiProperty({
-    example: 'vk_signature_hash',
-    description: 'Подпись VK для проверки',
-  })
+  @ApiProperty()
   @IsString()
   sign: string;
 
-  @ApiProperty({
-    example: {
-      vk_user_id: '123456789',
-      vk_app_id: '12345',
-    },
-    description: 'Параметры VK',
-  })
+  @ApiProperty()
   @IsObject()
   vk_params: Record<string, string>;
 }

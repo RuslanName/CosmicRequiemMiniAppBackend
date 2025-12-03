@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClanWar } from '../entities/clan-war.entity';
+import { ClanWarAdminResponseDto } from '../dtos/responses/clan-war-admin-response.dto';
 import { CreateClanWarDto } from '../dtos/create-clan-war.dto';
 import { UpdateClanWarDto } from '../dtos/update-clan-war.dto';
 import { PaginationDto } from '../../../common/dtos/pagination.dto';
@@ -24,9 +25,24 @@ export class ClanWarService {
     private readonly clanRepository: Repository<Clan>,
   ) {}
 
+  private transformToClanWarAdminResponseDto(
+    clanWar: ClanWar,
+  ): ClanWarAdminResponseDto {
+    return {
+      id: clanWar.id,
+      start_time: clanWar.start_time,
+      end_time: clanWar.end_time,
+      status: clanWar.status,
+      clan_1_id: clanWar.clan_1_id,
+      clan_2_id: clanWar.clan_2_id,
+      created_at: clanWar.created_at,
+      updated_at: clanWar.updated_at,
+    };
+  }
+
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ClanWar>> {
+  ): Promise<PaginatedResponseDto<ClanWarAdminResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -37,14 +53,14 @@ export class ClanWarService {
     });
 
     return {
-      data,
+      data: data.map((war) => this.transformToClanWarAdminResponseDto(war)),
       total,
       page,
       limit,
     };
   }
 
-  async findOne(id: number): Promise<ClanWar> {
+  async findOne(id: number): Promise<ClanWarAdminResponseDto> {
     const clanWar = await this.clanWarRepository.findOne({
       where: { id },
       relations: ['clan_1', 'clan_2'],
@@ -54,18 +70,19 @@ export class ClanWarService {
       throw new NotFoundException(`Война кланов с ID ${id} не найдена`);
     }
 
-    return clanWar;
+    return this.transformToClanWarAdminResponseDto(clanWar);
   }
 
-  async create(createClanWarDto: CreateClanWarDto): Promise<ClanWar> {
+  async create(createClanWarDto: CreateClanWarDto): Promise<ClanWarAdminResponseDto> {
     const clanWar = this.clanWarRepository.create(createClanWarDto);
-    return this.clanWarRepository.save(clanWar);
+    const savedClanWar = await this.clanWarRepository.save(clanWar);
+    return this.transformToClanWarAdminResponseDto(savedClanWar);
   }
 
   async update(
     id: number,
     updateClanWarDto: UpdateClanWarDto,
-  ): Promise<ClanWar> {
+  ): Promise<ClanWarAdminResponseDto> {
     const clanWar = await this.clanWarRepository.findOne({
       where: { id },
       relations: ['clan_1', 'clan_2'],
@@ -115,7 +132,8 @@ export class ClanWarService {
       clanWar.status = updateClanWarDto.status;
     }
 
-    return this.clanWarRepository.save(clanWar);
+    const savedClanWar = await this.clanWarRepository.save(clanWar);
+    return this.transformToClanWarAdminResponseDto(savedClanWar);
   }
 
   async remove(id: number): Promise<void> {

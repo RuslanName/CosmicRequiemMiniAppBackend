@@ -4,45 +4,35 @@ import { ItemTemplateType } from '../enums/item-template-type.enum';
 
 export class UpdateItemTemplateDto {
   @ApiProperty({
-    example: 'Red Nickname',
     required: false,
-    description: 'Название продукта',
   })
   @IsOptional()
   @IsString()
   name?: string;
 
   @ApiProperty({
-    example: 'nickname_color',
     enum: ItemTemplateType,
     required: false,
-    description: 'Тип продукта',
   })
   @IsOptional()
   @IsEnum(ItemTemplateType)
   type?: ItemTemplateType;
 
   @ApiProperty({
-    example: '#ff0000',
     required: false,
-    description: 'Значение продукта',
   })
   @IsOptional()
   @IsString()
   value?: string;
 
   @ApiProperty({
-    example: 1,
     required: false,
-    description: 'Количество (только для стражей)',
   })
   @IsOptional()
   @IsNumber()
   quantity?: number;
 
   @ApiProperty({
-    example: 'Красный никнейм',
-    description: 'Название для отображения в наборе (необязательно)',
     required: false,
   })
   @IsOptional()
@@ -50,9 +40,7 @@ export class UpdateItemTemplateDto {
   name_in_kit?: string;
 
   @ApiProperty({
-    example: 'data/item-template-images/item-template-123.jpg',
     required: false,
-    description: 'Путь к изображению',
   })
   @IsOptional()
   @IsString()

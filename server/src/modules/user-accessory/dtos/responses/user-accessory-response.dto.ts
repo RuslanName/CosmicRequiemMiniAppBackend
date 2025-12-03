@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserAccessoryStatus } from '../enums/user-accessory-status.enum';
+import { UserAccessoryStatus } from '../../enums/user-accessory-status.enum';
 
 export class UserAccessoryResponseDto {
   @ApiProperty()
@@ -23,3 +23,4 @@ export class UserAccessoryResponseDto {
   @ApiProperty()
   created_at: Date;
 }
+

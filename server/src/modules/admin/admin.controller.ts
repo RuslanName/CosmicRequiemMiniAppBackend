@@ -22,7 +22,7 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
-import { Admin } from './admin.entity';
+import { AdminResponseDto } from './dtos/responses/admin-response.dto';
 import { CreateAdminDto } from './dtos/create-admin.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -39,17 +39,17 @@ export class AdminController {
 
   @Get()
   @ApiOperation({ summary: 'Получить всех администраторов с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<Admin>,
+    type: PaginatedResponseDto<AdminResponseDto>,
     description: 'Список администраторов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<Admin>> {
+  ): Promise<PaginatedResponseDto<AdminResponseDto>> {
     return this.adminService.findAll(paginationDto);
   }
 
@@ -59,12 +59,12 @@ export class AdminController {
   })
   @ApiResponse({
     status: 200,
-    type: Admin,
+    type: AdminResponseDto,
     description: 'Информация о текущем администраторе',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
-  async findMe(@Request() req: AuthenticatedRequest): Promise<Admin> {
+  async findMe(@Request() req: AuthenticatedRequest): Promise<AdminResponseDto> {
     if (!req.user.adminId) {
       throw new NotFoundException('ID администратора не найден в запросе');
     }
@@ -76,17 +76,16 @@ export class AdminController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID администратора',
   })
   @ApiResponse({
     status: 200,
-    type: Admin,
+    type: AdminResponseDto,
     description: 'Информация об администраторе',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
-  async findOne(@Param('id') id: string): Promise<Admin> {
+  async findOne(@Param('id') id: string): Promise<AdminResponseDto> {
     return this.adminService.findOne(+id);
   }
 
@@ -95,7 +94,7 @@ export class AdminController {
   @ApiBody({ type: CreateAdminDto })
   @ApiResponse({
     status: 201,
-    type: Admin,
+    type: AdminResponseDto,
     description: 'Администратор успешно создан',
   })
   @ApiResponse({
@@ -104,7 +103,7 @@ export class AdminController {
       'Неверные данные или администратор с таким username/user_id уже существует',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async create(@Body() createAdminDto: CreateAdminDto): Promise<Admin> {
+  async create(@Body() createAdminDto: CreateAdminDto): Promise<AdminResponseDto> {
     return this.adminService.create(createAdminDto);
   }
 
@@ -113,13 +112,12 @@ export class AdminController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID администратора',
   })
   @ApiBody({ type: UpdateAdminDto })
   @ApiResponse({
     status: 200,
-    type: Admin,
+    type: AdminResponseDto,
     description: 'Администратор успешно обновлен',
   })
   @ApiResponse({
@@ -132,7 +130,7 @@ export class AdminController {
   async update(
     @Param('id') id: string,
     @Body() updateAdminDto: UpdateAdminDto,
-  ): Promise<Admin> {
+  ): Promise<AdminResponseDto> {
     return this.adminService.update(+id, updateAdminDto);
   }
 
@@ -141,7 +139,6 @@ export class AdminController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID администратора',
   })
   @ApiResponse({

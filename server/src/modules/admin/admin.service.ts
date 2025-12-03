@@ -10,6 +10,7 @@ import { CreateAdminDto } from './dtos/create-admin.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { AdminResponseDto } from './dtos/responses/admin-response.dto';
 import { User } from '../user/user.entity';
 import * as bcrypt from 'bcrypt';
 
@@ -22,17 +23,30 @@ export class AdminService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  private transformToAdminResponseDto(admin: Admin): AdminResponseDto {
+    return {
+      id: admin.id,
+      user_id: admin.user_id,
+      username: admin.username,
+      is_system_admin: admin.is_system_admin,
+      created_at: admin.created_at,
+      updated_at: admin.updated_at,
+    };
+  }
+
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<Admin>> {
+  ): Promise<PaginatedResponseDto<AdminResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.adminRepository.findAndCount({
+    const [admins, total] = await this.adminRepository.findAndCount({
       skip,
       take: limit,
       order: { created_at: 'DESC' },
     });
+
+    const data = admins.map((admin) => this.transformToAdminResponseDto(admin));
 
     return {
       data,
@@ -42,7 +56,7 @@ export class AdminService {
     };
   }
 
-  async findOne(id: number): Promise<Admin> {
+  async findOne(id: number): Promise<AdminResponseDto> {
     const admin = await this.adminRepository.findOne({
       where: { id },
       relations: ['user'],
@@ -52,7 +66,7 @@ export class AdminService {
       throw new NotFoundException(`Администратор с ID ${id} не найден`);
     }
 
-    return admin;
+    return this.transformToAdminResponseDto(admin);
   }
 
   async findByUserId(userId: number): Promise<Admin | null> {
@@ -62,7 +76,7 @@ export class AdminService {
     });
   }
 
-  async create(createAdminDto: CreateAdminDto): Promise<Admin> {
+  async create(createAdminDto: CreateAdminDto): Promise<AdminResponseDto> {
     const { password, ...rest } = createAdminDto;
 
     const existingAdmin = await this.adminRepository.findOne({
@@ -87,11 +101,19 @@ export class AdminService {
       is_system_admin: false,
     });
 
-    return await this.adminRepository.save(admin);
+    const savedAdmin = await this.adminRepository.save(admin);
+    return this.transformToAdminResponseDto(savedAdmin);
   }
 
-  async update(id: number, updateAdminDto: UpdateAdminDto): Promise<Admin> {
-    const admin = await this.findOne(id);
+  async update(id: number, updateAdminDto: UpdateAdminDto): Promise<AdminResponseDto> {
+    const admin = await this.adminRepository.findOne({
+      where: { id },
+      relations: ['user'],
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Администратор с ID ${id} не найден`);
+    }
 
     if (admin.is_system_admin) {
       throw new BadRequestException(
@@ -147,11 +169,18 @@ export class AdminService {
       admin.password_hash = password;
     }
 
-    return await this.adminRepository.save(admin);
+    const savedAdmin = await this.adminRepository.save(admin);
+    return this.transformToAdminResponseDto(savedAdmin);
   }
 
   async remove(id: number): Promise<void> {
-    const admin = await this.findOne(id);
+    const admin = await this.adminRepository.findOne({
+      where: { id },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Администратор с ID ${id} не найден`);
+    }
 
     if (admin.is_system_admin) {
       throw new BadRequestException('Нельзя удалить системного администратора');

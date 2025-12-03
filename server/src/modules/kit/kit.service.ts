@@ -4,8 +4,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Not } from 'typeorm';
 import { Kit } from './kit.entity';
+import { KitResponseDto } from './dtos/responses/kit-response.dto';
 import { CreateKitDto } from './dtos/create-kit.dto';
 import { UpdateKitDto } from './dtos/update-kit.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -27,10 +28,11 @@ import { generateRandom8DigitCode } from '../../common/utils/number-format.util'
 import { UserKit } from '../user-kit/user-kit.entity';
 import { UserService } from '../user/user.service';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
-import { UserMeResponseDto } from '../user/dtos/responses/user-me-response.dto';
+import { CurrentUserResponseDto } from '../user/dtos/responses/user-me-response.dto';
 import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
-import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-response.dto';
-import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
+import { UserAccessoryResponseDto } from '../user-accessory/dtos/responses/user-accessory-response.dto';
+import { UserBoostResponseDto } from '../user-boost/dtos/responses/user-boost-response.dto';
+import { ItemTemplateResponseDto } from '../item-template/dtos/responses/item-template-response.dto';
 
 @Injectable()
 export class KitService {
@@ -62,8 +64,6 @@ export class KitService {
       name: guard.name,
       strength: guard.strength,
       is_first: guard.is_first,
-      created_at: guard.created_at,
-      updated_at: guard.updated_at,
       guard_as_user: null,
     };
   }
@@ -103,9 +103,41 @@ export class KitService {
     return name;
   }
 
+  private transformItemTemplateToResponseDto(
+    itemTemplate: ItemTemplate,
+  ): ItemTemplateResponseDto {
+    return {
+      id: itemTemplate.id,
+      name: itemTemplate.name,
+      type: itemTemplate.type,
+      value: itemTemplate.value,
+      image_path: itemTemplate.image_path,
+      quantity: itemTemplate.quantity,
+      name_in_kit: itemTemplate.name_in_kit,
+      created_at: itemTemplate.created_at,
+      updated_at: itemTemplate.updated_at,
+    };
+  }
+
+  private transformToKitResponseDto(kit: Kit): KitResponseDto {
+    return {
+      id: kit.id,
+      name: kit.name,
+      currency: kit.currency,
+      price: kit.price,
+      money: kit.money,
+      status: kit.status,
+      item_templates: kit.item_templates
+        ? kit.item_templates.map((it) => this.transformItemTemplateToResponseDto(it))
+        : undefined,
+      created_at: kit.created_at,
+      updated_at: kit.updated_at,
+    };
+  }
+
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<Kit>> {
+  ): Promise<PaginatedResponseDto<KitResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -116,7 +148,7 @@ export class KitService {
     });
 
     return {
-      data,
+      data: data.map((kit) => this.transformToKitResponseDto(kit)),
       total,
       page,
       limit,
@@ -126,7 +158,7 @@ export class KitService {
   async findAvailable(
     userId: number,
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<Kit>> {
+  ): Promise<PaginatedResponseDto<KitResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -136,32 +168,31 @@ export class KitService {
     });
     const purchasedKitIds = purchasedKits.map((uk) => uk.kit.id);
 
-    const queryBuilder = this.kitRepository
-      .createQueryBuilder('kit')
-      .leftJoinAndSelect('kit.item_templates', 'item_template')
-      .where('kit.status = :status', { status: ShopItemStatus.IN_STOCK });
+    const whereCondition: any = {
+      status: ShopItemStatus.IN_STOCK,
+    };
 
     if (purchasedKitIds.length > 0) {
-      queryBuilder.andWhere('kit.id NOT IN (:...ids)', {
-        ids: purchasedKitIds,
-      });
+      whereCondition.id = Not(In(purchasedKitIds));
     }
 
-    const [data, total] = await queryBuilder
-      .orderBy('kit.created_at', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+    const [data, total] = await this.kitRepository.findAndCount({
+      where: whereCondition,
+      relations: ['item_templates'],
+      order: { created_at: 'DESC' },
+      skip,
+      take: limit,
+    });
 
     return {
-      data,
+      data: data.map((kit) => this.transformToKitResponseDto(kit)),
       total,
       page,
       limit,
     };
   }
 
-  async findOne(id: number): Promise<Kit> {
+  async findOne(id: number): Promise<KitResponseDto> {
     const kit = await this.kitRepository.findOne({
       where: { id },
       relations: ['item_templates'],
@@ -171,10 +202,10 @@ export class KitService {
       throw new NotFoundException(`Набор с ID ${id} не найден`);
     }
 
-    return kit;
+    return this.transformToKitResponseDto(kit);
   }
 
-  async create(createKitDto: CreateKitDto): Promise<Kit> {
+  async create(createKitDto: CreateKitDto): Promise<KitResponseDto> {
     const itemTemplates = await this.itemTemplateRepository.find({
       where: { id: In(createKitDto.item_template_ids) },
     });
@@ -192,10 +223,15 @@ export class KitService {
       item_templates: itemTemplates,
     });
 
-    return this.kitRepository.save(kit);
+    const savedKit = await this.kitRepository.save(kit);
+    const kitWithRelations = await this.kitRepository.findOne({
+      where: { id: savedKit.id },
+      relations: ['item_templates'],
+    });
+    return this.transformToKitResponseDto(kitWithRelations!);
   }
 
-  async update(id: number, updateKitDto: UpdateKitDto): Promise<Kit> {
+  async update(id: number, updateKitDto: UpdateKitDto): Promise<KitResponseDto> {
     const kit = await this.kitRepository.findOne({
       where: { id },
       relations: ['item_templates'],
@@ -225,7 +261,12 @@ export class KitService {
       status: updateKitDto.status,
     });
 
-    return this.kitRepository.save(kit);
+    const savedKit = await this.kitRepository.save(kit);
+    const kitWithRelations = await this.kitRepository.findOne({
+      where: { id: savedKit.id },
+      relations: ['item_templates'],
+    });
+    return this.transformToKitResponseDto(kitWithRelations!);
   }
 
   async remove(id: number): Promise<void> {
@@ -398,30 +439,34 @@ export class KitService {
       this.transformUserGuardToResponseDto(guard),
     );
 
-    const accessoriesResponse = await Promise.all(
-      userAccessories.map(async (accessory) => {
-        const accessoryWithRelations =
-          await this.userAccessoryRepository.findOne({
-            where: { id: accessory.id },
-            relations: ['item_template'],
-          });
-        if (!accessoryWithRelations) {
-          throw new NotFoundException('Аксессуар не найден');
-        }
-        return {
-          id: accessoryWithRelations.id,
-          name:
-            accessoryWithRelations.item_template?.name_in_kit ||
-            accessoryWithRelations.item_template?.name ||
-            '',
-          status: accessoryWithRelations.status,
-          type: accessoryWithRelations.item_template?.type || '',
-          value: accessoryWithRelations.item_template?.value || null,
-          image_path: accessoryWithRelations.item_template?.image_path || null,
-          created_at: accessoryWithRelations.created_at,
-        } as UserAccessoryResponseDto;
-      }),
+    const accessoryIds = userAccessories.map((a) => a.id);
+    const accessoriesWithRelations = await this.userAccessoryRepository.find({
+      where: { id: In(accessoryIds) },
+      relations: ['item_template'],
+    });
+
+    const accessoriesMap = new Map(
+      accessoriesWithRelations.map((a) => [a.id, a]),
     );
+
+    const accessoriesResponse = userAccessories.map((accessory) => {
+      const accessoryWithRelations = accessoriesMap.get(accessory.id);
+      if (!accessoryWithRelations) {
+        throw new NotFoundException('Аксессуар не найден');
+      }
+      return {
+        id: accessoryWithRelations.id,
+        name:
+          accessoryWithRelations.item_template?.name_in_kit ||
+          accessoryWithRelations.item_template?.name ||
+          '',
+        status: accessoryWithRelations.status,
+        type: accessoryWithRelations.item_template?.type || '',
+        value: accessoryWithRelations.item_template?.value || null,
+        image_path: accessoryWithRelations.item_template?.image_path || null,
+        created_at: accessoryWithRelations.created_at,
+      } as UserAccessoryResponseDto;
+    });
 
     const boostsResponse = userBoosts.map((boost) =>
       this.transformUserBoostToResponseDto(boost),

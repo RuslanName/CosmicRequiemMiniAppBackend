@@ -4,24 +4,24 @@ import { Currency } from '../../../common/enums/currency.enum';
 import { ShopItemStatus } from '../enums/shop-item-status.enum';
 
 export class CreateShopItemDto {
-  @ApiProperty({ example: 'Red Nickname' })
+  @ApiProperty()
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'virtual', enum: Currency })
+  @ApiProperty({ enum: Currency })
   @IsEnum(Currency)
   currency: Currency;
 
-  @ApiProperty({ example: 1000 })
+  @ApiProperty()
   @IsNumber()
   price: number;
 
-  @ApiProperty({ example: 'in_stock', enum: ShopItemStatus, required: false })
+  @ApiProperty({ enum: ShopItemStatus, required: false })
   @IsOptional()
   @IsEnum(ShopItemStatus)
   status?: ShopItemStatus;
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty()
   @IsNumber()
   item_template_id: number;
 }

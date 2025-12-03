@@ -10,29 +10,29 @@ import { Currency } from '../../../common/enums/currency.enum';
 import { ShopItemStatus } from '../../shop-item/enums/shop-item-status.enum';
 
 export class CreateKitDto {
-  @ApiProperty({ example: 'Премиум набор' })
+  @ApiProperty()
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'virtual', enum: Currency })
+  @ApiProperty({ enum: Currency })
   @IsEnum(Currency)
   currency: Currency;
 
-  @ApiProperty({ example: 5000 })
+  @ApiProperty()
   @IsNumber()
   price: number;
 
-  @ApiProperty({ example: 1000, required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   money?: number;
 
-  @ApiProperty({ example: 'in_stock', enum: ShopItemStatus, required: false })
+  @ApiProperty({ enum: ShopItemStatus, required: false })
   @IsOptional()
   @IsEnum(ShopItemStatus)
   status?: ShopItemStatus;
 
-  @ApiProperty({ example: [1, 2, 3], type: [Number] })
+  @ApiProperty({ type: [Number] })
   @IsArray()
   @IsNumber({}, { each: true })
   item_template_ids: number[];

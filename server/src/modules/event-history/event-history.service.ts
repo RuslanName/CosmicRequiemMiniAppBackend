@@ -36,20 +36,19 @@ export class EventHistoryService {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.eventHistoryRepository.findAndCount({
-      where: { user_id: userId },
-      relations: [
-        'user',
-        'opponent',
-        'opponent.guards',
-        'stolen_items',
-        'stolen_items.thief',
-        'stolen_items.victim',
-      ],
-      skip,
-      take: limit,
-      order: { created_at: 'DESC' },
-    });
+    const queryBuilder = this.eventHistoryRepository
+      .createQueryBuilder('event_history')
+      .leftJoinAndSelect('event_history.user', 'user')
+      .leftJoinAndSelect('event_history.opponent', 'opponent')
+      .leftJoinAndSelect('event_history.stolen_items', 'stolen_items')
+      .leftJoinAndSelect('stolen_items.thief', 'thief')
+      .leftJoinAndSelect('stolen_items.victim', 'victim')
+      .where('event_history.user_id = :userId', { userId })
+      .orderBy('event_history.created_at', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return {
       data,

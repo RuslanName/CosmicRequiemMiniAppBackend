@@ -22,7 +22,7 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { KitService } from './kit.service';
-import { Kit } from './kit.entity';
+import { KitResponseDto } from './dtos/responses/kit-response.dto';
 import { CreateKitDto } from './dtos/create-kit.dto';
 import { UpdateKitDto } from './dtos/update-kit.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -42,17 +42,17 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить все наборы с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<Kit>,
+    type: PaginatedResponseDto<KitResponseDto>,
     description: 'Список наборов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<Kit>> {
+  ): Promise<PaginatedResponseDto<KitResponseDto>> {
     return this.kitService.findAll(paginationDto);
   }
 
@@ -62,18 +62,18 @@ export class KitController {
   @CacheTTL(60)
   @CacheKey('kit:public-list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить список доступных наборов (Для Mini App)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<Kit>,
+    type: PaginatedResponseDto<KitResponseDto>,
     description: 'Список доступных наборов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getKitsList(
     @Request() req: AuthenticatedRequest,
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<Kit>> {
+  ): Promise<PaginatedResponseDto<KitResponseDto>> {
     return this.kitService.findAvailable(req.user.id, paginationDto);
   }
 
@@ -81,15 +81,15 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить набор по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID набора' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID набора' })
   @ApiResponse({
     status: 200,
-    type: Kit,
+    type: KitResponseDto,
     description: 'Информация о наборе',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Набор не найден' })
-  async findOne(@Param('id') id: string): Promise<Kit> {
+  async findOne(@Param('id') id: string): Promise<KitResponseDto> {
     return this.kitService.findOne(+id);
   }
 
@@ -100,7 +100,7 @@ export class KitController {
   @ApiBody({ type: CreateKitDto })
   @ApiResponse({
     status: 201,
-    type: Kit,
+    type: KitResponseDto,
     description: 'Набор успешно создан',
   })
   @ApiResponse({
@@ -108,7 +108,7 @@ export class KitController {
     description: 'Неверные данные',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async create(@Body() createKitDto: CreateKitDto): Promise<Kit> {
+  async create(@Body() createKitDto: CreateKitDto): Promise<KitResponseDto> {
     return this.kitService.create(createKitDto);
   }
 
@@ -116,11 +116,11 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Обновить набор' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID набора' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID набора' })
   @ApiBody({ type: UpdateKitDto })
   @ApiResponse({
     status: 200,
-    type: Kit,
+    type: KitResponseDto,
     description: 'Набор успешно обновлен',
   })
   @ApiResponse({
@@ -132,7 +132,7 @@ export class KitController {
   async update(
     @Param('id') id: string,
     @Body() updateKitDto: UpdateKitDto,
-  ): Promise<Kit> {
+  ): Promise<KitResponseDto> {
     return this.kitService.update(+id, updateKitDto);
   }
 
@@ -140,7 +140,7 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Удалить набор' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID набора' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID набора' })
   @ApiResponse({
     status: 200,
     description: 'Набор успешно удален',

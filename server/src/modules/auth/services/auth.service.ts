@@ -147,7 +147,7 @@ export class AuthService {
 
       dbUser = await this.userRepository.findOne({
         where: { id: dbUser.id },
-        relations: ['clan', 'referrer', 'user_as_guard'],
+        relations: ['clan', 'referrer'],
       });
       if (!dbUser) {
         throw new UnauthorizedException(

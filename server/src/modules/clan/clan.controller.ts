@@ -36,22 +36,24 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { DeclareWarDto } from './dtos/declare-war.dto';
 import { AttackEnemyDto } from './dtos/attack-enemy.dto';
-import { User } from '../user/user.entity';
 import { CreateClanApplicationDto } from './dtos/create-clan-application.dto';
-import { ClanApplication } from './entities/clan-application.entity';
 import {
   CacheTTL,
   CacheKey,
   InvalidateCache,
 } from '../../common/decorators/cache.decorator';
-import { ClanWithStatsResponseDto } from './dtos/responses/clan-with-stats-response.dto';
-import { ClanWithReferralResponseDto } from './dtos/responses/clan-with-referral-response.dto';
+import { ClanStatsResponseDto } from './dtos/responses/clan-with-stats-response.dto';
+import { ClanReferralResponseDto } from './dtos/responses/clan-with-referral-response.dto';
 import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto';
-import { UserWithStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
-import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
+import { UserStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
+import { ClanAttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
 import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
 import { NotificationResponseDto } from './dtos/responses/notification-response.dto';
+import { LeaveClanResponseDto } from '../user/dtos/responses/user-leave-clan-response.dto';
+import { KickMemberResponseDto } from '../user/dtos/responses/user-kick-member-response.dto';
+import { ClanApplicationResponseDto } from './dtos/responses/clan-application-response.dto';
+import { ClanDetailResponseDto } from './dtos/responses/clan-detail-response.dto';
 
 @ApiTags('Clans')
 @Controller('clans')
@@ -62,17 +64,17 @@ export class ClanController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить все кланы с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<ClanWithStatsResponseDto>,
+    type: PaginatedResponseDto<ClanStatsResponseDto>,
     description: 'Список кланов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ClanWithStatsResponseDto>> {
+  ): Promise<PaginatedResponseDto<ClanStatsResponseDto>> {
     return this.clanService.findAll(paginationDto);
   }
 
@@ -82,17 +84,17 @@ export class ClanController {
   @CacheTTL(60)
   @CacheKey('clan:public-list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить список кланов (Для Mini App)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<ClanWithStatsResponseDto>,
+    type: PaginatedResponseDto<ClanStatsResponseDto>,
     description: 'Список кланов с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getClansList(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ClanWithStatsResponseDto>> {
+  ): Promise<PaginatedResponseDto<ClanStatsResponseDto>> {
     return this.clanService.findAll(paginationDto);
   }
 
@@ -108,7 +110,7 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    type: ClanWithReferralResponseDto,
+    type: ClanDetailResponseDto,
     description:
       'Информация о клане с полем has_active_wars, указывающим наличие активных войн',
   })
@@ -116,7 +118,7 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
   async getMyClan(
     @Request() req: AuthenticatedRequest,
-  ): Promise<ClanWithReferralResponseDto> {
+  ): Promise<ClanDetailResponseDto> {
     return this.clanService.getUserClan(req.user.id);
   }
 
@@ -129,8 +131,8 @@ export class ClanController {
     summary:
       'Получить все войны клана текущего пользователя с пагинацией (Для Mini App)',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<ClanWarResponseDto>,
@@ -155,7 +157,7 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    type: [UserWithStatsResponseDto],
+    type: [UserStatsResponseDto],
     description:
       'Список участников клана. Лидер всегда первый, остальные отсортированы по рейтингу',
   })
@@ -163,7 +165,7 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
   async getMyClanMembers(
     @Request() req: AuthenticatedRequest,
-  ): Promise<UserWithStatsResponseDto[]> {
+  ): Promise<UserStatsResponseDto[]> {
     const clan = await this.clanService.getUserClan(req.user.id);
     return this.clanService.getClanMembers(clan.id);
   }
@@ -180,7 +182,7 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    type: [ClanWithStatsResponseDto],
+    type: [ClanStatsResponseDto],
     description:
       'Список вражеских кланов с полями war_start_time и war_end_time',
   })
@@ -188,7 +190,7 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
   async getEnemyClans(
     @Request() req: AuthenticatedRequest,
-  ): Promise<ClanWithStatsResponseDto[]> {
+  ): Promise<ClanStatsResponseDto[]> {
     return this.clanService.getEnemyClans(req.user.id);
   }
 
@@ -205,12 +207,11 @@ export class ClanController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 2,
     description: 'ID вражеского клана',
   })
   @ApiResponse({
     status: 200,
-    type: ClanWithStatsResponseDto,
+    type: ClanStatsResponseDto,
     description:
       'Информация о вражеском клане с полями war_start_time и war_end_time',
   })
@@ -226,7 +227,7 @@ export class ClanController {
   async getEnemyClanById(
     @Request() req: AuthenticatedRequest,
     @Param('id') enemyClanId: string,
-  ): Promise<ClanWithStatsResponseDto> {
+  ): Promise<ClanStatsResponseDto> {
     return this.clanService.getEnemyClanById(req.user.id, +enemyClanId);
   }
 
@@ -243,12 +244,11 @@ export class ClanController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 2,
     description: 'ID вражеского клана',
   })
   @ApiResponse({
     status: 200,
-    type: [UserWithStatsResponseDto],
+    type: [UserStatsResponseDto],
     description:
       'Список участников вражеского клана. Лидер всегда первый, остальные отсортированы по рейтингу',
   })
@@ -263,7 +263,7 @@ export class ClanController {
   async getEnemyClanMembersById(
     @Request() req: AuthenticatedRequest,
     @Param('id') enemyClanId: string,
-  ): Promise<UserWithStatsResponseDto[]> {
+  ): Promise<UserStatsResponseDto[]> {
     return this.clanService.getEnemyClanMembersById(req.user.id, +enemyClanId);
   }
 
@@ -277,8 +277,8 @@ export class ClanController {
     description:
       'Возвращает рейтинг кланов, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money, затем по рейтингу (wins)',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<ClanRatingResponseDto>,
@@ -305,7 +305,6 @@ export class ClanController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID клана (используется только если query не указан)',
   })
   @ApiQuery({
@@ -315,14 +314,14 @@ export class ClanController {
     description:
       'Поисковый запрос по названию (если указан, поиск будет по названию, а не по ID)',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
     description: 'Клан по ID или список кланов по названию с пагинацией',
     schema: {
       oneOf: [
-        { $ref: '#/components/schemas/ClanWithStatsResponseDto' },
+        { $ref: '#/components/schemas/ClanDetailResponseDto' },
         { $ref: '#/components/schemas/PaginatedResponseDto' },
       ],
     },
@@ -334,12 +333,12 @@ export class ClanController {
     @Query('query') query?: string,
     @Query() paginationDto?: PaginationDto,
   ): Promise<
-    ClanWithStatsResponseDto | PaginatedResponseDto<ClanWithStatsResponseDto>
+    ClanDetailResponseDto | PaginatedResponseDto<ClanStatsResponseDto>
   > {
     if (query) {
       return this.clanService.searchClans(query, paginationDto);
     }
-    return this.clanService.findOne(+id);
+    return this.clanService.findOneForMiniApp(+id);
   }
 
   @Get(':id/find/members')
@@ -348,16 +347,16 @@ export class ClanController {
   @CacheTTL(60)
   @CacheKey('clan:find:members:id::id')
   @ApiOperation({ summary: 'Получить участников клана по ID (Для Mini App)' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
     status: 200,
-    type: [UserWithStatsResponseDto],
+    type: [UserStatsResponseDto],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
   async findClanMembersById(
     @Param('id') id: string,
-  ): Promise<UserWithStatsResponseDto[]> {
+  ): Promise<UserStatsResponseDto[]> {
     return this.clanService.getClanMembers(+id);
   }
 
@@ -371,7 +370,7 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    type: [ClanWithStatsResponseDto],
+    type: [ClanStatsResponseDto],
     description: 'Список доступных кланов для объявления войны',
   })
   @ApiResponse({
@@ -385,7 +384,7 @@ export class ClanController {
   })
   async getAvailableClansForWar(
     @Request() req: AuthenticatedRequest,
-  ): Promise<ClanWithStatsResponseDto[]> {
+  ): Promise<ClanStatsResponseDto[]> {
     return this.clanService.getAvailableClansForWar(req.user.id);
   }
 
@@ -434,7 +433,6 @@ export class ClanController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 2,
     description: 'ID вражеского клана',
   })
   @ApiBody({
@@ -443,7 +441,7 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    type: AttackEnemyResponseDto,
+    type: ClanAttackEnemyResponseDto,
     description: 'Результат атаки',
   })
   @ApiResponse({
@@ -457,7 +455,7 @@ export class ClanController {
     @Request() req: AuthenticatedRequest,
     @Param('id') enemyClanId: string,
     @Body() attackEnemyDto: AttackEnemyDto,
-  ): Promise<AttackEnemyResponseDto> {
+  ): Promise<ClanAttackEnemyResponseDto> {
     return this.clanService.attackEnemy(
       req.user.id,
       attackEnemyDto.target_user_id,
@@ -472,7 +470,7 @@ export class ClanController {
   @ApiOperation({ summary: 'Покинуть текущий клан (Для Mini App)' })
   @ApiResponse({
     status: 200,
-    type: User,
+    type: LeaveClanResponseDto,
     description: 'Пользователь успешно покинул клан',
   })
   @ApiResponse({
@@ -481,7 +479,7 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async leaveClan(@Request() req: AuthenticatedRequest): Promise<User> {
+  async leaveClan(@Request() req: AuthenticatedRequest): Promise<LeaveClanResponseDto> {
     return this.clanService.leaveClan(req.user.id);
   }
 
@@ -494,12 +492,11 @@ export class ClanController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 5,
     description: 'ID участника для исключения',
   })
   @ApiResponse({
     status: 200,
-    type: User,
+    type: KickMemberResponseDto,
     description: 'Участник успешно исключен из клана',
   })
   @ApiResponse({
@@ -515,7 +512,7 @@ export class ClanController {
   async kickMember(
     @Request() req: AuthenticatedRequest,
     @Param('id') memberId: string,
-  ): Promise<User> {
+  ): Promise<KickMemberResponseDto> {
     return this.clanService.kickMember(req.user.id, +memberId);
   }
 
@@ -528,7 +525,7 @@ export class ClanController {
   @ApiBody({ type: CreateClanApplicationDto })
   @ApiResponse({
     status: 201,
-    type: ClanApplication,
+    type: ClanApplicationResponseDto,
     description: 'Заявка успешно создана',
   })
   @ApiResponse({
@@ -540,7 +537,7 @@ export class ClanController {
   async createApplication(
     @Request() req: AuthenticatedRequest,
     @Body() createClanApplicationDto: CreateClanApplicationDto,
-  ): Promise<ClanApplication> {
+  ): Promise<ClanApplicationResponseDto> {
     return this.clanService.createApplication(
       req.user.id,
       createClanApplicationDto.clan_id,
@@ -557,7 +554,7 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    type: [ClanApplication],
+    type: [ClanApplicationResponseDto],
     description: 'Список заявок на вступление в клан',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
@@ -567,7 +564,7 @@ export class ClanController {
   })
   async getApplications(
     @Request() req: AuthenticatedRequest,
-  ): Promise<ClanApplication[]> {
+  ): Promise<ClanApplicationResponseDto[]> {
     return this.clanService.getApplications(req.user.id);
   }
 
@@ -577,10 +574,10 @@ export class ClanController {
   @ApiOperation({
     summary: 'Принять заявку на вступление в клан (Для Mini App)',
   })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID заявки' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID заявки' })
   @ApiResponse({
     status: 200,
-    type: ClanApplication,
+    type: ClanApplicationResponseDto,
     description: 'Заявка успешно принята',
   })
   @ApiResponse({
@@ -595,7 +592,7 @@ export class ClanController {
   async acceptApplication(
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
-  ): Promise<ClanApplication> {
+  ): Promise<ClanApplicationResponseDto> {
     return this.clanService.acceptApplication(req.user.id, +id);
   }
 
@@ -605,10 +602,10 @@ export class ClanController {
   @ApiOperation({
     summary: 'Отклонить заявку на вступление в клан (Для Mini App)',
   })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID заявки' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID заявки' })
   @ApiResponse({
     status: 200,
-    type: ClanApplication,
+    type: ClanApplicationResponseDto,
     description: 'Заявка успешно отклонена',
   })
   @ApiResponse({
@@ -623,7 +620,7 @@ export class ClanController {
   async rejectApplication(
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
-  ): Promise<ClanApplication> {
+  ): Promise<ClanApplicationResponseDto> {
     return this.clanService.rejectApplication(req.user.id, +id);
   }
 
@@ -638,7 +635,7 @@ export class ClanController {
   @ApiBody({ type: CreateClanByUserDto })
   @ApiResponse({
     status: 201,
-    type: ClanWithReferralResponseDto,
+    type: ClanReferralResponseDto,
     description: 'Клан успешно создан',
   })
   @ApiResponse({
@@ -650,7 +647,7 @@ export class ClanController {
   async createClan(
     @Request() req: AuthenticatedRequest,
     @Body() createClanByUserDto: CreateClanByUserDto,
-  ): Promise<ClanWithReferralResponseDto> {
+  ): Promise<ClanReferralResponseDto> {
     return this.clanService.createClanByUser(req.user.id, createClanByUserDto);
   }
 
@@ -680,16 +677,16 @@ export class ClanController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить клан по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID клана' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID клана' })
   @ApiResponse({
     status: 200,
-    type: ClanWithStatsResponseDto,
+    type: ClanStatsResponseDto,
     description: 'Информация о клане',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async findOne(@Param('id') id: string): Promise<ClanWithStatsResponseDto> {
-    return this.clanService.findOne(+id);
+  async findOne(@Param('id') id: string): Promise<ClanStatsResponseDto> {
+    return this.clanService.findOneForAdmin(+id);
   }
 
   @Post()
@@ -701,7 +698,7 @@ export class ClanController {
   @ApiBody({ type: CreateClanDto })
   @ApiResponse({
     status: 201,
-    type: ClanWithReferralResponseDto,
+    type: ClanReferralResponseDto,
     description: 'Клан успешно создан',
   })
   @ApiResponse({
@@ -712,7 +709,7 @@ export class ClanController {
   async create(
     @Body() createClanDto: CreateClanDto,
     @UploadedFile() image: Express.Multer.File,
-  ): Promise<ClanWithReferralResponseDto> {
+  ): Promise<ClanReferralResponseDto> {
     return this.clanService.create(createClanDto, image);
   }
 
@@ -722,11 +719,11 @@ export class ClanController {
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Обновить клан' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID клана' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID клана' })
   @ApiBody({ type: UpdateClanDto })
   @ApiResponse({
     status: 200,
-    type: ClanWithReferralResponseDto,
+    type: ClanReferralResponseDto,
     description: 'Клан успешно обновлен',
   })
   @ApiResponse({
@@ -739,7 +736,7 @@ export class ClanController {
     @Param('id') id: string,
     @Body() updateClanDto: UpdateClanDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<ClanWithReferralResponseDto> {
+  ): Promise<ClanReferralResponseDto> {
     return this.clanService.update(+id, updateClanDto, image);
   }
 
@@ -747,7 +744,7 @@ export class ClanController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Удалить клан' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID клана' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID клана' })
   @ApiResponse({
     status: 200,
     description: 'Клан успешно удален',

@@ -25,24 +25,24 @@ import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { StolenItemType } from '../clan-war/enums/stolen-item-type.enum';
 import { EventHistoryItemResponseDto } from './dtos/responses/event-history-item-response.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
-import { UserWithBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
-import { UserMeResponseDto } from './dtos/responses/user-me-response.dto';
+import { UserBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
+import { CurrentUserResponseDto } from './dtos/responses/user-me-response.dto';
 import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
-import { TrainingResponseDto } from './dtos/responses/training-response.dto';
+import { UserTrainingResponseDto } from './dtos/responses/training-response.dto';
 import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
-import { ContractResponseDto } from './dtos/responses/contract-response.dto';
+import { UserContractResponseDto } from './dtos/responses/contract-response.dto';
 import {
   InventoryResponseDto,
   AccessoriesCategoryResponseDto,
 } from './dtos/responses/inventory-response.dto';
-import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
-import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-response.dto';
-import { AttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
+import { UserBoostResponseDto } from '../user-boost/dtos/responses/user-boost-response.dto';
+import { UserAccessoryResponseDto } from '../user-accessory/dtos/responses/user-accessory-response.dto';
+import { UserAttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
 import { UserTaskService } from '../task/services/user-task.service';
 import { TaskType } from '../task/enums/task-type.enum';
 import { UserTaskStatus } from '../task/enums/user-task-status.enum';
 import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
-import { UserTaskResponseDto } from '../task/dtos/user-task-response.dto';
+import { UserTaskResponseDto } from '../task/dtos/responses/user-task-response.dto';
 
 @Injectable()
 export class UserService {
@@ -177,14 +177,14 @@ export class UserService {
     }
   }
 
-  private async transformToUserMeResponseDto(
+  private async transformToCurrentUserResponseDto(
     user: User,
     equippedAccessories: any[],
     trainingCost: number,
     contractIncome: number,
     referrerMoneyReward: number,
     shieldBoostsMap?: Map<number, Date | null>,
-  ): Promise<UserMeResponseDto> {
+  ): Promise<CurrentUserResponseDto> {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
@@ -202,22 +202,13 @@ export class UserService {
       vk_id: transformed.vk_id,
       first_name: transformed.first_name,
       last_name: transformed.last_name,
-      sex: transformed.sex,
       image_path: transformed.image_path || null,
-      birthday_date: transformed.birthday_date,
       money: transformed.money,
       shield_end_time: shieldEndTime || undefined,
-      last_training_time: transformed.last_training_time,
-      last_contract_time: transformed.last_contract_time,
-      last_attack_time: transformed.last_attack_time,
-      clan_leave_time: transformed.clan_leave_time,
-      status: transformed.status,
-      registered_at: transformed.registered_at,
-      last_login_at: transformed.last_login_at,
       clan_id: transformed.clan_id,
       strength,
       guards_count: guardsCount,
-      equipped_accessories: equippedAccessories,
+      equipped_accessories: equippedAccessories || [],
       referral_link: transformed.referral_link,
       training_cost: trainingCost,
       contract_income: contractIncome,
@@ -231,7 +222,7 @@ export class UserService {
   private async transformToUserBasicStatsResponseDto(
     user: User,
     shieldBoostsMap?: Map<number, Date | null>,
-  ): Promise<UserWithBasicStatsResponseDto> {
+  ): Promise<UserBasicStatsResponseDto> {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
@@ -269,35 +260,20 @@ export class UserService {
     };
   }
 
-  private async transformToUserRatingResponseDto(
+  private transformToUserRatingResponseDto(
     user: User,
     equippedAccessories?: any[],
     shieldBoostsMap?: Map<number, Date | null>,
-  ): Promise<UserRatingResponseDto> {
+  ): UserRatingResponseDto {
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
-    const shieldEndTime = shieldBoostsMap
-      ? shieldBoostsMap.get(user.id) || null
-      : await this.getShieldEndTimeFromBoost(user.id);
 
     return {
       id: user.id,
       vk_id: user.vk_id,
       first_name: user.first_name,
       last_name: user.last_name,
-      sex: user.sex,
       image_path: user.image_path || null,
-      birthday_date: user.birthday_date,
-      money: user.money,
-      shield_end_time: shieldEndTime || undefined,
-      last_training_time: user.last_training_time,
-      last_contract_time: user.last_contract_time,
-      last_attack_time: user.last_attack_time,
-      clan_leave_time: user.clan_leave_time,
-      status: user.status,
-      registered_at: user.registered_at,
-      last_login_at: user.last_login_at,
-      clan_id: user.clan_id,
       strength,
       guards_count: guardsCount,
       equipped_accessories: equippedAccessories || null,
@@ -306,103 +282,33 @@ export class UserService {
 
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<UserWithBasicStatsResponseDto>> {
+  ): Promise<PaginatedResponseDto<UserBasicStatsResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const queryBuilder = this.userRepository
-      .createQueryBuilder('user')
-      .leftJoin('user.user_as_guard', 'user_as_guard')
-      .select([
-        'user.id',
-        'user.vk_id',
-        'user.first_name',
-        'user.last_name',
-        'user.sex',
-        'user.image_path',
-        'user.birthday_date',
-        'user.money',
-        'user.last_training_time',
-        'user.last_contract_time',
-        'user.last_attack_time',
-        'user.clan_leave_time',
-        'user.status',
-        'user.registered_at',
-        'user.last_login_at',
-        'user.clan_id',
-        'user.referral_link_id',
-        'user_as_guard.strength',
-      ])
-      .addSelect(
-        (subQuery) =>
-          subQuery
-            .select('COALESCE(SUM(ug.strength), 0)', 'sum')
-            .from(UserGuard, 'ug')
-            .where('ug.user_id = user.id'),
-        'total_strength',
-      )
-      .addSelect(
-        (subQuery) =>
-          subQuery
-            .select('COUNT(ug.id)', 'count')
-            .from(UserGuard, 'ug')
-            .where('ug.user_id = user.id'),
-        'guards_count',
-      )
-      .addSelect(
-        (subQuery) =>
-          subQuery
-            .select('COUNT(r.id)', 'count')
-            .from(User, 'r')
-            .where('r.referrerId = user.id'),
-        'referrals_count',
-      )
-      .orderBy('user.id', 'ASC')
-      .skip(skip)
-      .take(limit);
+    const [users, total] = await this.userRepository.findAndCount({
+      relations: ['guards', 'referrals'],
+      order: { id: 'ASC' },
+      skip,
+      take: limit,
+    });
 
-    const [rawData, total] = await Promise.all([
-      queryBuilder.getRawMany(),
-      this.userRepository.count(),
-    ]);
-
-    const userIds = rawData.map((row) => row.user_id);
+    const userIds = users.map((user) => user.id);
     const shieldBoostsMap =
       await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
 
-    const dataWithStrength = await Promise.all(
-      rawData.map(async (row) => {
-        const user = {
-          id: row.user_id,
-          vk_id: row.user_vk_id,
-          first_name: row.user_first_name,
-          last_name: row.user_last_name,
-          sex: row.user_sex,
-          image_path: row.user_image_path,
-          birthday_date: row.user_birthday_date,
-          money: row.user_money,
-          last_training_time: row.user_last_training_time,
-          last_contract_time: row.user_last_contract_time,
-          last_attack_time: row.user_last_attack_time,
-          clan_leave_time: row.user_clan_leave_time,
-          status: row.user_status,
-          registered_at: row.user_registered_at,
-          last_login_at: row.user_last_login_at,
-          clan_id: row.user_clan_id,
-          referral_link_id: row.user_referral_link_id,
-        } as User;
+    const dataWithStrength = users.map((user) => {
+      const guardsCount = this.getGuardsCount(user.guards || []);
+      const strength = this.calculateUserPower(user.guards || []);
+      const referralsCount = user.referrals ? user.referrals.length : 0;
+      const firstGuardStrength = user.user_as_guard?.strength
+        ? Number(user.user_as_guard.strength)
+        : null;
 
-        const guardsCount = parseInt(row.guards_count) || 0;
-        const strength = parseFloat(row.total_strength) || 0;
-        const referralsCount = parseInt(row.referrals_count) || 0;
-        const firstGuardStrength = row.user_as_guard_strength
-          ? Number(row.user_as_guard_strength)
-          : null;
-
-        const transformed = this.transformUserForResponse(user);
-        const shieldEndTime = shieldBoostsMap
-          ? shieldBoostsMap.get(user.id) || null
-          : await this.getShieldEndTimeFromBoost(user.id);
+      const transformed = this.transformUserForResponse(user);
+      const shieldEndTime = shieldBoostsMap
+        ? shieldBoostsMap.get(user.id) || null
+        : null;
 
         return {
           id: transformed.id,
@@ -427,9 +333,8 @@ export class UserService {
           first_guard_strength: firstGuardStrength,
           referral_link: transformed.referral_link,
           referrals_count: referralsCount,
-        } as UserWithBasicStatsResponseDto;
-      }),
-    );
+        } as UserBasicStatsResponseDto;
+    });
 
     return {
       data: dataWithStrength,
@@ -439,87 +344,21 @@ export class UserService {
     };
   }
 
-  async findOne(id: number): Promise<UserWithBasicStatsResponseDto> {
-    const queryBuilder = this.userRepository
-      .createQueryBuilder('user')
-      .leftJoin('user.user_as_guard', 'user_as_guard')
-      .where('user.id = :id', { id })
-      .select([
-        'user.id',
-        'user.vk_id',
-        'user.first_name',
-        'user.last_name',
-        'user.sex',
-        'user.image_path',
-        'user.birthday_date',
-        'user.money',
-        'user.last_training_time',
-        'user.last_contract_time',
-        'user.last_attack_time',
-        'user.clan_leave_time',
-        'user.status',
-        'user.registered_at',
-        'user.last_login_at',
-        'user.clan_id',
-        'user.referral_link_id',
-        'user_as_guard.strength',
-      ])
-      .addSelect(
-        (subQuery) =>
-          subQuery
-            .select('COALESCE(SUM(ug.strength), 0)', 'sum')
-            .from(UserGuard, 'ug')
-            .where('ug.user_id = user.id'),
-        'total_strength',
-      )
-      .addSelect(
-        (subQuery) =>
-          subQuery
-            .select('COUNT(ug.id)', 'count')
-            .from(UserGuard, 'ug')
-            .where('ug.user_id = user.id'),
-        'guards_count',
-      )
-      .addSelect(
-        (subQuery) =>
-          subQuery
-            .select('COUNT(r.id)', 'count')
-            .from(User, 'r')
-            .where('r.referrerId = user.id'),
-        'referrals_count',
-      );
+  async findOne(id: number): Promise<UserBasicStatsResponseDto> {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: ['guards', 'referrals'],
+    });
 
-    const rawData = await queryBuilder.getRawOne();
-
-    if (!rawData) {
+    if (!user) {
       throw new NotFoundException(`Пользователь с ID ${id} не найден`);
     }
 
-    const user = {
-      id: rawData.user_id,
-      vk_id: rawData.user_vk_id,
-      first_name: rawData.user_first_name,
-      last_name: rawData.user_last_name,
-      sex: rawData.user_sex,
-      image_path: rawData.user_image_path,
-      birthday_date: rawData.user_birthday_date,
-      money: rawData.user_money,
-      last_training_time: rawData.user_last_training_time,
-      last_contract_time: rawData.user_last_contract_time,
-      last_attack_time: rawData.user_last_attack_time,
-      clan_leave_time: rawData.user_clan_leave_time,
-      status: rawData.user_status,
-      registered_at: rawData.user_registered_at,
-      last_login_at: rawData.user_last_login_at,
-      clan_id: rawData.user_clan_id,
-      referral_link_id: rawData.user_referral_link_id,
-    } as User;
-
-    const guardsCount = parseInt(rawData.guards_count) || 0;
-    const strength = parseFloat(rawData.total_strength) || 0;
-    const referralsCount = parseInt(rawData.referrals_count) || 0;
-    const firstGuardStrength = rawData.user_as_guard_strength
-      ? Number(rawData.user_as_guard_strength)
+    const guardsCount = this.getGuardsCount(user.guards || []);
+    const strength = this.calculateUserPower(user.guards || []);
+    const referralsCount = user.referrals ? user.referrals.length : 0;
+    const firstGuardStrength = user.user_as_guard?.strength
+      ? Number(user.user_as_guard.strength)
       : null;
 
     const transformed = this.transformUserForResponse(user);
@@ -548,10 +387,10 @@ export class UserService {
       first_guard_strength: firstGuardStrength,
       referral_link: transformed.referral_link,
       referrals_count: referralsCount,
-    } as UserWithBasicStatsResponseDto;
+    } as UserBasicStatsResponseDto;
   }
 
-  async findMe(userId: number): Promise<UserMeResponseDto> {
+  async findMe(userId: number): Promise<CurrentUserResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards', 'referrals'],
@@ -571,7 +410,7 @@ export class UserService {
       SettingKey.REFERRER_MONEY_REWARD
     ] as number;
 
-    return await this.transformToUserMeResponseDto(
+    return await this.transformToCurrentUserResponseDto(
       user,
       equippedAccessories,
       training_cost,
@@ -583,7 +422,7 @@ export class UserService {
   async update(
     id: number,
     updateUserDto: UpdateUserDto,
-  ): Promise<UserWithBasicStatsResponseDto> {
+  ): Promise<UserBasicStatsResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['guards'],
@@ -598,7 +437,7 @@ export class UserService {
     return this.transformToUserBasicStatsResponseDto(updatedUser);
   }
 
-  async training(userId: number): Promise<TrainingResponseDto> {
+  async training(userId: number): Promise<UserTrainingResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -732,7 +571,7 @@ export class UserService {
     const referrerMoneyReward = Settings[
       SettingKey.REFERRER_MONEY_REWARD
     ] as number;
-    const userMe = await this.transformToUserMeResponseDto(
+    const userMe = await this.transformToCurrentUserResponseDto(
       updatedUser,
       equippedAccessories,
       training_cost,
@@ -749,7 +588,7 @@ export class UserService {
     };
   }
 
-  async contract(userId: number): Promise<ContractResponseDto> {
+  async contract(userId: number): Promise<UserContractResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -835,7 +674,7 @@ export class UserService {
     const referrerMoneyReward = Settings[
       SettingKey.REFERRER_MONEY_REWARD
     ] as number;
-    const userMe = await this.transformToUserMeResponseDto(
+    const userMe = await this.transformToCurrentUserResponseDto(
       user,
       equippedAccessories,
       training_cost,
@@ -936,7 +775,7 @@ export class UserService {
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['guards', 'guards.guard_as_user'],
+      relations: ['guards'],
     });
 
     if (!user) {
@@ -948,37 +787,48 @@ export class UserService {
     const total = allGuards.length;
     const paginatedGuards = allGuards.slice(skip, skip + limit);
 
-    const guards = await Promise.all(
-      paginatedGuards.map(async (guard) => {
-        const transformed: any = { ...guard };
-        delete transformed.user_id;
-        delete transformed.user;
+    const guardUserIds = paginatedGuards
+      .filter((guard) => guard.guard_as_user?.id)
+      .map((guard) => guard.guard_as_user!.id);
 
-        if (guard.guard_as_user) {
-          const guardUser = await this.userRepository.findOne({
-            where: { id: guard.guard_as_user.id },
+    const guardUsers =
+      guardUserIds.length > 0
+        ? await this.userRepository.find({
+            where: { id: In(guardUserIds) },
             relations: ['accessories', 'accessories.item_template'],
-          });
+          })
+        : [];
 
-          if (guardUser) {
-            const equippedAccessories =
-              await this.userAccessoryService.findEquippedByUserId(
-                guardUser.id,
-              );
-            transformed.guard_as_user = {
-              id: guardUser.id,
-              vk_id: guardUser.vk_id,
-              first_name: guardUser.first_name,
-              last_name: guardUser.last_name,
-              image_path: guardUser.image_path,
-              equipped_accessories: equippedAccessories,
-            };
-          }
+    const guardUsersMap = new Map(guardUsers.map((u) => [u.id, u]));
+    const equippedAccessoriesMap =
+      guardUserIds.length > 0
+        ? await this.userAccessoryService.findEquippedByUserIds(guardUserIds)
+        : new Map<number, any[]>();
+
+    const guards = paginatedGuards.map((guard) => {
+      const transformed: any = { ...guard };
+      delete transformed.user_id;
+      delete transformed.user;
+
+      if (guard.guard_as_user) {
+        const guardUser = guardUsersMap.get(guard.guard_as_user.id);
+
+        if (guardUser) {
+          const equippedAccessories =
+            equippedAccessoriesMap.get(guardUser.id) || [];
+          transformed.guard_as_user = {
+            id: guardUser.id,
+            vk_id: guardUser.vk_id,
+            first_name: guardUser.first_name,
+            last_name: guardUser.last_name,
+            image_path: guardUser.image_path,
+            equipped_accessories: equippedAccessories,
+          };
         }
+      }
 
-        return transformed as UserGuardResponseDto;
-      }),
-    );
+      return transformed as UserGuardResponseDto;
+    });
 
     return {
       data: guards,
@@ -1065,6 +915,8 @@ export class UserService {
           type: userTask.task.type,
           value: userTask.task.value,
           money_reward: Number(userTask.task.money_reward),
+          created_at: userTask.task.created_at,
+          updated_at: userTask.task.updated_at,
         },
         created_at: userTask.created_at,
         updated_at: userTask.updated_at,
@@ -1275,22 +1127,21 @@ export class UserService {
       const userIds = filteredUsers.map((user) => user.id);
       const shieldBoostsMap =
         await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+      const equippedAccessoriesMap =
+        await this.userAccessoryService.findEquippedByUserIds(userIds);
 
-      const dataWithStrength = await Promise.all(
-        filteredUsers.map(async (user) => {
-          const equippedAccessories =
-            await this.userAccessoryService.findEquippedByUserId(user.id);
-          return await this.transformToUserRatingResponseDto(
-            user,
-            equippedAccessories,
-            shieldBoostsMap,
-          );
-        }),
-      );
+      const dataWithStrength = filteredUsers.map((user) => {
+        const equippedAccessories = equippedAccessoriesMap.get(user.id) || [];
+        return this.transformToUserRatingResponseDto(
+          user,
+          equippedAccessories,
+          shieldBoostsMap,
+        );
+      });
 
       dataWithStrength.sort((a, b) => {
-        const scoreA = a.strength * 1000 + Number(a.money || 0);
-        const scoreB = b.strength * 1000 + Number(b.money || 0);
+        const scoreA = a.strength * 1000 + a.guards_count;
+        const scoreB = b.strength * 1000 + b.guards_count;
         return scoreB - scoreA;
       });
 
@@ -1312,7 +1163,7 @@ export class UserService {
       ] as number;
 
       users = await this.userRepository.find({
-        relations: ['clan', 'guards'],
+        relations: ['clan', 'guards', 'referrals'],
         where: {
           id: MoreThan(0),
         },
@@ -1370,42 +1221,27 @@ export class UserService {
         })
         .filter((user) => user.id !== userId);
 
-      const filteredUserIds = filteredUsers.map((user) => user.id);
-      let userIdsWithReferrals = new Set<number>();
-
-      if (filteredUserIds.length > 0) {
-        const usersWithReferrals = await this.userRepository
-          .createQueryBuilder('user')
-          .innerJoin('user.referrals', 'referral')
-          .where('user.id IN (:...ids)', { ids: filteredUserIds })
-          .select('user.id', 'userId')
-          .getRawMany();
-
-        userIdsWithReferrals = new Set(usersWithReferrals.map((u) => u.userId));
-      }
-
       const finalFilteredUsers = filteredUsers.filter((user) => {
         if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
           return true;
         }
-        return !userIdsWithReferrals.has(user.id);
+        return !user.referrals || user.referrals.length === 0;
       });
 
       const userIds = finalFilteredUsers.map((user) => user.id);
       const shieldBoostsMap =
         await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+      const equippedAccessoriesMap =
+        await this.userAccessoryService.findEquippedByUserIds(userIds);
 
-      const dataWithStrength = await Promise.all(
-        finalFilteredUsers.map(async (user) => {
-          const equippedAccessories =
-            await this.userAccessoryService.findEquippedByUserId(user.id);
-          return await this.transformToUserRatingResponseDto(
-            user,
-            equippedAccessories,
-            shieldBoostsMap,
-          );
-        }),
-      );
+      const dataWithStrength = finalFilteredUsers.map((user) => {
+        const equippedAccessories = equippedAccessoriesMap.get(user.id) || [];
+        return this.transformToUserRatingResponseDto(
+          user,
+          equippedAccessories,
+          shieldBoostsMap,
+        );
+      });
 
       dataWithStrength.sort((a, b) => {
         const isAInitialReferrer = this.isInitialReferrer(
@@ -1429,8 +1265,8 @@ export class UserService {
         if (distanceA !== distanceB) {
           return distanceA - distanceB;
         }
-        const scoreA = a.strength * 1000 + Number(a.money || 0);
-        const scoreB = b.strength * 1000 + Number(b.money || 0);
+        const scoreA = a.strength * 1000 + a.guards_count;
+        const scoreB = b.strength * 1000 + b.guards_count;
         return scoreB - scoreA;
       });
 
@@ -1504,22 +1340,21 @@ export class UserService {
     const userIds = filteredUsers.map((user) => user.id);
     const shieldBoostsMap =
       await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+    const equippedAccessoriesMap =
+      await this.userAccessoryService.findEquippedByUserIds(userIds);
 
-    const dataWithStrength = await Promise.all(
-      filteredUsers.map(async (user) => {
-        const equippedAccessories =
-          await this.userAccessoryService.findEquippedByUserId(user.id);
-        return await this.transformToUserRatingResponseDto(
-          user,
-          equippedAccessories,
-          shieldBoostsMap,
-        );
-      }),
-    );
+    const dataWithStrength = filteredUsers.map((user) => {
+      const equippedAccessories = equippedAccessoriesMap.get(user.id) || [];
+      return this.transformToUserRatingResponseDto(
+        user,
+        equippedAccessories,
+        shieldBoostsMap,
+      );
+    });
 
     dataWithStrength.sort((a, b) => {
-      const scoreA = a.strength * 1000 + Number(a.money || 0);
-      const scoreB = b.strength * 1000 + Number(b.money || 0);
+      const scoreA = a.strength * 1000 + a.guards_count;
+      const scoreB = b.strength * 1000 + b.guards_count;
       return scoreB - scoreA;
     });
 
@@ -1537,15 +1372,15 @@ export class UserService {
   async attackPlayer(
     userId: number,
     targetUserId: number,
-  ): Promise<AttackPlayerResponseDto> {
+  ): Promise<UserAttackPlayerResponseDto> {
     const attacker = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan', 'guards', 'user_as_guard'],
+      relations: ['clan', 'guards'],
     });
 
     const defender = await this.userRepository.findOne({
       where: { id: targetUserId },
-      relations: ['clan', 'guards', 'guards.guard_as_user', 'user_as_guard'],
+      relations: ['clan', 'guards'],
     });
 
     if (!attacker || !defender) {
@@ -1680,10 +1515,8 @@ export class UserService {
         const guardToSteal = capturableGuards[0];
         const stolenGuardId = guardToSteal.id;
 
-        await this.userGuardRepository.manager.query(
-          'UPDATE user_guard SET user_id = $1 WHERE id = $2',
-          [attacker.id, stolenGuardId],
-        );
+        guardToSteal.user = attacker;
+        await this.userGuardRepository.save(guardToSteal);
 
         const guardItem = this.stolenItemRepository.create({
           type: StolenItemType.GUARD,
@@ -1767,10 +1600,8 @@ export class UserService {
 
           for (const guard of guardsToCapture) {
             const guardId = guard.id;
-            await this.userGuardRepository.manager.query(
-              'UPDATE user_guard SET user_id = $1 WHERE id = $2',
-              [attacker.id, guardId],
-            );
+            guard.user = attacker;
+            await this.userGuardRepository.save(guard);
 
             const guardItem = this.stolenItemRepository.create({
               type: StolenItemType.GUARD,
@@ -1863,6 +1694,11 @@ export class UserService {
           )
         : new Map<number, Date | null>();
 
+    const opponentAccessoriesMap =
+      opponentIds.length > 0
+        ? await this.userAccessoryService.findEquippedByUserIds(opponentIds)
+        : new Map<number, any[]>();
+
     const guardIds = result.data
       .flatMap((event) => {
         if (!event.stolen_items) return [];
@@ -1891,55 +1727,53 @@ export class UserService {
 
     const transformedData = await Promise.all(
       result.data.map(async (event) => {
-        const { stolen_items, ...eventWithoutStolenItems } = event;
+      const { stolen_items, ...eventWithoutStolenItems } = event;
 
-        let stolenMoney = 0;
-        let stolenGuardsCount = 0;
-        let stolenStrength = 0;
+      let stolenMoney = 0;
+      let stolenGuardsCount = 0;
+      let stolenStrength = 0;
 
-        if (stolen_items && stolen_items.length > 0) {
-          const relevantItems =
-            event.type === EventHistoryType.ATTACK
-              ? stolen_items.filter(
-                  (item) => item.thief && item.thief.id === userId,
-                )
-              : stolen_items.filter(
-                  (item) => item.victim && item.victim.id === userId,
-                );
+      if (stolen_items && stolen_items.length > 0) {
+        const relevantItems =
+          event.type === EventHistoryType.ATTACK
+            ? stolen_items.filter(
+                (item) => item.thief && item.thief.id === userId,
+              )
+            : stolen_items.filter(
+                (item) => item.victim && item.victim.id === userId,
+              );
 
-          for (const item of relevantItems) {
-            if (item.type === StolenItemType.MONEY) {
-              stolenMoney += parseInt(item.value, 10) || 0;
-            } else if (item.type === StolenItemType.GUARD) {
-              stolenGuardsCount++;
-              const guardId = parseInt(item.value, 10);
-              if (guardId) {
-                const guard = guardsMap.get(guardId);
-                if (guard) {
-                  stolenStrength += Number(guard.strength) || 0;
-                }
+        for (const item of relevantItems) {
+          if (item.type === StolenItemType.MONEY) {
+            stolenMoney += parseInt(item.value, 10) || 0;
+          } else if (item.type === StolenItemType.GUARD) {
+            stolenGuardsCount++;
+            const guardId = parseInt(item.value, 10);
+            if (guardId) {
+              const guard = guardsMap.get(guardId);
+              if (guard) {
+                stolenStrength += Number(guard.strength) || 0;
               }
             }
           }
         }
+      }
 
-        let opponentDto: UserWithBasicStatsResponseDto | null = null;
+      let opponentDto: UserBasicStatsResponseDto | null = null;
 
-        if (event.opponent?.id) {
-          const equippedAccessories =
-            await this.userAccessoryService.findEquippedByUserId(
-              event.opponent.id,
-            );
-          const opponentBasicStats =
-            await this.transformToUserBasicStatsResponseDto(
-              event.opponent,
-              shieldBoostsMap,
-            );
-          opponentDto = {
-            ...opponentBasicStats,
-            equipped_accessories: equippedAccessories,
-          };
-        }
+      if (event.opponent?.id) {
+        const equippedAccessories =
+          opponentAccessoriesMap.get(event.opponent.id) || [];
+        const opponentBasicStats =
+          await this.transformToUserBasicStatsResponseDto(
+            event.opponent,
+            shieldBoostsMap,
+          );
+        opponentDto = {
+          ...opponentBasicStats,
+          equipped_accessories: equippedAccessories,
+        };
+      }
 
         const { user_id, opponent_id, user, opponent, ...eventWithoutIds } =
           eventWithoutStolenItems;

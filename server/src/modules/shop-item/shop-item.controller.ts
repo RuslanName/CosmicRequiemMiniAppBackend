@@ -22,7 +22,7 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { ShopItemService } from './shop-item.service';
-import { ShopItem } from './shop-item.entity';
+import { ShopItemResponseDto } from './dtos/responses/shop-item-response.dto';
 import { CreateShopItemDto } from './dtos/create-shop-item.dto';
 import { UpdateShopItemDto } from './dtos/update-shop-item.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -43,17 +43,17 @@ export class ShopItemController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить все товары магазина с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<ShopItem>,
+    type: PaginatedResponseDto<ShopItemResponseDto>,
     description: 'Список товаров магазина с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ShopItem>> {
+  ): Promise<PaginatedResponseDto<ShopItemResponseDto>> {
     return this.shopItemService.findAll(paginationDto);
   }
 
@@ -71,14 +71,12 @@ export class ShopItemController {
     name: 'page',
     required: false,
     type: Number,
-    example: 1,
     description: 'Общий номер страницы для всех категорий',
   })
   @ApiQuery({
     name: 'limit',
     required: false,
     type: Number,
-    example: 10,
     description: 'Общий лимит для всех категорий',
   })
   @ApiQuery({
@@ -109,15 +107,15 @@ export class ShopItemController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить товар магазина по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID товара' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID товара' })
   @ApiResponse({
     status: 200,
-    type: ShopItem,
+    type: ShopItemResponseDto,
     description: 'Информация о товаре',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Товар не найден' })
-  async findOne(@Param('id') id: string): Promise<ShopItem> {
+  async findOne(@Param('id') id: string): Promise<ShopItemResponseDto> {
     return this.shopItemService.findOne(+id);
   }
 
@@ -128,7 +126,7 @@ export class ShopItemController {
   @ApiBody({ type: CreateShopItemDto })
   @ApiResponse({
     status: 201,
-    type: ShopItem,
+    type: ShopItemResponseDto,
     description: 'Товар успешно создан',
   })
   @ApiResponse({
@@ -138,7 +136,7 @@ export class ShopItemController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
     @Body() createShopItemDto: CreateShopItemDto,
-  ): Promise<ShopItem> {
+  ): Promise<ShopItemResponseDto> {
     return this.shopItemService.create(createShopItemDto);
   }
 
@@ -146,11 +144,11 @@ export class ShopItemController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Обновить товар магазина' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID товара' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID товара' })
   @ApiBody({ type: UpdateShopItemDto })
   @ApiResponse({
     status: 200,
-    type: ShopItem,
+    type: ShopItemResponseDto,
     description: 'Товар успешно обновлен',
   })
   @ApiResponse({
@@ -162,7 +160,7 @@ export class ShopItemController {
   async update(
     @Param('id') id: string,
     @Body() updateShopItemDto: UpdateShopItemDto,
-  ): Promise<ShopItem> {
+  ): Promise<ShopItemResponseDto> {
     return this.shopItemService.update(+id, updateShopItemDto);
   }
 
@@ -170,7 +168,7 @@ export class ShopItemController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Удалить товар магазина' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID товара' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID товара' })
   @ApiResponse({
     status: 200,
     description: 'Товар успешно удален',

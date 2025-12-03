@@ -2,7 +2,7 @@ import { IsString, IsNumber, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class VKNotificationDto {
-  @ApiProperty({ example: 'get_item' })
+  @ApiProperty()
   @IsString()
   notification_type: string;
 
@@ -13,8 +13,6 @@ export class VKNotificationDto {
 
   @ApiProperty({
     required: false,
-    description:
-      'Альтернативное поле для item_id (VK может отправлять item вместо item_id)',
   })
   @IsOptional()
   @IsString()

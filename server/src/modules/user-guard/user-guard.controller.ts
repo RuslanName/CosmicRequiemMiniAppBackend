@@ -19,7 +19,7 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { UserGuardService } from './user-guard.service';
-import { UserGuard } from './user-guard.entity';
+import { UserGuardAdminResponseDto } from './dtos/responses/user-guard-admin-response.dto';
 import { CreateUserGuardDto } from './dtos/create-user-guard.dto';
 import { UpdateUserGuardDto } from './dtos/update-user-guard.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -35,31 +35,31 @@ export class UserGuardController {
 
   @Get()
   @ApiOperation({ summary: 'Получить всех стражей с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<UserGuard>,
+    type: PaginatedResponseDto<UserGuardAdminResponseDto>,
     description: 'Список стражей с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<UserGuard>> {
+  ): Promise<PaginatedResponseDto<UserGuardAdminResponseDto>> {
     return this.userGuardService.findAll(paginationDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить стража по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID стража' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID стража' })
   @ApiResponse({
     status: 200,
-    type: UserGuard,
+    type: UserGuardAdminResponseDto,
     description: 'Информация о страже',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Страж не найден' })
-  async findOne(@Param('id') id: string): Promise<UserGuard> {
+  async findOne(@Param('id') id: string): Promise<UserGuardAdminResponseDto> {
     return this.userGuardService.findOne(+id);
   }
 
@@ -72,7 +72,7 @@ export class UserGuardController {
   @ApiBody({ type: CreateUserGuardDto })
   @ApiResponse({
     status: 201,
-    type: UserGuard,
+    type: UserGuardAdminResponseDto,
     description: 'Страж успешно создан',
   })
   @ApiResponse({
@@ -83,7 +83,7 @@ export class UserGuardController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
     @Body() createUserGuardDto: CreateUserGuardDto,
-  ): Promise<UserGuard> {
+  ): Promise<UserGuardAdminResponseDto> {
     return this.userGuardService.create(createUserGuardDto);
   }
 
@@ -93,11 +93,11 @@ export class UserGuardController {
     description:
       'Обновляет информацию о страже. Если is_first=true и strength превышает max_strength_first_user_guard, будет установлено максимальное значение.',
   })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID стража' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID стража' })
   @ApiBody({ type: UpdateUserGuardDto })
   @ApiResponse({
     status: 200,
-    type: UserGuard,
+    type: UserGuardAdminResponseDto,
     description: 'Страж успешно обновлен',
   })
   @ApiResponse({
@@ -110,13 +110,13 @@ export class UserGuardController {
   async update(
     @Param('id') id: string,
     @Body() updateUserGuardDto: UpdateUserGuardDto,
-  ): Promise<UserGuard> {
+  ): Promise<UserGuardAdminResponseDto> {
     return this.userGuardService.update(+id, updateUserGuardDto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить стража' })
-  @ApiParam({ name: 'id', type: Number, example: 1, description: 'ID стража' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID стража' })
   @ApiResponse({
     status: 200,
     description: 'Страж успешно удален',

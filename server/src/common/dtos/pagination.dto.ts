@@ -4,8 +4,6 @@ import { Type } from 'class-transformer';
 
 export class PaginationDto {
   @ApiProperty({
-    example: 1,
-    description: 'Номер страницы',
     required: false,
     default: 1,
   })
@@ -15,8 +13,6 @@ export class PaginationDto {
   page?: number = 1;
 
   @ApiProperty({
-    example: 10,
-    description: 'Количество элементов на странице',
     required: false,
     default: 10,
   })

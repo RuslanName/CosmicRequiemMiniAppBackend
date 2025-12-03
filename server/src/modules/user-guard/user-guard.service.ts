@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserGuard } from './user-guard.entity';
+import { UserGuardAdminResponseDto } from './dtos/responses/user-guard-admin-response.dto';
 import { CreateUserGuardDto } from './dtos/create-user-guard.dto';
 import { UpdateUserGuardDto } from './dtos/update-user-guard.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -23,26 +24,42 @@ export class UserGuardService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  private transformToUserGuardAdminResponseDto(
+    userGuard: UserGuard,
+  ): UserGuardAdminResponseDto {
+    return {
+      id: userGuard.id,
+      name: userGuard.name,
+      strength: userGuard.strength,
+      is_first: userGuard.is_first,
+      user_id: userGuard.user_id,
+      created_at: userGuard.created_at,
+      updated_at: userGuard.updated_at,
+    };
+  }
+
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<UserGuard>> {
+  ): Promise<PaginatedResponseDto<UserGuardAdminResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.userGuardRepository.findAndCount({
+    const [userGuards, total] = await this.userGuardRepository.findAndCount({
       skip,
       take: limit,
     });
 
     return {
-      data,
+      data: userGuards.map((guard) =>
+        this.transformToUserGuardAdminResponseDto(guard),
+      ),
       total,
       page,
       limit,
     };
   }
 
-  async findOne(id: number): Promise<UserGuard> {
+  async findOne(id: number): Promise<UserGuardAdminResponseDto> {
     const userGuard = await this.userGuardRepository.findOne({
       where: { id },
       relations: ['user'],
@@ -52,10 +69,12 @@ export class UserGuardService {
       throw new NotFoundException(`Страж с ID ${id} не найден`);
     }
 
-    return userGuard;
+    return this.transformToUserGuardAdminResponseDto(userGuard);
   }
 
-  async create(createUserGuardDto: CreateUserGuardDto): Promise<UserGuard> {
+  async create(
+    createUserGuardDto: CreateUserGuardDto,
+  ): Promise<UserGuardAdminResponseDto> {
     const { user_id, ...rest } = createUserGuardDto;
 
     if (rest.is_first && rest.strength !== undefined) {
@@ -73,13 +92,14 @@ export class UserGuardService {
       ...rest,
       user: { id: user_id } as any,
     });
-    return this.userGuardRepository.save(userGuard);
+    const savedUserGuard = await this.userGuardRepository.save(userGuard);
+    return this.transformToUserGuardAdminResponseDto(savedUserGuard);
   }
 
   async update(
     id: number,
     updateUserGuardDto: UpdateUserGuardDto,
-  ): Promise<UserGuard> {
+  ): Promise<UserGuardAdminResponseDto> {
     const userGuard = await this.userGuardRepository.findOne({
       where: { id },
       relations: ['user'],
@@ -120,7 +140,8 @@ export class UserGuardService {
     }
 
     Object.assign(userGuard, rest);
-    return this.userGuardRepository.save(userGuard);
+    const savedUserGuard = await this.userGuardRepository.save(userGuard);
+    return this.transformToUserGuardAdminResponseDto(savedUserGuard);
   }
 
   async remove(id: number): Promise<void> {

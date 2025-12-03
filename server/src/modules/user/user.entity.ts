@@ -20,7 +20,6 @@ import { UserTask } from '../task/entities/user-task.entity';
 @Index(['clan_id'])
 @Index(['status'])
 @Index(['referrerId'])
-@Index(['image_path'])
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -115,6 +114,7 @@ export class User {
   @OneToOne(() => UserGuard, (guard) => guard.guard_as_user, {
     nullable: true,
     onDelete: 'SET NULL',
+    eager: true,
   })
   @JoinColumn({ name: 'user_as_guard_id' })
   user_as_guard?: UserGuard | null;

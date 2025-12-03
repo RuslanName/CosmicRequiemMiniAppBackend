@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class AttackEnemyResponseDto {
+export class ClanAttackEnemyResponseDto {
   @ApiProperty()
   win_chance: number;
 

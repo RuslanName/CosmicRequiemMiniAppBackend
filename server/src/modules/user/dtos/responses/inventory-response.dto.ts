@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserBoostResponseDto } from '../../../user-boost/dtos/user-boost-response.dto';
-import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/user-accessory-response.dto';
+import { UserBoostResponseDto } from '../../../user-boost/dtos/responses/user-boost-response.dto';
+import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/responses/user-accessory-response.dto';
 
 export class AccessoriesCategoryResponseDto {
   @ApiProperty({ type: [UserAccessoryResponseDto] })

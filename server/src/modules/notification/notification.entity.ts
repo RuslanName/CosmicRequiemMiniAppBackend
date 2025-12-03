@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -11,6 +12,7 @@ import { NotificationStatus } from './enums/notification-status.enum';
 import { User } from '../user/user.entity';
 
 @Entity()
+@Index(['user_id', 'status'])
 export class Notification {
   @PrimaryGeneratedColumn()
   id: number;

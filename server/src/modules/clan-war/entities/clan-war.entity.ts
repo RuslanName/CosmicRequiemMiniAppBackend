@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -13,6 +14,10 @@ import { Clan } from '../../clan/entities/clan.entity';
 import { StolenItem } from './stolen-item.entity';
 
 @Entity()
+@Index(['clan_1_id'])
+@Index(['clan_2_id'])
+@Index(['status'])
+@Index(['end_time', 'status'])
 export class ClanWar {
   @PrimaryGeneratedColumn()
   id: number;

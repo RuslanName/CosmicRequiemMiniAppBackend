@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { StolenItemType } from '../../enums/stolen-item-type.enum';
-import { UserWithBasicStatsResponseDto } from '../../../user/dtos/responses/user-with-basic-stats-response.dto';
+import { UserBasicStatsResponseDto } from '../../../user/dtos/responses/user-with-basic-stats-response.dto';
 
 export class StolenItemResponseDto {
   @ApiProperty()
@@ -13,18 +13,18 @@ export class StolenItemResponseDto {
   value: string;
 
   @ApiProperty({
-    type: () => UserWithBasicStatsResponseDto,
+    type: () => UserBasicStatsResponseDto,
     required: false,
     nullable: true,
   })
-  thief?: UserWithBasicStatsResponseDto | null;
+  thief?: UserBasicStatsResponseDto | null;
 
   @ApiProperty({
-    type: () => UserWithBasicStatsResponseDto,
+    type: () => UserBasicStatsResponseDto,
     required: false,
     nullable: true,
   })
-  victim?: UserWithBasicStatsResponseDto | null;
+  victim?: UserBasicStatsResponseDto | null;
 
   @ApiProperty({ required: false, nullable: true })
   clan_war_id?: number | null;

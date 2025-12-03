@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { TaskType } from '../enums/task-type.enum';
 
 export class UpdateTaskDto {
-  @ApiProperty({ required: false, example: 'Выполните 5 контрактов' })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   description?: string;
@@ -11,7 +11,6 @@ export class UpdateTaskDto {
   @ApiProperty({
     required: false,
     enum: TaskType,
-    example: TaskType.COMPLETE_CONTRACT,
   })
   @IsOptional()
   @IsEnum(TaskType)
@@ -19,8 +18,6 @@ export class UpdateTaskDto {
 
   @ApiProperty({
     required: false,
-    example: '5',
-    description: 'Количество раз для выполнения (опционально)',
   })
   @IsOptional()
   @IsString()
@@ -28,8 +25,6 @@ export class UpdateTaskDto {
 
   @ApiProperty({
     required: false,
-    example: 1000,
-    description: 'Денежная награда',
   })
   @IsOptional()
   @IsInt()

@@ -8,13 +8,11 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserGuardDto {
-  @ApiProperty({ example: 'Страж Альфа', description: 'Имя стража' })
+  @ApiProperty()
   @IsString()
   name: string;
 
   @ApiProperty({
-    example: 100,
-    description: 'Сила стража',
     required: false,
     default: 0,
   })
@@ -24,8 +22,6 @@ export class CreateUserGuardDto {
   strength?: number;
 
   @ApiProperty({
-    example: false,
-    description: 'Является ли страж первым (нельзя захватить)',
     required: false,
     default: false,
   })
@@ -33,7 +29,7 @@ export class CreateUserGuardDto {
   @IsOptional()
   is_first?: boolean;
 
-  @ApiProperty({ example: 1, description: 'ID пользователя-владельца' })
+  @ApiProperty()
   @IsNumber()
   user_id: number;
 }

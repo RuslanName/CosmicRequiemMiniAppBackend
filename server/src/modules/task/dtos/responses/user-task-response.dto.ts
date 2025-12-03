@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserTaskStatus } from '../enums/user-task-status.enum';
+import { UserTaskStatus } from '../../enums/user-task-status.enum';
 
 export class TaskResponseDto {
   @ApiProperty()
@@ -16,6 +16,12 @@ export class TaskResponseDto {
 
   @ApiProperty()
   money_reward: number;
+
+  @ApiProperty()
+  created_at: Date;
+
+  @ApiProperty()
+  updated_at: Date;
 }
 
 export class UserTaskResponseDto {
@@ -37,3 +43,4 @@ export class UserTaskResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
+

@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserMeResponseDto } from './user-me-response.dto';
+import { CurrentUserResponseDto } from './user-me-response.dto';
 
-export class TrainingResponseDto {
-  @ApiProperty({ type: () => UserMeResponseDto })
-  user: UserMeResponseDto;
+export class UserTrainingResponseDto {
+  @ApiProperty({ type: () => CurrentUserResponseDto })
+  user: CurrentUserResponseDto;
 
   @ApiProperty()
   training_cost: number;

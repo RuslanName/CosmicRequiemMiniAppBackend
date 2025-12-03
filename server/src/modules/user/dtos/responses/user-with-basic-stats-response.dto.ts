@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/user-accessory-response.dto';
+import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/responses/user-accessory-response.dto';
 
-export class UserWithBasicStatsResponseDto {
+export class UserBasicStatsResponseDto {
   @ApiProperty()
   id: number;
 
@@ -68,10 +68,6 @@ export class UserWithBasicStatsResponseDto {
   @ApiProperty()
   referrals_count: number;
 
-  @ApiProperty({
-    type: [UserAccessoryResponseDto],
-    required: false,
-    nullable: true,
-  })
-  equipped_accessories?: UserAccessoryResponseDto[] | null;
+  @ApiProperty({ type: [UserAccessoryResponseDto], required: false })
+  equipped_accessories?: UserAccessoryResponseDto[];
 }

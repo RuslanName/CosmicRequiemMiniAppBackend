@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LogoutResponseDto {
-  @ApiProperty({ example: true })
+  @ApiProperty()
   success: boolean;
 
-  @ApiProperty({ example: 'Выход выполнен успешно' })
+  @ApiProperty()
   message: string;
 }

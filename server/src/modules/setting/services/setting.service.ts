@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import { Setting } from '../setting.entity';
+import { SettingResponseDto } from '../dtos/responses/setting-response.dto';
 import { UpdateSettingDto } from '../dtos/update-setting.dto';
 import { PaginationDto } from '../../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../../common/dtos/paginated-response.dto';
@@ -19,9 +20,19 @@ export class SettingService {
     @InjectRedis() private readonly redis: Redis,
   ) {}
 
+  private transformToSettingResponseDto(setting: Setting): SettingResponseDto {
+    return {
+      id: setting.id,
+      key: setting.key,
+      value: setting.value,
+      created_at: setting.created_at,
+      updated_at: setting.updated_at,
+    };
+  }
+
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<Setting>> {
+  ): Promise<PaginatedResponseDto<SettingResponseDto>> {
     const page = Number(paginationDto.page) || 1;
     const limit = Number(paginationDto.limit) || 10;
     const skip = (page - 1) * limit;
@@ -31,7 +42,7 @@ export class SettingService {
       if (cached) {
         const allSettings: Setting[] = JSON.parse(cached);
         return {
-          data: allSettings,
+          data: allSettings.map((s) => this.transformToSettingResponseDto(s)),
           total: allSettings.length,
           page: 1,
           limit: allSettings.length,
@@ -52,24 +63,30 @@ export class SettingService {
       );
     }
 
-    return { data, total, page, limit };
+    return {
+      data: data.map((s) => this.transformToSettingResponseDto(s)),
+      total,
+      page,
+      limit,
+    };
   }
 
-  async findOne(id: number): Promise<Setting> {
+  async findOne(id: number): Promise<SettingResponseDto> {
     const setting = await this.settingRepository.findOne({ where: { id } });
     if (!setting)
       throw new NotFoundException(`Setting with ID ${id} not found`);
-    return setting;
+    return this.transformToSettingResponseDto(setting);
   }
 
-  async findByKey(key: string): Promise<Setting | null> {
-    return this.settingRepository.findOne({ where: { key } });
+  async findByKey(key: string): Promise<SettingResponseDto | null> {
+    const setting = await this.settingRepository.findOne({ where: { key } });
+    return setting ? this.transformToSettingResponseDto(setting) : null;
   }
 
   async update(
     id: number,
     updateSettingDto: UpdateSettingDto,
-  ): Promise<Setting> {
+  ): Promise<SettingResponseDto> {
     const setting = await this.settingRepository.findOne({ where: { id } });
     if (!setting)
       throw new NotFoundException(`Setting with ID ${id} not found`);
@@ -77,6 +94,6 @@ export class SettingService {
     Object.assign(setting, updateSettingDto);
     const saved = await this.settingRepository.save(setting);
     await this.redis.del(this.SETTINGS_CACHE_KEY);
-    return saved;
+    return this.transformToSettingResponseDto(saved);
   }
 }

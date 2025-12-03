@@ -2,12 +2,12 @@ import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateGiveawayDto {
-  @ApiProperty({ example: 'Конкурс на лучшего игрока месяца' })
+  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ example: 'https://vk.com/contest' })
+  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   url: string;

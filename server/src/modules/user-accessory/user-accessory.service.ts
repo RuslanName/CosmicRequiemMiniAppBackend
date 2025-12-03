@@ -13,11 +13,11 @@ import { ItemTemplateType } from '../item-template/enums/item-template-type.enum
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { User } from '../user/user.entity';
-import { UserAccessoryResponseDto } from './dtos/user-accessory-response.dto';
+import { UserAccessoryResponseDto } from './dtos/responses/user-accessory-response.dto';
 import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/enums/setting-key.enum';
-import { UserMeResponseDto } from '../user/dtos/responses/user-me-response.dto';
-import { UserBoostResponseDto } from '../user-boost/dtos/user-boost-response.dto';
+import { CurrentUserResponseDto } from '../user/dtos/responses/user-me-response.dto';
+import { UserBoostResponseDto } from '../user-boost/dtos/responses/user-boost-response.dto';
 import { UserService } from '../user/user.service';
 
 @Injectable()
@@ -218,7 +218,7 @@ export class UserAccessoryService {
   async activateShield(
     userId: number,
     accessoryId: number,
-  ): Promise<{ user: UserMeResponseDto; user_boost: UserBoostResponseDto }> {
+  ): Promise<{ user: CurrentUserResponseDto; user_boost: UserBoostResponseDto }> {
     const accessory = await this.userAccessoryRepository.findOne({
       where: { id: accessoryId },
       relations: ['user', 'item_template'],

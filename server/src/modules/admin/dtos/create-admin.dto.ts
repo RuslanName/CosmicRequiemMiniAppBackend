@@ -2,15 +2,15 @@ import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAdminDto {
-  @ApiProperty({ example: 1 })
+  @ApiProperty()
   @IsNumber()
   user_id: number;
 
-  @ApiProperty({ example: 'admin' })
+  @ApiProperty()
   @IsString()
   username: string;
 
-  @ApiProperty({ example: 'password123' })
+  @ApiProperty()
   @IsString()
   password: string;
 }

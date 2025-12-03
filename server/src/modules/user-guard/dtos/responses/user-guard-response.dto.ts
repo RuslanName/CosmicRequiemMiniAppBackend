@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/user-accessory-response.dto';
+import { UserAccessoryResponseDto } from '../../../user-accessory/dtos/responses/user-accessory-response.dto';
 
 class GuardAsUserDto {
   @ApiProperty()
@@ -17,9 +17,6 @@ class GuardAsUserDto {
   @ApiProperty({ required: false, nullable: true })
   image_path?: string | null;
 
-  @ApiProperty({ required: false, nullable: true })
-  profile_url?: string | null;
-
   @ApiProperty({ type: [UserAccessoryResponseDto] })
   equipped_accessories: UserAccessoryResponseDto[];
 }
@@ -36,12 +33,6 @@ export class UserGuardResponseDto {
 
   @ApiProperty()
   is_first: boolean;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 
   @ApiProperty({ type: () => GuardAsUserDto, required: false, nullable: true })
   guard_as_user?: GuardAsUserDto | null;

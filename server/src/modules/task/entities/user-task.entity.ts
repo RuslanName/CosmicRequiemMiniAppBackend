@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,6 +13,8 @@ import { Task } from './task.entity';
 import { UserTaskStatus } from '../enums/user-task-status.enum';
 
 @Entity()
+@Index(['user_id'])
+@Index(['user_id', 'task_id'])
 export class UserTask {
   @PrimaryGeneratedColumn()
   id: number;

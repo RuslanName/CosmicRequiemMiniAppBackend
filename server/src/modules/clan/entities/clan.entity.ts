@@ -40,7 +40,7 @@ export class Clan {
   @Column({ type: 'int', nullable: true })
   leader_id: number | null;
 
-  @ManyToOne(() => User, { onDelete: 'SET NULL' })
+  @ManyToOne(() => User, { onDelete: 'SET NULL', eager: true })
   @JoinColumn({ name: 'leader_id' })
   leader: User;
 

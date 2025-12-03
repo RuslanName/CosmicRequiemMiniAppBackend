@@ -10,9 +10,7 @@ import {
 
 export class GetFriendsDto {
   @ApiProperty({
-    description: 'Список VK ID друзей',
     type: [Number],
-    example: [123456, 789012],
   })
   @IsArray()
   @ArrayMinSize(1, { message: 'Список друзей не может быть пустым' })
@@ -21,10 +19,7 @@ export class GetFriendsDto {
   friend_vk_ids: number[];
 
   @ApiProperty({
-    description:
-      'VK Access Token пользователя для проверки прав на получение списка друзей',
     required: false,
-    example: 'vk1.a.xxx...',
   })
   @IsOptional()
   @IsString()

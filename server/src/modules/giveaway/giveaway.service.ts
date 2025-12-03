@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Express } from 'express';
 import { Giveaway } from './giveaway.entity';
+import { GiveawayResponseDto } from './dtos/responses/giveaway-response.dto';
 import { CreateGiveawayDto } from './dtos/create-giveaway.dto';
 import { UpdateGiveawayDto } from './dtos/update-giveaway.dto';
 
@@ -19,14 +20,23 @@ export class GiveawayService {
     private readonly giveawayRepository: Repository<Giveaway>,
   ) {}
 
-  async findOne(): Promise<Giveaway | null> {
-    return this.giveawayRepository.findOne({
+  private transformToGiveawayResponseDto(giveaway: Giveaway): GiveawayResponseDto {
+    return {
+      id: giveaway.id,
+      url: giveaway.url,
+      image_path: giveaway.image_path,
+    };
+  }
+
+  async findOne(): Promise<GiveawayResponseDto | null> {
+    const giveaway = await this.giveawayRepository.findOne({
       where: {},
       order: { created_at: 'DESC' },
     });
+    return giveaway ? this.transformToGiveawayResponseDto(giveaway) : null;
   }
 
-  async findAvailable(): Promise<Giveaway | null> {
+  async findAvailable(): Promise<GiveawayResponseDto | null> {
     return this.findOne();
   }
 
@@ -61,7 +71,7 @@ export class GiveawayService {
   async create(
     createGiveawayDto: CreateGiveawayDto,
     image?: Express.Multer.File,
-  ): Promise<Giveaway> {
+  ): Promise<GiveawayResponseDto> {
     const existingGiveaway = await this.giveawayRepository.findOne({
       where: {},
       order: { created_at: 'DESC' },
@@ -78,14 +88,15 @@ export class GiveawayService {
       ...createGiveawayDto,
       image_path: imagePath,
     });
-    return this.giveawayRepository.save(giveaway);
+    const savedGiveaway = await this.giveawayRepository.save(giveaway);
+    return this.transformToGiveawayResponseDto(savedGiveaway);
   }
 
   async update(
     id: number,
     updateGiveawayDto: UpdateGiveawayDto,
     image?: Express.Multer.File,
-  ): Promise<Giveaway> {
+  ): Promise<GiveawayResponseDto> {
     const giveaway = await this.giveawayRepository.findOne({ where: { id } });
 
     if (!giveaway) {
@@ -104,7 +115,8 @@ export class GiveawayService {
     }
 
     Object.assign(giveaway, updateGiveawayDto);
-    return this.giveawayRepository.save(giveaway);
+    const savedGiveaway = await this.giveawayRepository.save(giveaway);
+    return this.transformToGiveawayResponseDto(savedGiveaway);
   }
 
   async remove(id: number): Promise<void> {

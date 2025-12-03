@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ItemTemplate } from './item-template.entity';
+import { ItemTemplateResponseDto } from './dtos/responses/item-template-response.dto';
 import { CreateItemTemplateDto } from './dtos/create-item-template.dto';
 import { UpdateItemTemplateDto } from './dtos/update-item-template.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -31,9 +32,25 @@ export class ItemTemplateService {
     private readonly userAccessoryRepository: Repository<UserAccessory>,
   ) {}
 
+  private transformToItemTemplateResponseDto(
+    itemTemplate: ItemTemplate,
+  ): ItemTemplateResponseDto {
+    return {
+      id: itemTemplate.id,
+      name: itemTemplate.name,
+      type: itemTemplate.type,
+      value: itemTemplate.value,
+      image_path: itemTemplate.image_path,
+      quantity: itemTemplate.quantity,
+      name_in_kit: itemTemplate.name_in_kit,
+      created_at: itemTemplate.created_at,
+      updated_at: itemTemplate.updated_at,
+    };
+  }
+
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ItemTemplate>> {
+  ): Promise<PaginatedResponseDto<ItemTemplateResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -43,14 +60,14 @@ export class ItemTemplateService {
     });
 
     return {
-      data,
+      data: data.map((it) => this.transformToItemTemplateResponseDto(it)),
       total,
       page,
       limit,
     };
   }
 
-  async findOne(id: number): Promise<ItemTemplate> {
+  async findOne(id: number): Promise<ItemTemplateResponseDto> {
     const itemTemplate = await this.itemTemplateRepository.findOne({
       where: { id },
     });
@@ -59,7 +76,7 @@ export class ItemTemplateService {
       throw new NotFoundException(`Шаблон предмета с ID ${id} не найден`);
     }
 
-    return itemTemplate;
+    return this.transformToItemTemplateResponseDto(itemTemplate);
   }
 
   private validateItemTemplateValue(
@@ -136,7 +153,7 @@ export class ItemTemplateService {
   async create(
     createItemTemplateDto: CreateItemTemplateDto,
     image?: Express.Multer.File,
-  ): Promise<ItemTemplate> {
+  ): Promise<ItemTemplateResponseDto> {
     if (createItemTemplateDto.value) {
       this.validateItemTemplateValue(
         createItemTemplateDto.type,
@@ -149,14 +166,15 @@ export class ItemTemplateService {
       ...createItemTemplateDto,
       image_path: imagePath,
     });
-    return this.itemTemplateRepository.save(itemTemplate);
+    const savedItemTemplate = await this.itemTemplateRepository.save(itemTemplate);
+    return this.transformToItemTemplateResponseDto(savedItemTemplate);
   }
 
   async update(
     id: number,
     updateItemTemplateDto: UpdateItemTemplateDto,
     image?: Express.Multer.File,
-  ): Promise<ItemTemplate> {
+  ): Promise<ItemTemplateResponseDto> {
     const itemTemplate = await this.itemTemplateRepository.findOne({
       where: { id },
     });
@@ -190,7 +208,8 @@ export class ItemTemplateService {
     }
 
     Object.assign(itemTemplate, updateItemTemplateDto);
-    return this.itemTemplateRepository.save(itemTemplate);
+    const savedItemTemplate = await this.itemTemplateRepository.save(itemTemplate);
+    return this.transformToItemTemplateResponseDto(savedItemTemplate);
   }
 
   async remove(id: number): Promise<void> {
@@ -212,11 +231,12 @@ export class ItemTemplateService {
       );
     }
 
-    const kits = await this.kitRepository
-      .createQueryBuilder('kit')
-      .innerJoin('kit.item_templates', 'itemTemplate')
-      .where('itemTemplate.id = :id', { id })
-      .getMany();
+    const allKits = await this.kitRepository.find({
+      relations: ['item_templates'],
+    });
+    const kits = allKits.filter((kit) =>
+      kit.item_templates?.some((template) => template.id === id),
+    );
 
     if (kits.length > 0) {
       throw new BadRequestException(

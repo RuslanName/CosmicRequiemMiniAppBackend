@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { HealthResponseDto } from './app/dtos/responses/health-response.dto';
 
 @ApiTags('Health')
 @Controller()
@@ -11,18 +12,10 @@ export class AppController {
   })
   @ApiResponse({
     status: 200,
+    type: HealthResponseDto,
     description: 'Сервер работает',
-    schema: {
-      type: 'object',
-      properties: {
-        status: {
-          type: 'string',
-          example: 'ok',
-        },
-      },
-    },
   })
-  health() {
+  health(): HealthResponseDto {
     return { status: 'ok' };
   }
 }

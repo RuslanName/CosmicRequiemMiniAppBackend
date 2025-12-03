@@ -31,22 +31,22 @@ import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 import { EquipAccessoryDto } from '../user-accessory/dtos/equip-accessory.dto';
 import { AttackPlayerDto } from './dtos/attack-player.dto';
 import { ActivateShieldDto } from './dtos/activate-shield.dto';
-import { UserWithBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
-import { UserMeResponseDto } from './dtos/responses/user-me-response.dto';
+import { UserBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
+import { CurrentUserResponseDto } from './dtos/responses/user-me-response.dto';
 import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
 import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
-import { TrainingResponseDto } from './dtos/responses/training-response.dto';
-import { ContractResponseDto } from './dtos/responses/contract-response.dto';
-import { AttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
+import { UserTrainingResponseDto } from './dtos/responses/training-response.dto';
+import { UserContractResponseDto } from './dtos/responses/contract-response.dto';
+import { UserAttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
 import { InventoryResponseDto } from './dtos/responses/inventory-response.dto';
 import { EventHistoryItemResponseDto } from './dtos/responses/event-history-item-response.dto';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
-import { ActivateShieldResponseDto } from './dtos/responses/activate-shield-response.dto';
-import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-response.dto';
+import { ShieldActivateResponseDto } from './dtos/responses/activate-shield-response.dto';
+import { UserAccessoryResponseDto } from '../user-accessory/dtos/responses/user-accessory-response.dto';
 import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
 import { CheckCommunitySubscribeDto } from './dtos/check-community-subscribe.dto';
 import { GetFriendsDto } from './dtos/get-friends.dto';
-import { CommunitySubscribeResponseDto } from './dtos/responses/community-subscribe-response.dto';
+import { SubscribeCommunityResponseDto } from './dtos/responses/community-subscribe-response.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -60,17 +60,17 @@ export class UserController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Получить всех пользователей с пагинацией' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<UserWithBasicStatsResponseDto>,
+    type: PaginatedResponseDto<UserBasicStatsResponseDto>,
     description: 'Список пользователей с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<UserWithBasicStatsResponseDto>> {
+  ): Promise<PaginatedResponseDto<UserBasicStatsResponseDto>> {
     return this.userService.findAll(paginationDto);
   }
 
@@ -83,13 +83,13 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    type: UserMeResponseDto,
+    type: CurrentUserResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async findMe(
     @Request() req: AuthenticatedRequest,
-  ): Promise<UserMeResponseDto> {
+  ): Promise<CurrentUserResponseDto> {
     return this.userService.findMe(req.user.id);
   }
 
@@ -104,7 +104,7 @@ export class UserController {
   @ApiBody({ required: false })
   @ApiResponse({
     status: 200,
-    type: TrainingResponseDto,
+    type: UserTrainingResponseDto,
     description: 'Тренировка успешно выполнена',
   })
   @ApiResponse({
@@ -116,7 +116,7 @@ export class UserController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async training(
     @Request() req: AuthenticatedRequest,
-  ): Promise<TrainingResponseDto> {
+  ): Promise<UserTrainingResponseDto> {
     return this.userService.training(req.user.id);
   }
 
@@ -131,7 +131,7 @@ export class UserController {
   @ApiBody({ required: false })
   @ApiResponse({
     status: 200,
-    type: ContractResponseDto,
+    type: UserContractResponseDto,
     description: 'Контракт успешно выполнен',
   })
   @ApiResponse({
@@ -142,7 +142,7 @@ export class UserController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async contract(
     @Request() req: AuthenticatedRequest,
-  ): Promise<ContractResponseDto> {
+  ): Promise<UserContractResponseDto> {
     return this.userService.contract(req.user.id);
   }
 
@@ -156,8 +156,8 @@ export class UserController {
     description:
       'Возвращает рейтинг пользователей, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<UserRatingResponseDto>,
@@ -185,12 +185,11 @@ export class UserController {
     name: 'filter',
     required: false,
     enum: ['top', 'suitable', 'friends'],
-    example: 'top',
     description:
       'Фильтр: top - все пользователи, suitable - подходящие по силе, friends - друзья',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<UserRatingResponseDto>,
@@ -252,19 +251,18 @@ export class UserController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID пользователя',
   })
   @ApiResponse({
     status: 200,
-    type: UserWithBasicStatsResponseDto,
+    type: UserBasicStatsResponseDto,
     description: 'Информация о пользователе',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async findOne(
     @Param('id') id: string,
-  ): Promise<UserWithBasicStatsResponseDto> {
+  ): Promise<UserBasicStatsResponseDto> {
     return this.userService.findOne(+id);
   }
 
@@ -275,13 +273,12 @@ export class UserController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID пользователя',
   })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({
     status: 200,
-    type: UserWithBasicStatsResponseDto,
+    type: UserBasicStatsResponseDto,
     description: 'Пользователь успешно обновлен',
   })
   @ApiResponse({
@@ -293,7 +290,7 @@ export class UserController {
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
-  ): Promise<UserWithBasicStatsResponseDto> {
+  ): Promise<UserBasicStatsResponseDto> {
     return this.userService.update(+id, updateUserDto);
   }
 
@@ -310,14 +307,12 @@ export class UserController {
     name: 'page',
     required: false,
     type: Number,
-    example: 1,
     description: 'Общий номер страницы для всех категорий аксессуаров',
   })
   @ApiQuery({
     name: 'limit',
     required: false,
     type: Number,
-    example: 10,
     description: 'Общий лимит для всех категорий аксессуаров',
   })
   @ApiQuery({
@@ -354,8 +349,8 @@ export class UserController {
     description:
       'Возвращает список стражей пользователя с пагинацией, отсортированных по силе (от самых сильных к менее сильным)',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<UserGuardResponseDto>,
@@ -404,7 +399,6 @@ export class UserController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID аксессуара для снятия',
   })
   @ApiResponse({
@@ -432,7 +426,7 @@ export class UserController {
   @ApiBody({ type: AttackPlayerDto })
   @ApiResponse({
     status: 200,
-    type: AttackPlayerResponseDto,
+    type: UserAttackPlayerResponseDto,
     description: 'Результат атаки',
   })
   @ApiResponse({
@@ -445,7 +439,7 @@ export class UserController {
   async attackPlayer(
     @Request() req: AuthenticatedRequest,
     @Body() attackPlayerDto: AttackPlayerDto,
-  ): Promise<AttackPlayerResponseDto> {
+  ): Promise<UserAttackPlayerResponseDto> {
     return this.userService.attackPlayer(
       req.user.id,
       attackPlayerDto.target_user_id,
@@ -460,8 +454,8 @@ export class UserController {
   @ApiOperation({
     summary: 'Получить историю событий пользователя (Для Mini App)',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<EventHistoryItemResponseDto>,
@@ -483,7 +477,7 @@ export class UserController {
   @ApiResponse({
     status: 200,
     description: 'Щит успешно активирован',
-    type: ActivateShieldResponseDto,
+    type: ShieldActivateResponseDto,
   })
   @ApiResponse({
     status: 400,
@@ -494,7 +488,7 @@ export class UserController {
   async activateShield(
     @Request() req: AuthenticatedRequest,
     @Body() activateShieldDto: ActivateShieldDto,
-  ): Promise<ActivateShieldResponseDto> {
+  ): Promise<ShieldActivateResponseDto> {
     return this.userAccessoryService.activateShield(
       req.user.id,
       activateShieldDto.accessory_id,
@@ -533,7 +527,7 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    type: CommunitySubscribeResponseDto,
+    type: SubscribeCommunityResponseDto,
     description: 'Проверка выполнена',
   })
   @ApiResponse({
@@ -549,7 +543,7 @@ export class UserController {
   async checkCommunitySubscribe(
     @Request() req: AuthenticatedRequest,
     @Body() checkCommunitySubscribeDto: CheckCommunitySubscribeDto,
-  ): Promise<CommunitySubscribeResponseDto> {
+  ): Promise<SubscribeCommunityResponseDto> {
     return this.userService.checkCommunitySubscribe(
       req.user.id,
       checkCommunitySubscribeDto.task_id,

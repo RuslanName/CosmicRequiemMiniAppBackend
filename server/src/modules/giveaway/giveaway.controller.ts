@@ -23,7 +23,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { GiveawayService } from './giveaway.service';
-import { Giveaway } from './giveaway.entity';
+import { GiveawayResponseDto } from './dtos/responses/giveaway-response.dto';
 import { CreateGiveawayDto } from './dtos/create-giveaway.dto';
 import { UpdateGiveawayDto } from './dtos/update-giveaway.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
@@ -44,11 +44,11 @@ export class GiveawayController {
   })
   @ApiResponse({
     status: 200,
-    type: Giveaway,
+    type: GiveawayResponseDto,
     description: 'Информация о доступном конкурсе или null, если конкурса нет',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async findAvailable(): Promise<Giveaway | null> {
+  async findAvailable(): Promise<GiveawayResponseDto | null> {
     return this.giveawayService.findAvailable();
   }
 
@@ -61,11 +61,11 @@ export class GiveawayController {
   })
   @ApiResponse({
     status: 200,
-    type: Giveaway,
+    type: GiveawayResponseDto,
     description: 'Информация о конкурсе или null, если конкурса нет',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async findOne(): Promise<Giveaway | null> {
+  async findOne(): Promise<GiveawayResponseDto | null> {
     return this.giveawayService.findOne();
   }
 
@@ -82,7 +82,7 @@ export class GiveawayController {
   @ApiBody({ type: CreateGiveawayDto })
   @ApiResponse({
     status: 201,
-    type: Giveaway,
+    type: GiveawayResponseDto,
     description: 'Конкурс успешно создан',
   })
   @ApiResponse({
@@ -94,7 +94,7 @@ export class GiveawayController {
   async create(
     @Body() createGiveawayDto: CreateGiveawayDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<Giveaway> {
+  ): Promise<GiveawayResponseDto> {
     return this.giveawayService.create(createGiveawayDto, image);
   }
 
@@ -107,13 +107,12 @@ export class GiveawayController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID конкурса',
   })
   @ApiBody({ type: UpdateGiveawayDto })
   @ApiResponse({
     status: 200,
-    type: Giveaway,
+    type: GiveawayResponseDto,
     description: 'Конкурс успешно обновлен',
   })
   @ApiResponse({
@@ -126,7 +125,7 @@ export class GiveawayController {
     @Param('id') id: string,
     @Body() updateGiveawayDto: UpdateGiveawayDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<Giveaway> {
+  ): Promise<GiveawayResponseDto> {
     return this.giveawayService.update(+id, updateGiveawayDto, image);
   }
 
@@ -137,7 +136,6 @@ export class GiveawayController {
   @ApiParam({
     name: 'id',
     type: Number,
-    example: 1,
     description: 'ID конкурса',
   })
   @ApiResponse({
