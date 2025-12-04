@@ -59,11 +59,20 @@ export class UserAccessoryService {
   }
 
   async findByUserId(userId: number): Promise<UserAccessoryResponseDto[]> {
-    const accessories = await this.userAccessoryRepository.find({
-      where: { user: { id: userId } },
-      relations: ['item_template'],
-      order: { created_at: 'DESC' },
-    });
+    const accessories = await this.userAccessoryRepository
+      .createQueryBuilder('accessory')
+      .leftJoinAndSelect('accessory.item_template', 'item_template')
+      .select([
+        'accessory.id',
+        'accessory.status',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+      ])
+      .where('accessory.user_id = :userId', { userId })
+      .orderBy('accessory.created_at', 'DESC')
+      .getMany();
 
     return accessories.map((accessory) =>
       this.transformToUserAccessoryResponseDto(accessory),
@@ -73,13 +82,22 @@ export class UserAccessoryService {
   async findEquippedByUserId(
     userId: number,
   ): Promise<UserAccessoryResponseDto[]> {
-    const accessories = await this.userAccessoryRepository.find({
-      where: {
-        user: { id: userId },
+    const accessories = await this.userAccessoryRepository
+      .createQueryBuilder('accessory')
+      .leftJoinAndSelect('accessory.item_template', 'item_template')
+      .select([
+        'accessory.id',
+        'accessory.status',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+      ])
+      .where('accessory.user_id = :userId', { userId })
+      .andWhere('accessory.status = :status', {
         status: UserAccessoryStatus.EQUIPPED,
-      },
-      relations: ['item_template'],
-    });
+      })
+      .getMany();
 
     return accessories.map((accessory) =>
       this.transformToUserAccessoryResponseDto(accessory),
@@ -93,13 +111,24 @@ export class UserAccessoryService {
       return new Map();
     }
 
-    const accessories = await this.userAccessoryRepository.find({
-      where: {
-        user: { id: In(userIds) },
+    const accessories = await this.userAccessoryRepository
+      .createQueryBuilder('accessory')
+      .leftJoinAndSelect('accessory.item_template', 'item_template')
+      .leftJoin('accessory.user', 'user')
+      .select([
+        'accessory.id',
+        'accessory.user_id',
+        'accessory.status',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+      ])
+      .where('accessory.user_id IN (:...userIds)', { userIds })
+      .andWhere('accessory.status = :status', {
         status: UserAccessoryStatus.EQUIPPED,
-      },
-      relations: ['user', 'item_template'],
-    });
+      })
+      .getMany();
 
     const accessoriesMap = new Map<number, UserAccessoryResponseDto[]>();
     for (const userId of userIds) {
@@ -107,14 +136,7 @@ export class UserAccessoryService {
     }
 
     for (const accessory of accessories) {
-      if (
-        !accessory ||
-        !accessory.user ||
-        typeof accessory.user.id !== 'number'
-      ) {
-        continue;
-      }
-      const userId = accessory.user.id;
+      const userId = accessory.user_id;
       if (!accessoriesMap.has(userId)) {
         continue;
       }

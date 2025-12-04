@@ -9,7 +9,6 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { UserStatus } from './enums/user-status.enum';
 import { Clan } from '../clan/entities/clan.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
@@ -18,7 +17,6 @@ import { UserTask } from '../task/entities/user-task.entity';
 
 @Entity()
 @Index(['clan_id'])
-@Index(['status'])
 @Index(['referrerId'])
 @Index(['strength'])
 @Index(['guards_count'])
@@ -72,13 +70,6 @@ export class User {
 
   @Column({ type: 'timestamp', nullable: true })
   adv_disable_end_time?: Date;
-
-  @Column({
-    type: 'enum',
-    enum: UserStatus,
-    default: UserStatus.WAITING,
-  })
-  status: UserStatus;
 
   @CreateDateColumn()
   registered_at: Date;

@@ -15,32 +15,35 @@ export class TaskService {
     private readonly taskRepository: Repository<Task>,
   ) {}
 
-  private transformToTaskResponseDto(task: Task): TaskResponseDto {
-    return {
-      id: task.id,
-      description: task.description,
-      type: task.type,
-      value: task.value,
-      money_reward: task.money_reward,
-      created_at: task.created_at,
-      updated_at: task.updated_at,
-    };
-  }
-
   async findAll(
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<TaskResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [tasks, total] = await this.taskRepository.findAndCount({
-      skip,
-      take: limit,
-      order: { created_at: 'DESC' },
-    });
+    const queryBuilder = this.taskRepository
+      .createQueryBuilder('task')
+      .select([
+        'task.id',
+        'task.description',
+        'task.type',
+        'task.value',
+        'task.money_reward',
+      ])
+      .orderBy('task.created_at', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    const [tasks, total] = await queryBuilder.getManyAndCount();
 
     return {
-      data: tasks.map((task) => this.transformToTaskResponseDto(task)),
+      data: tasks.map((task) => ({
+        id: task.id,
+        description: task.description,
+        type: task.type,
+        value: task.value,
+        money_reward: task.money_reward,
+      })),
       total,
       page,
       limit,
@@ -48,21 +51,41 @@ export class TaskService {
   }
 
   async findOne(id: number): Promise<TaskResponseDto> {
-    const task = await this.taskRepository.findOne({
-      where: { id },
-    });
+    const task = await this.taskRepository
+      .createQueryBuilder('task')
+      .select([
+        'task.id',
+        'task.description',
+        'task.type',
+        'task.value',
+        'task.money_reward',
+      ])
+      .where('task.id = :id', { id })
+      .getOne();
 
     if (!task) {
       throw new NotFoundException(`Задача с ID ${id} не найдена`);
     }
 
-    return this.transformToTaskResponseDto(task);
+    return {
+      id: task.id,
+      description: task.description,
+      type: task.type,
+      value: task.value,
+      money_reward: task.money_reward,
+    };
   }
 
   async create(createTaskDto: CreateTaskDto): Promise<TaskResponseDto> {
     const task = this.taskRepository.create(createTaskDto);
     const savedTask = await this.taskRepository.save(task);
-    return this.transformToTaskResponseDto(savedTask);
+    return {
+      id: savedTask.id,
+      description: savedTask.description,
+      type: savedTask.type,
+      value: savedTask.value,
+      money_reward: savedTask.money_reward,
+    };
   }
 
   async update(
@@ -77,7 +100,13 @@ export class TaskService {
 
     Object.assign(task, updateTaskDto);
     const savedTask = await this.taskRepository.save(task);
-    return this.transformToTaskResponseDto(savedTask);
+    return {
+      id: savedTask.id,
+      description: savedTask.description,
+      type: savedTask.type,
+      value: savedTask.value,
+      money_reward: savedTask.money_reward,
+    };
   }
 
   async remove(id: number): Promise<void> {

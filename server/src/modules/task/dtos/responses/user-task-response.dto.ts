@@ -16,12 +16,6 @@ export class TaskResponseDto {
 
   @ApiProperty()
   money_reward: number;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }
 
 export class UserTaskResponseDto {
@@ -36,10 +30,4 @@ export class UserTaskResponseDto {
 
   @ApiProperty()
   task: TaskResponseDto;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { usersApi, type User, type UpdateUserDto } from '../api/users.api';
-import { UserStatus, UserStatusLabels } from '../enums';
 import Modal from '../components/Modal';
 import '../components/Table.css';
 
@@ -73,7 +72,6 @@ const Users = () => {
       money: user.money,
       last_contract_time: user.last_contract_time,
       clan_leave_time: user.clan_leave_time,
-      status: user.status,
       last_login_at: user.last_login_at,
     });
     setIsModalOpen(true);
@@ -142,7 +140,6 @@ const Users = () => {
             <th>Количество стражей</th>
             <th>Количество рефералов</th>
             <th>ID клана</th>
-            <th>Статус</th>
             <th>Действия</th>
           </tr>
         </thead>
@@ -158,7 +155,6 @@ const Users = () => {
               <td>{user.guards_count ?? '-'}</td>
               <td>{user.referrals_count ?? 0}</td>
               <td>{user.clan_id ?? '-'}</td>
-              <td>{UserStatusLabels[user.status as UserStatus] || user.status}</td>
               <td>
                 <div className="actions">
                   <button className="btn btn-primary" onClick={() => handleEdit(user)}>
@@ -232,20 +228,6 @@ const Users = () => {
               value={formData.money || ''}
               onChange={(e) => setFormData({ ...formData, money: parseInt(e.target.value) })}
             />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Статус</label>
-            <select
-              className="form-select"
-              value={formData.status || ''}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            >
-              {Object.values(UserStatus).map((status) => (
-                <option key={status} value={status}>
-                  {UserStatusLabels[status]}
-                </option>
-              ))}
-            </select>
           </div>
           {error && <div className="error-message">{error}</div>}
           <div className="form-actions">

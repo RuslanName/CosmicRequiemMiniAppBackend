@@ -23,30 +23,32 @@ export class AdminService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  private transformToAdminResponseDto(admin: Admin): AdminResponseDto {
-    return {
-      id: admin.id,
-      user_id: admin.user_id,
-      username: admin.username,
-      is_system_admin: admin.is_system_admin,
-      created_at: admin.created_at,
-      updated_at: admin.updated_at,
-    };
-  }
-
   async findAll(
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<AdminResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [admins, total] = await this.adminRepository.findAndCount({
-      skip,
-      take: limit,
-      order: { created_at: 'DESC' },
-    });
+    const queryBuilder = this.adminRepository
+      .createQueryBuilder('admin')
+      .select([
+        'admin.id',
+        'admin.user_id',
+        'admin.username',
+        'admin.is_system_admin',
+      ])
+      .orderBy('admin.created_at', 'DESC')
+      .skip(skip)
+      .take(limit);
 
-    const data = admins.map((admin) => this.transformToAdminResponseDto(admin));
+    const [admins, total] = await queryBuilder.getManyAndCount();
+
+    const data = admins.map((admin) => ({
+      id: admin.id,
+      user_id: admin.user_id,
+      username: admin.username,
+      is_system_admin: admin.is_system_admin,
+    }));
 
     return {
       data,
@@ -57,15 +59,27 @@ export class AdminService {
   }
 
   async findOne(id: number): Promise<AdminResponseDto> {
-    const admin = await this.adminRepository.findOne({
-      where: { id },
-    });
+    const admin = await this.adminRepository
+      .createQueryBuilder('admin')
+      .select([
+        'admin.id',
+        'admin.user_id',
+        'admin.username',
+        'admin.is_system_admin',
+      ])
+      .where('admin.id = :id', { id })
+      .getOne();
 
     if (!admin) {
       throw new NotFoundException(`Администратор с ID ${id} не найден`);
     }
 
-    return this.transformToAdminResponseDto(admin);
+    return {
+      id: admin.id,
+      user_id: admin.user_id,
+      username: admin.username,
+      is_system_admin: admin.is_system_admin,
+    };
   }
 
   async findByUserId(userId: number): Promise<Admin | null> {
@@ -75,7 +89,7 @@ export class AdminService {
   }
 
   async create(createAdminDto: CreateAdminDto): Promise<AdminResponseDto> {
-    const { password, ...rest } = createAdminDto;
+    const { password } = createAdminDto;
 
     const existingAdmin = await this.adminRepository.findOne({
       where: [
@@ -100,7 +114,12 @@ export class AdminService {
     });
 
     const savedAdmin = await this.adminRepository.save(admin);
-    return this.transformToAdminResponseDto(savedAdmin);
+    return {
+      id: savedAdmin.id,
+      user_id: savedAdmin.user_id,
+      username: savedAdmin.username,
+      is_system_admin: savedAdmin.is_system_admin,
+    };
   }
 
   async update(
@@ -170,7 +189,12 @@ export class AdminService {
     }
 
     const savedAdmin = await this.adminRepository.save(admin);
-    return this.transformToAdminResponseDto(savedAdmin);
+    return {
+      id: savedAdmin.id,
+      user_id: savedAdmin.user_id,
+      username: savedAdmin.username,
+      is_system_admin: savedAdmin.is_system_admin,
+    };
   }
 
   async remove(id: number): Promise<void> {

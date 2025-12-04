@@ -14,23 +14,25 @@ export class UserBoostService {
   ) {}
 
   async findByUserId(userId: number): Promise<UserBoost[]> {
-    return this.userBoostRepository.find({
-      where: { user: { id: userId } },
-      relations: ['user'],
-      order: { created_at: 'DESC' },
-    });
+    return this.userBoostRepository
+      .createQueryBuilder('boost')
+      .leftJoin('boost.user', 'user')
+      .select(['boost.id', 'boost.type', 'boost.end_time', 'boost.user_id'])
+      .where('boost.user_id = :userId', { userId })
+      .orderBy('boost.created_at', 'DESC')
+      .getMany();
   }
 
   async findActiveByUserId(userId: number): Promise<UserBoost[]> {
     const now = new Date();
-    return this.userBoostRepository.find({
-      where: {
-        user: { id: userId },
-        end_time: MoreThan(now),
-      },
-      relations: ['user'],
-      order: { created_at: 'DESC' },
-    });
+    return this.userBoostRepository
+      .createQueryBuilder('boost')
+      .leftJoin('boost.user', 'user')
+      .select(['boost.id', 'boost.type', 'boost.end_time', 'boost.user_id'])
+      .where('boost.user_id = :userId', { userId })
+      .andWhere('boost.end_time > :now', { now })
+      .orderBy('boost.created_at', 'DESC')
+      .getMany();
   }
 
   async findActiveShieldBoostsByUserIds(
@@ -41,15 +43,15 @@ export class UserBoostService {
     }
 
     const now = new Date();
-    const shieldBoosts = await this.userBoostRepository.find({
-      where: {
-        user: { id: In(userIds) },
-        type: UserBoostType.SHIELD,
-        end_time: MoreThan(now),
-      },
-      relations: ['user'],
-      order: { created_at: 'DESC' },
-    });
+    const shieldBoosts = await this.userBoostRepository
+      .createQueryBuilder('boost')
+      .leftJoin('boost.user', 'user')
+      .select(['boost.id', 'boost.type', 'boost.end_time', 'boost.user_id'])
+      .where('boost.user_id IN (:...userIds)', { userIds })
+      .andWhere('boost.type = :type', { type: UserBoostType.SHIELD })
+      .andWhere('boost.end_time > :now', { now })
+      .orderBy('boost.created_at', 'DESC')
+      .getMany();
 
     const shieldMap = new Map<number, Date | null>();
     for (const userId of userIds) {
@@ -57,7 +59,7 @@ export class UserBoostService {
     }
 
     for (const boost of shieldBoosts) {
-      const userId = boost.user.id;
+      const userId = boost.user_id;
       const existingEndTime = shieldMap.get(userId);
       if (existingEndTime === null || !existingEndTime) {
         shieldMap.set(userId, boost.end_time || null);

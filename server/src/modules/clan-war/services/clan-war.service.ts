@@ -25,35 +25,36 @@ export class ClanWarService {
     private readonly clanRepository: Repository<Clan>,
   ) {}
 
-  private transformToClanWarAdminResponseDto(
-    clanWar: ClanWar,
-  ): ClanWarAdminResponseDto {
-    return {
-      id: clanWar.id,
-      start_time: clanWar.start_time,
-      end_time: clanWar.end_time,
-      status: clanWar.status,
-      clan_1_id: clanWar.clan_1_id,
-      clan_2_id: clanWar.clan_2_id,
-      created_at: clanWar.created_at,
-      updated_at: clanWar.updated_at,
-    };
-  }
-
   async findAll(
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<ClanWarAdminResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.clanWarRepository.findAndCount({
-      relations: ['clan_1', 'clan_2'],
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.clanWarRepository
+      .createQueryBuilder('clan_war')
+      .select([
+        'clan_war.id',
+        'clan_war.start_time',
+        'clan_war.end_time',
+        'clan_war.status',
+        'clan_war.clan_1_id',
+        'clan_war.clan_2_id',
+      ])
+      .skip(skip)
+      .take(limit);
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return {
-      data: data.map((war) => this.transformToClanWarAdminResponseDto(war)),
+      data: data.map((war) => ({
+        id: war.id,
+        start_time: war.start_time,
+        end_time: war.end_time,
+        status: war.status,
+        clan_1_id: war.clan_1_id,
+        clan_2_id: war.clan_2_id,
+      })),
       total,
       page,
       limit,
@@ -61,16 +62,31 @@ export class ClanWarService {
   }
 
   async findOne(id: number): Promise<ClanWarAdminResponseDto> {
-    const clanWar = await this.clanWarRepository.findOne({
-      where: { id },
-      relations: ['clan_1', 'clan_2'],
-    });
+    const clanWar = await this.clanWarRepository
+      .createQueryBuilder('clan_war')
+      .select([
+        'clan_war.id',
+        'clan_war.start_time',
+        'clan_war.end_time',
+        'clan_war.status',
+        'clan_war.clan_1_id',
+        'clan_war.clan_2_id',
+      ])
+      .where('clan_war.id = :id', { id })
+      .getOne();
 
     if (!clanWar) {
       throw new NotFoundException(`Война кланов с ID ${id} не найдена`);
     }
 
-    return this.transformToClanWarAdminResponseDto(clanWar);
+    return {
+      id: clanWar.id,
+      start_time: clanWar.start_time,
+      end_time: clanWar.end_time,
+      status: clanWar.status,
+      clan_1_id: clanWar.clan_1_id,
+      clan_2_id: clanWar.clan_2_id,
+    };
   }
 
   async create(
@@ -78,7 +94,14 @@ export class ClanWarService {
   ): Promise<ClanWarAdminResponseDto> {
     const clanWar = this.clanWarRepository.create(createClanWarDto);
     const savedClanWar = await this.clanWarRepository.save(clanWar);
-    return this.transformToClanWarAdminResponseDto(savedClanWar);
+    return {
+      id: savedClanWar.id,
+      start_time: savedClanWar.start_time,
+      end_time: savedClanWar.end_time,
+      status: savedClanWar.status,
+      clan_1_id: savedClanWar.clan_1_id,
+      clan_2_id: savedClanWar.clan_2_id,
+    };
   }
 
   async update(
@@ -135,7 +158,14 @@ export class ClanWarService {
     }
 
     const savedClanWar = await this.clanWarRepository.save(clanWar);
-    return this.transformToClanWarAdminResponseDto(savedClanWar);
+    return {
+      id: savedClanWar.id,
+      start_time: savedClanWar.start_time,
+      end_time: savedClanWar.end_time,
+      status: savedClanWar.status,
+      clan_1_id: savedClanWar.clan_1_id,
+      clan_2_id: savedClanWar.clan_2_id,
+    };
   }
 
   async remove(id: number): Promise<void> {

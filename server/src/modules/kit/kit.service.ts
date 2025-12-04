@@ -114,8 +114,6 @@ export class KitService {
       image_path: itemTemplate.image_path,
       quantity: itemTemplate.quantity,
       name_in_kit: itemTemplate.name_in_kit,
-      created_at: itemTemplate.created_at,
-      updated_at: itemTemplate.updated_at,
     };
   }
 
@@ -132,8 +130,6 @@ export class KitService {
             this.transformItemTemplateToResponseDto(it),
           )
         : undefined,
-      created_at: kit.created_at,
-      updated_at: kit.updated_at,
     };
   }
 
@@ -143,11 +139,28 @@ export class KitService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.kitRepository.findAndCount({
-      relations: ['item_templates'],
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.kitRepository
+      .createQueryBuilder('kit')
+      .leftJoinAndSelect('kit.item_templates', 'item_templates')
+      .select([
+        'kit.id',
+        'kit.name',
+        'kit.currency',
+        'kit.price',
+        'kit.money',
+        'kit.status',
+        'item_templates.id',
+        'item_templates.name',
+        'item_templates.type',
+        'item_templates.value',
+        'item_templates.image_path',
+        'item_templates.quantity',
+        'item_templates.name_in_kit',
+      ])
+      .skip(skip)
+      .take(limit);
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return {
       data: data.map((kit) => this.transformToKitResponseDto(kit)),
@@ -178,13 +191,36 @@ export class KitService {
       whereCondition.id = Not(In(purchasedKitIds));
     }
 
-    const [data, total] = await this.kitRepository.findAndCount({
-      where: whereCondition,
-      relations: ['item_templates'],
-      order: { created_at: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.kitRepository
+      .createQueryBuilder('kit')
+      .leftJoinAndSelect('kit.item_templates', 'item_templates')
+      .select([
+        'kit.id',
+        'kit.name',
+        'kit.currency',
+        'kit.price',
+        'kit.money',
+        'kit.status',
+        'item_templates.id',
+        'item_templates.name',
+        'item_templates.type',
+        'item_templates.value',
+        'item_templates.image_path',
+        'item_templates.quantity',
+        'item_templates.name_in_kit',
+      ])
+      .where('kit.status = :status', { status: ShopItemStatus.IN_STOCK })
+      .orderBy('kit.id', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    if (purchasedKitIds.length > 0) {
+      queryBuilder.andWhere('kit.id NOT IN (:...purchasedKitIds)', {
+        purchasedKitIds,
+      });
+    }
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return {
       data: data.map((kit) => this.transformToKitResponseDto(kit)),
@@ -195,10 +231,26 @@ export class KitService {
   }
 
   async findOne(id: number): Promise<KitResponseDto> {
-    const kit = await this.kitRepository.findOne({
-      where: { id },
-      relations: ['item_templates'],
-    });
+    const kit = await this.kitRepository
+      .createQueryBuilder('kit')
+      .leftJoinAndSelect('kit.item_templates', 'item_templates')
+      .select([
+        'kit.id',
+        'kit.name',
+        'kit.currency',
+        'kit.price',
+        'kit.money',
+        'kit.status',
+        'item_templates.id',
+        'item_templates.name',
+        'item_templates.type',
+        'item_templates.value',
+        'item_templates.image_path',
+        'item_templates.quantity',
+        'item_templates.name_in_kit',
+      ])
+      .where('kit.id = :id', { id })
+      .getOne();
 
     if (!kit) {
       throw new NotFoundException(`Набор с ID ${id} не найден`);
@@ -237,10 +289,26 @@ export class KitService {
     id: number,
     updateKitDto: UpdateKitDto,
   ): Promise<KitResponseDto> {
-    const kit = await this.kitRepository.findOne({
-      where: { id },
-      relations: ['item_templates'],
-    });
+    const kit = await this.kitRepository
+      .createQueryBuilder('kit')
+      .leftJoinAndSelect('kit.item_templates', 'item_templates')
+      .select([
+        'kit.id',
+        'kit.name',
+        'kit.currency',
+        'kit.price',
+        'kit.money',
+        'kit.status',
+        'item_templates.id',
+        'item_templates.name',
+        'item_templates.type',
+        'item_templates.value',
+        'item_templates.image_path',
+        'item_templates.quantity',
+        'item_templates.name_in_kit',
+      ])
+      .where('kit.id = :id', { id })
+      .getOne();
 
     if (!kit) {
       throw new NotFoundException(`Набор с ID ${id} не найден`);
@@ -267,10 +335,26 @@ export class KitService {
     });
 
     const savedKit = await this.kitRepository.save(kit);
-    const kitWithRelations = await this.kitRepository.findOne({
-      where: { id: savedKit.id },
-      relations: ['item_templates'],
-    });
+    const kitWithRelations = await this.kitRepository
+      .createQueryBuilder('kit')
+      .leftJoinAndSelect('kit.item_templates', 'item_templates')
+      .select([
+        'kit.id',
+        'kit.name',
+        'kit.currency',
+        'kit.price',
+        'kit.money',
+        'kit.status',
+        'item_templates.id',
+        'item_templates.name',
+        'item_templates.type',
+        'item_templates.value',
+        'item_templates.image_path',
+        'item_templates.quantity',
+        'item_templates.name_in_kit',
+      ])
+      .where('kit.id = :id', { id: savedKit.id })
+      .getOne();
     return this.transformToKitResponseDto(kitWithRelations!);
   }
 

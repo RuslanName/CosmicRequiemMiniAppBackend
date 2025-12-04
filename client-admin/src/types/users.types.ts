@@ -12,7 +12,6 @@ export interface User {
   last_contract_time?: string;
   last_attack_time?: string;
   clan_leave_time?: string;
-  status: string;
   registered_at: string;
   last_login_at: string;
   clan_id?: number;
@@ -31,7 +30,6 @@ export interface UpdateUserDto {
   money?: number;
   last_contract_time?: string;
   clan_leave_time?: string;
-  status?: string;
   last_login_at?: string;
 }
 

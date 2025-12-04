@@ -29,36 +29,35 @@ export class UserGuardService {
     private readonly userService: UserService,
   ) {}
 
-  private transformToUserGuardAdminResponseDto(
-    userGuard: UserGuard,
-  ): UserGuardAdminResponseDto {
-    return {
-      id: userGuard.id,
-      name: userGuard.name,
-      strength: userGuard.strength,
-      is_first: userGuard.is_first,
-      user_id: userGuard.user_id,
-      created_at: userGuard.created_at,
-      updated_at: userGuard.updated_at,
-    };
-  }
-
   async findAll(
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<UserGuardAdminResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [userGuards, total] = await this.userGuardRepository.findAndCount({
-      order: { id: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.userGuardRepository
+      .createQueryBuilder('guard')
+      .select([
+        'guard.id',
+        'guard.name',
+        'guard.strength',
+        'guard.is_first',
+        'guard.user_id',
+      ])
+      .orderBy('guard.id', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    const [userGuards, total] = await queryBuilder.getManyAndCount();
 
     return {
-      data: userGuards.map((guard) =>
-        this.transformToUserGuardAdminResponseDto(guard),
-      ),
+      data: userGuards.map((guard) => ({
+        id: guard.id,
+        name: guard.name,
+        strength: guard.strength,
+        is_first: guard.is_first,
+        user_id: guard.user_id,
+      })),
       total,
       page,
       limit,
@@ -66,15 +65,29 @@ export class UserGuardService {
   }
 
   async findOne(id: number): Promise<UserGuardAdminResponseDto> {
-    const userGuard = await this.userGuardRepository.findOne({
-      where: { id },
-    });
+    const userGuard = await this.userGuardRepository
+      .createQueryBuilder('guard')
+      .select([
+        'guard.id',
+        'guard.name',
+        'guard.strength',
+        'guard.is_first',
+        'guard.user_id',
+      ])
+      .where('guard.id = :id', { id })
+      .getOne();
 
     if (!userGuard) {
       throw new NotFoundException(`Страж с ID ${id} не найден`);
     }
 
-    return this.transformToUserGuardAdminResponseDto(userGuard);
+    return {
+      id: userGuard.id,
+      name: userGuard.name,
+      strength: userGuard.strength,
+      is_first: userGuard.is_first,
+      user_id: userGuard.user_id,
+    };
   }
 
   async create(
@@ -99,7 +112,13 @@ export class UserGuardService {
     });
     const savedUserGuard = await this.userGuardRepository.save(userGuard);
     await this.userService.updateUserGuardsStats(user_id);
-    return this.transformToUserGuardAdminResponseDto(savedUserGuard);
+    return {
+      id: savedUserGuard.id,
+      name: savedUserGuard.name,
+      strength: savedUserGuard.strength,
+      is_first: savedUserGuard.is_first,
+      user_id: savedUserGuard.user_id,
+    };
   }
 
   async update(
@@ -150,7 +169,13 @@ export class UserGuardService {
     if (user_id !== undefined && user_id !== userGuard.user_id) {
       await this.userService.updateUserGuardsStats(user_id);
     }
-    return this.transformToUserGuardAdminResponseDto(savedUserGuard);
+    return {
+      id: savedUserGuard.id,
+      name: savedUserGuard.name,
+      strength: savedUserGuard.strength,
+      is_first: savedUserGuard.is_first,
+      user_id: savedUserGuard.user_id,
+    };
   }
 
   async remove(id: number): Promise<void> {

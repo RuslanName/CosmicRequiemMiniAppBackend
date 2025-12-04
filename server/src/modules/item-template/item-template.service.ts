@@ -32,9 +32,63 @@ export class ItemTemplateService {
     private readonly userAccessoryRepository: Repository<UserAccessory>,
   ) {}
 
-  private transformToItemTemplateResponseDto(
-    itemTemplate: ItemTemplate,
-  ): ItemTemplateResponseDto {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<ItemTemplateResponseDto>> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.itemTemplateRepository
+      .createQueryBuilder('item_template')
+      .select([
+        'item_template.id',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+        'item_template.quantity',
+        'item_template.name_in_kit',
+      ])
+      .skip(skip)
+      .take(limit);
+
+    const [data, total] = await queryBuilder.getManyAndCount();
+
+    return {
+      data: data.map((it) => ({
+        id: it.id,
+        name: it.name,
+        type: it.type,
+        value: it.value,
+        image_path: it.image_path,
+        quantity: it.quantity,
+        name_in_kit: it.name_in_kit,
+      })),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async findOne(id: number): Promise<ItemTemplateResponseDto> {
+    const itemTemplate = await this.itemTemplateRepository
+      .createQueryBuilder('item_template')
+      .select([
+        'item_template.id',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+        'item_template.quantity',
+        'item_template.name_in_kit',
+      ])
+      .where('item_template.id = :id', { id })
+      .getOne();
+
+    if (!itemTemplate) {
+      throw new NotFoundException(`Шаблон предмета с ID ${id} не найден`);
+    }
+
     return {
       id: itemTemplate.id,
       name: itemTemplate.name,
@@ -43,40 +97,7 @@ export class ItemTemplateService {
       image_path: itemTemplate.image_path,
       quantity: itemTemplate.quantity,
       name_in_kit: itemTemplate.name_in_kit,
-      created_at: itemTemplate.created_at,
-      updated_at: itemTemplate.updated_at,
     };
-  }
-
-  async findAll(
-    paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<ItemTemplateResponseDto>> {
-    const { page = 1, limit = 10 } = paginationDto;
-    const skip = (page - 1) * limit;
-
-    const [data, total] = await this.itemTemplateRepository.findAndCount({
-      skip,
-      take: limit,
-    });
-
-    return {
-      data: data.map((it) => this.transformToItemTemplateResponseDto(it)),
-      total,
-      page,
-      limit,
-    };
-  }
-
-  async findOne(id: number): Promise<ItemTemplateResponseDto> {
-    const itemTemplate = await this.itemTemplateRepository.findOne({
-      where: { id },
-    });
-
-    if (!itemTemplate) {
-      throw new NotFoundException(`Шаблон предмета с ID ${id} не найден`);
-    }
-
-    return this.transformToItemTemplateResponseDto(itemTemplate);
   }
 
   private validateItemTemplateValue(
@@ -168,7 +189,15 @@ export class ItemTemplateService {
     });
     const savedItemTemplate =
       await this.itemTemplateRepository.save(itemTemplate);
-    return this.transformToItemTemplateResponseDto(savedItemTemplate);
+    return {
+      id: savedItemTemplate.id,
+      name: savedItemTemplate.name,
+      type: savedItemTemplate.type,
+      value: savedItemTemplate.value,
+      image_path: savedItemTemplate.image_path,
+      quantity: savedItemTemplate.quantity,
+      name_in_kit: savedItemTemplate.name_in_kit,
+    };
   }
 
   async update(
@@ -211,7 +240,15 @@ export class ItemTemplateService {
     Object.assign(itemTemplate, updateItemTemplateDto);
     const savedItemTemplate =
       await this.itemTemplateRepository.save(itemTemplate);
-    return this.transformToItemTemplateResponseDto(savedItemTemplate);
+    return {
+      id: savedItemTemplate.id,
+      name: savedItemTemplate.name,
+      type: savedItemTemplate.type,
+      value: savedItemTemplate.value,
+      image_path: savedItemTemplate.image_path,
+      quantity: savedItemTemplate.quantity,
+      name_in_kit: savedItemTemplate.name_in_kit,
+    };
   }
 
   async remove(id: number): Promise<void> {

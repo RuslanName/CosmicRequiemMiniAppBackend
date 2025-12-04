@@ -22,10 +22,4 @@ export class ItemTemplateResponseDto {
 
   @ApiProperty({ nullable: true })
   name_in_kit: string | null;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }

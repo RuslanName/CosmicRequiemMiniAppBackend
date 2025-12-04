@@ -24,10 +24,4 @@ export class ShopItemResponseDto {
 
   @ApiProperty({ type: () => ItemTemplateResponseDto, required: false })
   item_template?: ItemTemplateResponseDto;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }

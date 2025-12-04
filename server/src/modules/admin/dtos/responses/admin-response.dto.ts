@@ -12,10 +12,4 @@ export class AdminResponseDto {
 
   @ApiProperty()
   is_system_admin: boolean;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }

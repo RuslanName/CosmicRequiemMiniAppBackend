@@ -24,10 +24,4 @@ export class KitResponseDto {
 
   @ApiProperty({ type: [ItemTemplateResponseDto], required: false })
   item_templates?: ItemTemplateResponseDto[];
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }

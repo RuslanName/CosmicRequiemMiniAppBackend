@@ -20,16 +20,6 @@ export class SettingService {
     @InjectRedis() private readonly redis: Redis,
   ) {}
 
-  private transformToSettingResponseDto(setting: Setting): SettingResponseDto {
-    return {
-      id: setting.id,
-      key: setting.key,
-      value: setting.value,
-      created_at: setting.created_at,
-      updated_at: setting.updated_at,
-    };
-  }
-
   async findAll(
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<SettingResponseDto>> {
@@ -42,7 +32,11 @@ export class SettingService {
       if (cached) {
         const allSettings: Setting[] = JSON.parse(cached);
         return {
-          data: allSettings.map((s) => this.transformToSettingResponseDto(s)),
+          data: allSettings.map((s) => ({
+            id: s.id,
+            key: s.key,
+            value: s.value,
+          })),
           total: allSettings.length,
           page: 1,
           limit: allSettings.length,
@@ -50,10 +44,13 @@ export class SettingService {
       }
     }
 
-    const [data, total] = await this.settingRepository.findAndCount({
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.settingRepository
+      .createQueryBuilder('setting')
+      .select(['setting.id', 'setting.key', 'setting.value'])
+      .skip(skip)
+      .take(limit);
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     if (page === 1 && limit >= 1000) {
       await this.redis.setex(
@@ -64,7 +61,11 @@ export class SettingService {
     }
 
     return {
-      data: data.map((s) => this.transformToSettingResponseDto(s)),
+      data: data.map((s) => ({
+        id: s.id,
+        key: s.key,
+        value: s.value,
+      })),
       total,
       page,
       limit,
@@ -72,15 +73,33 @@ export class SettingService {
   }
 
   async findOne(id: number): Promise<SettingResponseDto> {
-    const setting = await this.settingRepository.findOne({ where: { id } });
+    const setting = await this.settingRepository
+      .createQueryBuilder('setting')
+      .select(['setting.id', 'setting.key', 'setting.value'])
+      .where('setting.id = :id', { id })
+      .getOne();
     if (!setting)
       throw new NotFoundException(`Setting with ID ${id} not found`);
-    return this.transformToSettingResponseDto(setting);
+    return {
+      id: setting.id,
+      key: setting.key,
+      value: setting.value,
+    };
   }
 
   async findByKey(key: string): Promise<SettingResponseDto | null> {
-    const setting = await this.settingRepository.findOne({ where: { key } });
-    return setting ? this.transformToSettingResponseDto(setting) : null;
+    const setting = await this.settingRepository
+      .createQueryBuilder('setting')
+      .select(['setting.id', 'setting.key', 'setting.value'])
+      .where('setting.key = :key', { key })
+      .getOne();
+    return setting
+      ? {
+          id: setting.id,
+          key: setting.key,
+          value: setting.value,
+        }
+      : null;
   }
 
   async update(
@@ -94,6 +113,10 @@ export class SettingService {
     Object.assign(setting, updateSettingDto);
     const saved = await this.settingRepository.save(setting);
     await this.redis.del(this.SETTINGS_CACHE_KEY);
-    return this.transformToSettingResponseDto(saved);
+    return {
+      id: saved.id,
+      key: saved.key,
+      value: saved.value,
+    };
   }
 }

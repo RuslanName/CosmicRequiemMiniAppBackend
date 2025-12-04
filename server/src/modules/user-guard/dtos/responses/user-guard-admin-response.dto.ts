@@ -15,10 +15,4 @@ export class UserGuardAdminResponseDto {
 
   @ApiProperty()
   user_id: number;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }

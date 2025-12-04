@@ -25,21 +25,30 @@ export class UserTaskService {
     }
 
     const tasks = await this.taskRepository.find();
+    if (tasks.length === 0) {
+      return;
+    }
 
-    for (const task of tasks) {
-      const existingUserTask = await this.userTaskRepository.findOne({
-        where: { user_id: userId, task_id: task.id },
-      });
+    const existingUserTasks = await this.userTaskRepository.find({
+      where: { user_id: userId },
+      select: ['task_id'],
+    });
 
-      if (!existingUserTask) {
-        const userTask = this.userTaskRepository.create({
+    const existingTaskIds = new Set(existingUserTasks.map((ut) => ut.task_id));
+
+    const newUserTasks = tasks
+      .filter((task) => !existingTaskIds.has(task.id))
+      .map((task) =>
+        this.userTaskRepository.create({
           user_id: userId,
           task_id: task.id,
           progress: 0,
           status: UserTaskStatus.IN_PROGRESS,
-        });
-        await this.userTaskRepository.save(userTask);
-      }
+        }),
+      );
+
+    if (newUserTasks.length > 0) {
+      await this.userTaskRepository.save(newUserTasks);
     }
   }
 
@@ -107,9 +116,17 @@ export class UserTaskService {
     await this.userTaskRepository.save(userTask);
   }
 
-  async getUserTasks(userId: number): Promise<UserTask[]> {
+  async getUserTasks(
+    userId: number,
+    excludeCompleted: boolean = false,
+  ): Promise<UserTask[]> {
+    const where: any = { user_id: userId };
+    if (excludeCompleted) {
+      where.status = UserTaskStatus.IN_PROGRESS;
+    }
+
     return this.userTaskRepository.find({
-      where: { user_id: userId },
+      where,
       relations: ['task'],
       order: { created_at: 'DESC' },
     });

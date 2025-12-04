@@ -9,9 +9,6 @@ export class ShopItemWithoutTemplate {
   name: string;
 
   @ApiProperty()
-  description: string;
-
-  @ApiProperty()
   price: number;
 
   @ApiProperty({ enum: Currency })
@@ -25,12 +22,6 @@ export class ShopItemWithoutTemplate {
 
   @ApiProperty({ required: false, nullable: true })
   quantity: number | null;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }
 
 export class ShopItemsCategoryResponseDto {

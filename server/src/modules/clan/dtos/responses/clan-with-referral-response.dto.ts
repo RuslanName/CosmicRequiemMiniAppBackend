@@ -13,12 +13,6 @@ export class ClanReferralResponseDto {
   @ApiProperty()
   image_path: string;
 
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
-
   @ApiProperty({ required: false, nullable: true })
   leader_id?: number | null;
 

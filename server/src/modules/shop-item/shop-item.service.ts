@@ -133,8 +133,6 @@ export class ShopItemService {
       image_path: itemTemplate.image_path,
       quantity: itemTemplate.quantity,
       name_in_kit: itemTemplate.name_in_kit,
-      created_at: itemTemplate.created_at,
-      updated_at: itemTemplate.updated_at,
     };
   }
 
@@ -151,8 +149,6 @@ export class ShopItemService {
       item_template: shopItem.item_template
         ? this.transformItemTemplateToResponseDto(shopItem.item_template)
         : undefined,
-      created_at: shopItem.created_at,
-      updated_at: shopItem.updated_at,
     };
   }
 
@@ -162,12 +158,28 @@ export class ShopItemService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.shopItemRepository.findAndCount({
-      relations: ['item_template'],
-      order: { id: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.shopItemRepository
+      .createQueryBuilder('shop_item')
+      .leftJoinAndSelect('shop_item.item_template', 'item_template')
+      .select([
+        'shop_item.id',
+        'shop_item.name',
+        'shop_item.currency',
+        'shop_item.price',
+        'shop_item.status',
+        'item_template.id',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+        'item_template.quantity',
+        'item_template.name_in_kit',
+      ])
+      .orderBy('shop_item.id', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return {
       data: data.map((item) => this.transformToShopItemResponseDto(item)),
@@ -178,11 +190,23 @@ export class ShopItemService {
   }
 
   async findAvailable(queryParams?: any): Promise<ShopItemsListResponseDto> {
-    const shopItems = await this.shopItemRepository.find({
-      where: { status: ShopItemStatus.IN_STOCK },
-      relations: ['item_template'],
-      order: { created_at: 'DESC' },
-    });
+    const shopItems = await this.shopItemRepository
+      .createQueryBuilder('shop_item')
+      .leftJoinAndSelect('shop_item.item_template', 'item_template')
+      .select([
+        'shop_item.id',
+        'shop_item.name',
+        'shop_item.price',
+        'shop_item.currency',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+        'item_template.quantity',
+      ])
+      .where('shop_item.status = :status', { status: ShopItemStatus.IN_STOCK })
+      .orderBy('shop_item.created_at', 'DESC')
+      .getMany();
 
     const categoriesData: Record<string, ShopItemWithoutTemplate[]> = {};
 
@@ -196,14 +220,11 @@ export class ShopItemService {
       categoriesData[category].push({
         id: item.id,
         name: item.item_template?.name || item.name,
-        description: item.item_template?.name || '',
         price: item.price,
         currency: item.currency,
         image_path: item.item_template?.image_path || '',
         value: item.item_template?.value || null,
         quantity: item.item_template?.quantity || null,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
       });
     }
 
@@ -237,10 +258,25 @@ export class ShopItemService {
   }
 
   async findOne(id: number): Promise<ShopItemResponseDto> {
-    const shopItem = await this.shopItemRepository.findOne({
-      where: { id },
-      relations: ['item_template'],
-    });
+    const shopItem = await this.shopItemRepository
+      .createQueryBuilder('shop_item')
+      .leftJoinAndSelect('shop_item.item_template', 'item_template')
+      .select([
+        'shop_item.id',
+        'shop_item.name',
+        'shop_item.currency',
+        'shop_item.price',
+        'shop_item.status',
+        'item_template.id',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+        'item_template.quantity',
+        'item_template.name_in_kit',
+      ])
+      .where('shop_item.id = :id', { id })
+      .getOne();
 
     if (!shopItem) {
       throw new NotFoundException(`Товар магазина с ID ${id} не найден`);
@@ -283,10 +319,26 @@ export class ShopItemService {
     id: number,
     updateShopItemDto: UpdateShopItemDto,
   ): Promise<ShopItemResponseDto> {
-    const shopItem = await this.shopItemRepository.findOne({
-      where: { id },
-      relations: ['item_template'],
-    });
+    const shopItem = await this.shopItemRepository
+      .createQueryBuilder('shop_item')
+      .leftJoinAndSelect('shop_item.item_template', 'item_template')
+      .select([
+        'shop_item.id',
+        'shop_item.name',
+        'shop_item.currency',
+        'shop_item.price',
+        'shop_item.status',
+        'shop_item.item_template_id',
+        'item_template.id',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+        'item_template.quantity',
+        'item_template.name_in_kit',
+      ])
+      .where('shop_item.id = :id', { id })
+      .getOne();
 
     if (!shopItem) {
       throw new NotFoundException(`Товар магазина с ID ${id} не найден`);
@@ -315,10 +367,26 @@ export class ShopItemService {
     });
 
     const savedShopItem = await this.shopItemRepository.save(shopItem);
-    const shopItemWithRelations = await this.shopItemRepository.findOne({
-      where: { id: savedShopItem.id },
-      relations: ['item_template'],
-    });
+    const shopItemWithRelations = await this.shopItemRepository
+      .createQueryBuilder('shop_item')
+      .leftJoinAndSelect('shop_item.item_template', 'item_template')
+      .select([
+        'shop_item.id',
+        'shop_item.name',
+        'shop_item.currency',
+        'shop_item.price',
+        'shop_item.status',
+        'shop_item.item_template_id',
+        'item_template.id',
+        'item_template.name',
+        'item_template.type',
+        'item_template.value',
+        'item_template.image_path',
+        'item_template.quantity',
+        'item_template.name_in_kit',
+      ])
+      .where('shop_item.id = :id', { id: savedShopItem.id })
+      .getOne();
     return this.transformToShopItemResponseDto(shopItemWithRelations!);
   }
 

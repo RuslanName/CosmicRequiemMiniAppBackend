@@ -4,14 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import {
-  Repository,
-  In,
-  Not,
-  IsNull,
-  DataSource,
-  EntityManager,
-} from 'typeorm';
+import { Repository, In, DataSource, EntityManager } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { User } from './user.entity';
@@ -175,50 +168,6 @@ export class UserService {
     }
   }
 
-  private formatBirthday(bdate?: string, visibility?: number): string | null {
-    if (!bdate || visibility === undefined) return null;
-
-    switch (visibility) {
-      case 0:
-        return null;
-      case 1:
-        return bdate;
-      case 2:
-        return bdate;
-      default:
-        return null;
-    }
-  }
-
-  private async ensureUserAvatarExists(
-    user: User,
-    photoUrl?: string,
-  ): Promise<void> {
-    if (user.image_path && !user.image_path.startsWith('http')) {
-      const fullPath = path.join(process.cwd(), user.image_path);
-      if (fs.existsSync(fullPath)) {
-        return;
-      }
-    }
-
-    const urlToDownload =
-      photoUrl ||
-      (user.image_path?.startsWith('http') ? user.image_path : null);
-
-    if (!urlToDownload) {
-      return;
-    }
-
-    const imagePath = await this.downloadAndSaveUserAvatar(
-      urlToDownload,
-      user.id,
-    );
-    if (imagePath) {
-      user.image_path = imagePath;
-      await this.userRepository.save(user);
-    }
-  }
-
   private async transformToCurrentUserResponseDto(
     user: User,
     equippedAccessories: any[],
@@ -335,7 +284,6 @@ export class UserService {
       last_contract_time: transformed.last_contract_time,
       last_attack_time: transformed.last_attack_time,
       clan_leave_time: transformed.clan_leave_time,
-      status: transformed.status,
       registered_at: transformed.registered_at,
       last_login_at: transformed.last_login_at,
       clan_id: transformed.clan_id,
@@ -373,12 +321,36 @@ export class UserService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [users, total] = await this.userRepository.findAndCount({
-      relations: ['user_as_guard'],
-      order: { id: 'ASC' },
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.user_as_guard', 'user_as_guard')
+      .select([
+        'user.id',
+        'user.vk_id',
+        'user.first_name',
+        'user.last_name',
+        'user.sex',
+        'user.image_path',
+        'user.birthday_date',
+        'user.money',
+        'user.last_training_time',
+        'user.last_contract_time',
+        'user.last_attack_time',
+        'user.clan_leave_time',
+        'user.registered_at',
+        'user.last_login_at',
+        'user.clan_id',
+        'user.strength',
+        'user.guards_count',
+        'user.referral_link_id',
+        'user.referrals_count',
+        'user_as_guard.strength',
+      ])
+      .orderBy('user.id', 'ASC')
+      .skip(skip)
+      .take(limit);
+
+    const [users, total] = await queryBuilder.getManyAndCount();
 
     const userIds = users.map((user) => user.id);
     const shieldBoostsMap =
@@ -392,33 +364,33 @@ export class UserService {
         ? Number(user.user_as_guard.strength)
         : null;
 
-      const transformed = this.transformUserForResponse(user);
       const shieldEndTime = shieldBoostsMap
         ? shieldBoostsMap.get(user.id) || null
         : null;
 
       return {
-        id: transformed.id,
-        vk_id: transformed.vk_id,
-        first_name: transformed.first_name,
-        last_name: transformed.last_name,
-        sex: transformed.sex,
-        image_path: transformed.image_path || null,
-        birthday_date: transformed.birthday_date,
-        money: transformed.money,
+        id: user.id,
+        vk_id: user.vk_id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        sex: user.sex,
+        image_path: user.image_path || null,
+        birthday_date: user.birthday_date,
+        money: user.money,
         shield_end_time: shieldEndTime || undefined,
-        last_training_time: transformed.last_training_time,
-        last_contract_time: transformed.last_contract_time,
-        last_attack_time: transformed.last_attack_time,
-        clan_leave_time: transformed.clan_leave_time,
-        status: transformed.status,
-        registered_at: transformed.registered_at,
-        last_login_at: transformed.last_login_at,
-        clan_id: transformed.clan_id,
+        last_training_time: user.last_training_time,
+        last_contract_time: user.last_contract_time,
+        last_attack_time: user.last_attack_time,
+        clan_leave_time: user.clan_leave_time,
+        registered_at: user.registered_at,
+        last_login_at: user.last_login_at,
+        clan_id: user.clan_id,
         strength,
         guards_count: guardsCount,
         first_guard_strength: firstGuardStrength,
-        referral_link: transformed.referral_link,
+        referral_link: user.referral_link_id
+          ? `${ENV.VK_APP_URL}#ref_${user.referral_link_id}`
+          : undefined,
         referrals_count: referralsCount,
       } as UserBasicStatsResponseDto;
     });
@@ -432,10 +404,33 @@ export class UserService {
   }
 
   async findOne(id: number): Promise<UserBasicStatsResponseDto> {
-    const user = await this.userRepository.findOne({
-      where: { id },
-      relations: ['user_as_guard'],
-    });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.user_as_guard', 'user_as_guard')
+      .select([
+        'user.id',
+        'user.vk_id',
+        'user.first_name',
+        'user.last_name',
+        'user.sex',
+        'user.image_path',
+        'user.birthday_date',
+        'user.money',
+        'user.last_training_time',
+        'user.last_contract_time',
+        'user.last_attack_time',
+        'user.clan_leave_time',
+        'user.registered_at',
+        'user.last_login_at',
+        'user.clan_id',
+        'user.strength',
+        'user.guards_count',
+        'user.referral_link_id',
+        'user.referrals_count',
+        'user_as_guard.strength',
+      ])
+      .where('user.id = :id', { id })
+      .getOne();
 
     if (!user) {
       throw new NotFoundException(`Пользователь с ID ${id} не найден`);
@@ -448,33 +443,33 @@ export class UserService {
       ? Number(user.user_as_guard.strength)
       : null;
 
-    const transformed = this.transformUserForResponse(user);
     const shieldEndTime = await this.getShieldEndTimeFromBoost(user.id);
 
     return {
-      id: transformed.id,
-      vk_id: transformed.vk_id,
-      first_name: transformed.first_name,
-      last_name: transformed.last_name,
-      sex: transformed.sex,
-      image_path: transformed.image_path || null,
-      birthday_date: transformed.birthday_date,
-      money: transformed.money,
+      id: user.id,
+      vk_id: user.vk_id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      sex: user.sex,
+      image_path: user.image_path || null,
+      birthday_date: user.birthday_date,
+      money: user.money,
       shield_end_time: shieldEndTime || undefined,
-      last_training_time: transformed.last_training_time,
-      last_contract_time: transformed.last_contract_time,
-      last_attack_time: transformed.last_attack_time,
-      clan_leave_time: transformed.clan_leave_time,
-      status: transformed.status,
-      registered_at: transformed.registered_at,
-      last_login_at: transformed.last_login_at,
-      clan_id: transformed.clan_id,
+      last_training_time: user.last_training_time,
+      last_contract_time: user.last_contract_time,
+      last_attack_time: user.last_attack_time,
+      clan_leave_time: user.clan_leave_time,
+      registered_at: user.registered_at,
+      last_login_at: user.last_login_at,
+      clan_id: user.clan_id,
       strength,
       guards_count: guardsCount,
       first_guard_strength: firstGuardStrength,
-      referral_link: transformed.referral_link,
+      referral_link: user.referral_link_id
+        ? `${ENV.VK_APP_URL}#ref_${user.referral_link_id}`
+        : undefined,
       referrals_count: referralsCount,
-    } as UserBasicStatsResponseDto;
+    };
   }
 
   async findMe(userId: number): Promise<CurrentUserResponseDto> {
@@ -656,10 +651,10 @@ export class UserService {
 
     await this.updateUserGuardsStats(userId);
 
-    user.money = Number(user.money) - training_cost;
-    user.last_training_time = new Date();
-
-    await this.userRepository.save(user);
+    await this.userRepository.update(userId, {
+      money: Number(user.money) - training_cost,
+      last_training_time: new Date(),
+    });
 
     await this.userTaskService.updateTaskProgress(
       userId,
@@ -921,9 +916,12 @@ export class UserService {
         : new Map<number, any[]>();
 
     const guards = allGuards.map((guard) => {
-      const transformed: any = { ...guard };
-      delete transformed.user_id;
-      delete transformed.user;
+      const result: UserGuardResponseDto = {
+        id: guard.id,
+        name: guard.name,
+        strength: guard.strength,
+        is_first: guard.is_first,
+      };
 
       if (guard.guard_as_user_id) {
         const guardUser = guardUsersMap.get(guard.guard_as_user_id);
@@ -931,7 +929,7 @@ export class UserService {
         if (guardUser) {
           const equippedAccessories =
             equippedAccessoriesMap.get(guardUser.id) || [];
-          transformed.guard_as_user = {
+          result.guard_as_user = {
             id: guardUser.id,
             vk_id: guardUser.vk_id,
             first_name: guardUser.first_name,
@@ -942,7 +940,7 @@ export class UserService {
         }
       }
 
-      return transformed as UserGuardResponseDto;
+      return result;
     });
 
     return {
@@ -1016,26 +1014,20 @@ export class UserService {
   async getUserTasks(userId: number): Promise<UserTasksResponseDto> {
     await this.userTaskService.initializeTasksForUser(userId);
 
-    const userTasks = await this.userTaskService.getUserTasks(userId);
+    const userTasks = await this.userTaskService.getUserTasks(userId, true);
 
-    const tasks: UserTaskResponseDto[] = userTasks
-      .filter((userTask) => userTask.status !== UserTaskStatus.COMPLETED)
-      .map((userTask) => ({
-        id: userTask.id,
-        progress: userTask.progress,
-        status: userTask.status,
-        task: {
-          id: userTask.task.id,
-          description: userTask.task.description,
-          type: userTask.task.type,
-          value: userTask.task.value,
-          money_reward: Number(userTask.task.money_reward),
-          created_at: userTask.task.created_at,
-          updated_at: userTask.task.updated_at,
-        },
-        created_at: userTask.created_at,
-        updated_at: userTask.updated_at,
-      }));
+    const tasks: UserTaskResponseDto[] = userTasks.map((userTask) => ({
+      id: userTask.id,
+      progress: userTask.progress,
+      status: userTask.status,
+      task: {
+        id: userTask.task.id,
+        description: userTask.task.description,
+        type: userTask.task.type,
+        value: userTask.task.value,
+        money_reward: Number(userTask.task.money_reward),
+      },
+    }));
 
     return { tasks };
   }
@@ -1217,10 +1209,6 @@ export class UserService {
 
     let users: User[];
     let total: number;
-
-    const initialReferrerVkId = Settings[
-      SettingKey.INITIAL_REFERRER_VK_ID
-    ] as number;
 
     if (!filter || filter === 'top') {
       const queryBuilder = this.userRepository

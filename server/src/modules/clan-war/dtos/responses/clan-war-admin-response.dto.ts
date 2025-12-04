@@ -19,10 +19,4 @@ export class ClanWarAdminResponseDto {
 
   @ApiProperty()
   clan_2_id: number;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }

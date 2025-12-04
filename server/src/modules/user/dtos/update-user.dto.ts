@@ -1,12 +1,5 @@
-import {
-  IsOptional,
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsDateString,
-} from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserStatus } from '../enums/user-status.enum';
 
 export class UpdateUserDto {
   @ApiProperty({ required: false })
@@ -43,11 +36,6 @@ export class UpdateUserDto {
   @IsOptional()
   @IsDateString()
   clan_leave_time?: Date;
-
-  @ApiProperty({ enum: UserStatus, required: false })
-  @IsOptional()
-  @IsEnum(UserStatus)
-  status?: UserStatus;
 
   @ApiProperty({ required: false })
   @IsOptional()

@@ -20,22 +20,19 @@ export class GiveawayService {
     private readonly giveawayRepository: Repository<Giveaway>,
   ) {}
 
-  private transformToGiveawayResponseDto(
-    giveaway: Giveaway,
-  ): GiveawayResponseDto {
-    return {
-      id: giveaway.id,
-      url: giveaway.url,
-      image_path: giveaway.image_path,
-    };
-  }
-
   async findOne(): Promise<GiveawayResponseDto | null> {
-    const giveaway = await this.giveawayRepository.findOne({
-      where: {},
-      order: { created_at: 'DESC' },
-    });
-    return giveaway ? this.transformToGiveawayResponseDto(giveaway) : null;
+    const giveaway = await this.giveawayRepository
+      .createQueryBuilder('giveaway')
+      .select(['giveaway.id', 'giveaway.url', 'giveaway.image_path'])
+      .orderBy('giveaway.created_at', 'DESC')
+      .getOne();
+    return giveaway
+      ? {
+          id: giveaway.id,
+          url: giveaway.url,
+          image_path: giveaway.image_path,
+        }
+      : null;
   }
 
   async findAvailable(): Promise<GiveawayResponseDto | null> {
@@ -91,7 +88,11 @@ export class GiveawayService {
       image_path: imagePath,
     });
     const savedGiveaway = await this.giveawayRepository.save(giveaway);
-    return this.transformToGiveawayResponseDto(savedGiveaway);
+    return {
+      id: savedGiveaway.id,
+      url: savedGiveaway.url,
+      image_path: savedGiveaway.image_path,
+    };
   }
 
   async update(
@@ -118,7 +119,11 @@ export class GiveawayService {
 
     Object.assign(giveaway, updateGiveawayDto);
     const savedGiveaway = await this.giveawayRepository.save(giveaway);
-    return this.transformToGiveawayResponseDto(savedGiveaway);
+    return {
+      id: savedGiveaway.id,
+      url: savedGiveaway.url,
+      image_path: savedGiveaway.image_path,
+    };
   }
 
   async remove(id: number): Promise<void> {

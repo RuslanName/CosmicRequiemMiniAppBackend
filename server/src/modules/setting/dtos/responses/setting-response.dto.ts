@@ -9,10 +9,4 @@ export class SettingResponseDto {
 
   @ApiProperty()
   value: string;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
 }

@@ -42,9 +42,6 @@ export class UserBasicStatsResponseDto {
   clan_leave_time?: Date;
 
   @ApiProperty()
-  status: string;
-
-  @ApiProperty()
   registered_at: Date;
 
   @ApiProperty()

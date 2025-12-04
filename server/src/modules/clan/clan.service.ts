@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { In, Like, Not, Repository, DataSource, EntityManager } from 'typeorm';
+import { In, Not, Repository, DataSource, EntityManager } from 'typeorm';
 import { Clan } from './entities/clan.entity';
 import { CreateClanDto } from './dtos/create-clan.dto';
 import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
@@ -74,14 +74,15 @@ export class ClanService {
       ? manager.getRepository(User)
       : this.userRepository;
 
-    const guards = await userGuardRepo.find({
-      where: { user_id: userId },
-    });
-    const guardsCount = guards.length;
-    const strength = guards.reduce(
-      (sum, guard) => sum + Number(guard.strength),
-      0,
-    );
+    const result = await userGuardRepo
+      .createQueryBuilder('guard')
+      .select('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(guard.strength), 0)', 'strength')
+      .where('guard.user_id = :userId', { userId })
+      .getRawOne();
+
+    const guardsCount = parseInt(result.count, 10) || 0;
+    const strength = parseInt(result.strength, 10) || 0;
 
     await userRepo.update(userId, {
       guards_count: guardsCount,
@@ -126,15 +127,17 @@ export class ClanService {
       name: clan.name,
       max_members: clan.max_members,
       image_path: clan.image_path,
-      created_at: clan.created_at,
-      updated_at: clan.updated_at,
       leader_id: clan.leader_id || undefined,
     };
 
-    if (clan.members) {
+    if ((clan as any).money !== undefined) {
+      transformed.money = (clan as any).money;
+    } else if (clan.members) {
       transformed.money = this.calculateClanMoney(clan.members);
-      transformed.strength = clan.strength ?? 0;
-      transformed.guards_count = clan.guards_count ?? 0;
+    }
+    transformed.strength = clan.strength ?? 0;
+    transformed.guards_count = clan.guards_count ?? 0;
+    if (clan.members) {
       transformed.members_count = clan.members.length;
     }
 
@@ -203,7 +206,6 @@ export class ClanService {
       last_contract_time: user.last_contract_time,
       last_attack_time: user.last_attack_time,
       clan_leave_time: user.clan_leave_time,
-      status: user.status,
       registered_at: user.registered_at,
       last_login_at: user.last_login_at,
       clan_id: user.clan_id,
@@ -242,7 +244,6 @@ export class ClanService {
       last_contract_time: user.last_contract_time,
       last_attack_time: user.last_attack_time,
       clan_leave_time: user.clan_leave_time,
-      status: user.status,
       registered_at: user.registered_at,
       last_login_at: user.last_login_at,
       clan_id: user.clan_id,
@@ -276,7 +277,6 @@ export class ClanService {
             last_contract_time: application.user.last_contract_time,
             last_attack_time: application.user.last_attack_time,
             clan_leave_time: application.user.clan_leave_time,
-            status: application.user.status,
             registered_at: application.user.registered_at,
             last_login_at: application.user.last_login_at,
             clan_id: application.user.clan_id,
@@ -301,18 +301,34 @@ export class ClanService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [clans, total] = await this.clanRepository.findAndCount({
-      relations: ['members'],
-      order: { id: 'ASC' },
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.clanRepository
+      .createQueryBuilder('clan')
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.max_members',
+        'clan.image_path',
+        'clan.leader_id',
+        'clan.strength',
+        'clan.guards_count',
+        'clan.referral_link_id',
+      ])
+      .orderBy('clan.id', 'ASC')
+      .skip(skip)
+      .take(limit);
+
+    const [clans, total] = await queryBuilder.getManyAndCount();
 
     const transformedData = clans.map((clan) => {
-      const transformed = this.transformClanForResponse(clan);
       return {
-        ...transformed,
+        id: clan.id,
+        name: clan.name,
+        max_members: clan.max_members,
+        image_path: clan.image_path,
         leader_id: clan.leader_id || undefined,
+        strength: clan.strength ?? 0,
+        guards_count: clan.guards_count ?? 0,
+        members_count: 0,
       } as ClanStatsResponseDto;
     });
 
@@ -378,27 +394,100 @@ export class ClanService {
   }
 
   async findOneForAdmin(id: number): Promise<ClanStatsResponseDto> {
-    const clan = await this.clanRepository.findOne({
-      where: { id },
-      relations: ['members'],
-    });
+    const clan = await this.clanRepository
+      .createQueryBuilder('clan')
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.max_members',
+        'clan.image_path',
+        'clan.leader_id',
+        'clan.strength',
+        'clan.guards_count',
+        'clan.referral_link_id',
+      ])
+      .where('clan.id = :id', { id })
+      .getOne();
 
     if (!clan) {
       throw new NotFoundException(`Клан с ID ${id} не найден`);
     }
 
-    const transformed = this.transformClanForResponse(clan);
+    const membersCountResult = await this.clanRepository
+      .createQueryBuilder('clan')
+      .leftJoin('clan.members', 'member')
+      .where('clan.id = :id', { id })
+      .select('COUNT(member.id)', 'count')
+      .getRawOne();
+
+    const membersCount = parseInt(membersCountResult?.count || '0', 10);
+
     return {
-      ...transformed,
+      id: clan.id,
+      name: clan.name,
+      max_members: clan.max_members,
+      image_path: clan.image_path,
       leader_id: clan.leader_id || undefined,
-    } as ClanStatsResponseDto;
+      strength: clan.strength ?? 0,
+      guards_count: clan.guards_count ?? 0,
+      members_count: membersCount,
+    };
   }
 
   async findOneForMiniApp(id: number): Promise<ClanDetailResponseDto> {
-    const clan = await this.clanRepository.findOne({
-      where: { id },
-      relations: ['members', 'members.guards', '_wars_1', '_wars_2'],
-    });
+    const clan = await this.clanRepository
+      .createQueryBuilder('clan')
+      .leftJoinAndSelect('clan.members', 'member')
+      .leftJoinAndSelect('member.user_as_guard', 'user_as_guard')
+      .leftJoinAndSelect('clan.leader', 'leader')
+      .leftJoinAndSelect('leader.user_as_guard', 'leader_user_as_guard')
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.image_path',
+        'clan.strength',
+        'clan.vk_group_id',
+        'member.id',
+        'member.vk_id',
+        'member.first_name',
+        'member.last_name',
+        'member.sex',
+        'member.image_path',
+        'member.birthday_date',
+        'member.money',
+        'member.last_training_time',
+        'member.last_contract_time',
+        'member.last_attack_time',
+        'member.clan_leave_time',
+        'member.registered_at',
+        'member.last_login_at',
+        'member.clan_id',
+        'member.strength',
+        'member.guards_count',
+        'user_as_guard.strength',
+        'leader.id',
+        'leader.vk_id',
+        'leader.first_name',
+        'leader.last_name',
+        'leader.sex',
+        'leader.image_path',
+        'leader.birthday_date',
+        'leader.money',
+        'leader.last_training_time',
+        'leader.last_contract_time',
+        'leader.last_attack_time',
+        'leader.clan_leave_time',
+        'leader.registered_at',
+        'leader.last_login_at',
+        'leader.clan_id',
+        'leader.strength',
+        'leader.guards_count',
+        'leader.referral_link_id',
+        'leader.referrals_count',
+        'leader_user_as_guard.strength',
+      ])
+      .where('clan.id = :id', { id })
+      .getOne();
 
     if (!clan) {
       throw new NotFoundException(`Клан с ID ${id} не найден`);
@@ -425,18 +514,34 @@ export class ClanService {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.clanRepository.findAndCount({
-      where: {
-        name: Like(`%${query.trim()}%`),
-      },
-      relations: ['members', 'members.guards', '_wars_1', '_wars_2'],
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.clanRepository
+      .createQueryBuilder('clan')
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.max_members',
+        'clan.image_path',
+        'clan.leader_id',
+        'clan.strength',
+        'clan.guards_count',
+        'clan.referral_link_id',
+      ])
+      .where('clan.name LIKE :query', { query: `%${query.trim()}%` })
+      .skip(skip)
+      .take(limit);
 
-    const transformedData = data.map((clan) =>
-      this.transformToClanStatsResponseDto(clan),
-    );
+    const [data, total] = await queryBuilder.getManyAndCount();
+
+    const transformedData = data.map((clan) => ({
+      id: clan.id,
+      name: clan.name,
+      max_members: clan.max_members,
+      image_path: clan.image_path,
+      leader_id: clan.leader_id || undefined,
+      strength: clan.strength ?? 0,
+      guards_count: clan.guards_count ?? 0,
+      members_count: 0,
+    }));
 
     return {
       data: transformedData,
@@ -503,12 +608,29 @@ export class ClanService {
     await this.userRepository.save(leader);
     await this.updateClanStats(savedClan.id);
 
-    const clanWithRelations = await this.clanRepository.findOne({
-      where: { id: savedClan.id },
-      relations: ['members'],
-    });
+    const clanWithRelations = await this.clanRepository
+      .createQueryBuilder('clan')
+      .leftJoin('clan.members', 'member')
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.max_members',
+        'clan.image_path',
+        'clan.leader_id',
+        'clan.strength',
+        'clan.guards_count',
+        'clan.referral_link_id',
+        'member.id',
+        'member.money',
+      ])
+      .where('clan.id = :id', { id: savedClan.id })
+      .getOne();
 
-    return this.transformToClanReferralResponseDto(clanWithRelations!);
+    if (!clanWithRelations) {
+      throw new NotFoundException('Клан не найден после создания');
+    }
+
+    return this.transformToClanReferralResponseDto(clanWithRelations);
   }
 
   async createClanByUser(
@@ -586,12 +708,35 @@ export class ClanService {
     await this.userRepository.save(user);
     await this.updateClanStats(savedClan.id);
 
-    const clanWithRelations = await this.clanRepository.findOne({
-      where: { id: savedClan.id },
-      relations: ['members'],
-    });
+    const clanWithRelations = await this.clanRepository
+      .createQueryBuilder('clan')
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.max_members',
+        'clan.image_path',
+        'clan.leader_id',
+        'clan.strength',
+        'clan.guards_count',
+        'clan.referral_link_id',
+      ])
+      .where('clan.id = :id', { id: savedClan.id })
+      .getOne();
 
-    return this.transformToClanReferralResponseDto(clanWithRelations!);
+    if (!clanWithRelations) {
+      throw new NotFoundException('Клан не найден после создания');
+    }
+
+    const moneyResult = await this.userRepository
+      .createQueryBuilder('user')
+      .select('COALESCE(SUM(user.money), 0)', 'total')
+      .where('user.clan_id = :clanId', { clanId: savedClan.id })
+      .getRawOne();
+
+    const money = parseInt(moneyResult?.total || '0', 10);
+    (clanWithRelations as any).money = money;
+
+    return this.transformToClanReferralResponseDto(clanWithRelations);
   }
 
   async update(
@@ -713,12 +858,35 @@ export class ClanService {
       await this.updateClanStats(clan.id);
     }
 
-    const clanWithRelations = await this.clanRepository.findOne({
-      where: { id: savedClan.id },
-      relations: ['members'],
-    });
+    const clanWithRelations = await this.clanRepository
+      .createQueryBuilder('clan')
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.max_members',
+        'clan.image_path',
+        'clan.leader_id',
+        'clan.strength',
+        'clan.guards_count',
+        'clan.referral_link_id',
+      ])
+      .where('clan.id = :id', { id: savedClan.id })
+      .getOne();
 
-    return this.transformToClanReferralResponseDto(clanWithRelations!);
+    if (!clanWithRelations) {
+      throw new NotFoundException('Клан не найден после обновления');
+    }
+
+    const moneyResult = await this.userRepository
+      .createQueryBuilder('user')
+      .select('COALESCE(SUM(user.money), 0)', 'total')
+      .where('user.clan_id = :clanId', { clanId: savedClan.id })
+      .getRawOne();
+
+    const money = parseInt(moneyResult?.total || '0', 10);
+    (clanWithRelations as any).money = money;
+
+    return this.transformToClanReferralResponseDto(clanWithRelations);
   }
 
   async remove(id: number): Promise<void> {
