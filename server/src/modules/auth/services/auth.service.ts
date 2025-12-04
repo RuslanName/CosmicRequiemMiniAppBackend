@@ -202,9 +202,6 @@ export class AuthService {
     } else {
       await this.processReferralLink(dbUser, startParam);
 
-      dbUser.first_name = user.first_name;
-      dbUser.last_name = user.last_name || null;
-      dbUser.sex = user.sex ?? dbUser.sex;
       const photoUrl = user.photo_max_orig || user.photo_200 || null;
       if (photoUrl) {
         if (!this.verifyVkImageUrl(photoUrl)) {
@@ -229,6 +226,10 @@ export class AuthService {
           }
         }
       }
+
+      dbUser.first_name = user.first_name;
+      dbUser.last_name = user.last_name || null;
+      dbUser.sex = user.sex ?? dbUser.sex;
       dbUser.birthday_date = this.formatBirthday(
         user.bdate,
         user.bdate_visibility,

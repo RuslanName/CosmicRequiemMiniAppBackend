@@ -67,6 +67,9 @@ export class Clan {
   @Column({ type: 'int', default: 0 })
   guards_count: number;
 
+  @Column({ type: 'int', default: 0 })
+  members_count: number;
+
   @AfterLoad()
   combineWars() {
     this.wars = [...(this._wars_1 || []), ...(this._wars_2 || [])];
