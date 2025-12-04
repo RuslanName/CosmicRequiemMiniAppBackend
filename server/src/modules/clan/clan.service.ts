@@ -139,9 +139,8 @@ export class ClanService {
     }
     transformed.strength = clan.strength ?? 0;
     transformed.guards_count = clan.guards_count ?? 0;
-    if (clan.members) {
-      transformed.members_count = clan.members.length;
-    }
+    transformed.members_count =
+      clan.members_count ?? (clan.members?.length || 0);
 
     if (clan.wars) {
       transformed.wars_count = clan.wars.length;
@@ -313,6 +312,7 @@ export class ClanService {
         'clan.leader_id',
         'clan.strength',
         'clan.guards_count',
+        'clan.members_count',
         'clan.referral_link_id',
       ])
       .orderBy('clan.id', 'ASC')
@@ -330,7 +330,7 @@ export class ClanService {
         leader_id: clan.leader_id || undefined,
         strength: clan.strength ?? 0,
         guards_count: clan.guards_count ?? 0,
-        members_count: 0,
+        members_count: clan.members_count ?? 0,
       } as ClanStatsResponseDto;
     });
 
@@ -406,6 +406,7 @@ export class ClanService {
         'clan.leader_id',
         'clan.strength',
         'clan.guards_count',
+        'clan.members_count',
         'clan.referral_link_id',
       ])
       .where('clan.id = :id', { id })
@@ -415,15 +416,6 @@ export class ClanService {
       throw new NotFoundException(`Клан с ID ${id} не найден`);
     }
 
-    const membersCountResult = await this.clanRepository
-      .createQueryBuilder('clan')
-      .leftJoin('clan.members', 'member')
-      .where('clan.id = :id', { id })
-      .select('COUNT(member.id)', 'count')
-      .getRawOne();
-
-    const membersCount = parseInt(membersCountResult?.count || '0', 10);
-
     return {
       id: clan.id,
       name: clan.name,
@@ -432,7 +424,7 @@ export class ClanService {
       leader_id: clan.leader_id || undefined,
       strength: clan.strength ?? 0,
       guards_count: clan.guards_count ?? 0,
-      members_count: membersCount,
+      members_count: clan.members_count ?? 0,
     };
   }
 
@@ -527,6 +519,7 @@ export class ClanService {
         'clan.leader_id',
         'clan.strength',
         'clan.guards_count',
+        'clan.members_count',
         'clan.referral_link_id',
       ])
       .where('clan.name LIKE :query', { query: `%${query.trim()}%` })
@@ -543,7 +536,7 @@ export class ClanService {
       leader_id: clan.leader_id || undefined,
       strength: clan.strength ?? 0,
       guards_count: clan.guards_count ?? 0,
-      members_count: 0,
+      members_count: clan.members_count ?? 0,
     }));
 
     return {
@@ -622,6 +615,7 @@ export class ClanService {
         'clan.leader_id',
         'clan.strength',
         'clan.guards_count',
+        'clan.members_count',
         'clan.referral_link_id',
         'member.id',
         'member.money',
@@ -721,6 +715,7 @@ export class ClanService {
         'clan.leader_id',
         'clan.strength',
         'clan.guards_count',
+        'clan.members_count',
         'clan.referral_link_id',
       ])
       .where('clan.id = :id', { id: savedClan.id })
@@ -871,6 +866,7 @@ export class ClanService {
         'clan.leader_id',
         'clan.strength',
         'clan.guards_count',
+        'clan.members_count',
         'clan.referral_link_id',
       ])
       .where('clan.id = :id', { id: savedClan.id })
@@ -2127,7 +2123,7 @@ export class ClanService {
         image_path: clan.image_path,
         strength,
         guards_count: guardsCount,
-        members_count: clan.members?.length || 0,
+        members_count: clan.members_count ?? (clan.members?.length || 0),
         vk_group_id: clan.vk_group_id,
       } as ClanRatingResponseDto;
     });
