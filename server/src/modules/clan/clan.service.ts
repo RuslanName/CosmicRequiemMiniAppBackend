@@ -1508,7 +1508,7 @@ export class ClanService {
       throw new BadRequestException('Пользователь не состоит в клане');
     }
 
-    if (user.clan.leader?.id === userId) {
+    if (user.clan.leader_id === userId) {
       throw new BadRequestException('Лидер клана не может покинуть клан');
     }
 
