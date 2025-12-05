@@ -30,6 +30,7 @@ import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { ClanStatsResponseDto } from './dtos/responses/clan-with-stats-response.dto';
 import { ClanReferralResponseDto } from './dtos/responses/clan-with-referral-response.dto';
 import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto';
+import { ClanRatingPaginatedResponseDto } from './dtos/responses/clan-rating-paginated-response.dto';
 import { UserStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { ClanAttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
@@ -2064,7 +2065,7 @@ export class ClanService {
   async getClanRating(
     paginationDto?: PaginationDto,
     currentUserId?: number,
-  ): Promise<any> {
+  ): Promise<ClanRatingPaginatedResponseDto> {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
 
@@ -2189,9 +2190,9 @@ export class ClanService {
 
     return {
       data: paginatedData,
-      total,
-      page,
-      limit,
+      total: Number(total),
+      page: Number(page),
+      limit: Number(limit),
       my_rating_place: myRatingPlace,
     };
   }

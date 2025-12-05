@@ -45,6 +45,7 @@ import {
 import { ClanStatsResponseDto } from './dtos/responses/clan-with-stats-response.dto';
 import { ClanReferralResponseDto } from './dtos/responses/clan-with-referral-response.dto';
 import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto';
+import { ClanRatingPaginatedResponseDto } from './dtos/responses/clan-rating-paginated-response.dto';
 import { UserStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { ClanAttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
@@ -288,7 +289,7 @@ export class ClanController {
   async getClanRating(
     @Request() req: AuthenticatedRequest,
     @Query() paginationDto?: PaginationDto,
-  ): Promise<any> {
+  ): Promise<ClanRatingPaginatedResponseDto> {
     return this.clanService.getClanRating(paginationDto, req.user.id);
   }
 

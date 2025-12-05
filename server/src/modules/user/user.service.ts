@@ -34,6 +34,7 @@ import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { UserBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
 import { CurrentUserResponseDto } from './dtos/responses/user-me-response.dto';
 import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
+import { UserRatingPaginatedResponseDto } from './dtos/responses/user-rating-paginated-response.dto';
 import { UserTrainingResponseDto } from './dtos/responses/training-response.dto';
 import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
 import { UserContractResponseDto } from './dtos/responses/contract-response.dto';
@@ -826,7 +827,7 @@ export class UserService {
   async getRating(
     paginationDto: PaginationDto,
     currentUserId?: number,
-  ): Promise<any> {
+  ): Promise<UserRatingPaginatedResponseDto> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -886,9 +887,9 @@ export class UserService {
 
     return {
       data,
-      total,
-      page,
-      limit,
+      total: Number(total),
+      page: Number(page),
+      limit: Number(limit),
       my_rating_place: myRatingPlace,
     };
   }
