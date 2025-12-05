@@ -19,6 +19,7 @@ export const SettingKey = {
   RANDOM_BONUS_PER_GUARD: 'random_bonus_per_guard',
   REFERRER_MONEY_REWARD: 'referrer_money_reward',
   INITIAL_REFERRER_VK_ID: 'initial_referrer_vk_id',
+  ADV_DISABLE_COST_VOICES_COUNT: 'adv_disable_cost_voices_count',
 } as const;
 
 export type SettingKey = typeof SettingKey[keyof typeof SettingKey];
@@ -44,5 +45,6 @@ export const SettingKeyLabels: Record<SettingKey, string> = {
   [SettingKey.RANDOM_BONUS_PER_GUARD]: 'Случайный бонус за стража',
   [SettingKey.REFERRER_MONEY_REWARD]: 'Вознаграждение реферера за приглашение',
   [SettingKey.INITIAL_REFERRER_VK_ID]: 'VK ID начального реферера (для пользователей без реферальной ссылки)',
+  [SettingKey.ADV_DISABLE_COST_VOICES_COUNT]: 'Стоимость отключения рекламы (голоса)',
 };
 

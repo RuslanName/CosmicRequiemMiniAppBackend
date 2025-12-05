@@ -135,6 +135,9 @@ export class UserGuardService {
 
     const { user_id, ...rest } = updateUserGuardDto;
 
+    const oldUserId = userGuard.user_id;
+    let newUserId = oldUserId;
+
     if (user_id !== undefined && user_id !== userGuard.user_id) {
       const user = await this.userRepository.findOne({
         where: { id: user_id },
@@ -145,6 +148,7 @@ export class UserGuardService {
       }
 
       userGuard.user_id = user_id;
+      newUserId = user_id;
     }
 
     const isFirst =
@@ -165,9 +169,14 @@ export class UserGuardService {
 
     Object.assign(userGuard, rest);
     const savedUserGuard = await this.userGuardRepository.save(userGuard);
-    await this.userService.updateUserGuardsStats(userGuard.user_id);
-    if (user_id !== undefined && user_id !== userGuard.user_id) {
-      await this.userService.updateUserGuardsStats(user_id);
+
+    if (oldUserId !== newUserId) {
+      await Promise.all([
+        this.userService.updateUserGuardsStats(oldUserId),
+        this.userService.updateUserGuardsStats(newUserId),
+      ]);
+    } else {
+      await this.userService.updateUserGuardsStats(newUserId);
     }
     return {
       id: savedUserGuard.id,

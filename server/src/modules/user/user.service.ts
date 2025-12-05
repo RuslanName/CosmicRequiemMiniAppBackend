@@ -4,7 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, In, DataSource, EntityManager } from 'typeorm';
+import {
+  Repository,
+  In,
+  Not,
+  IsNull,
+  DataSource,
+  EntityManager,
+} from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { User } from './user.entity';
@@ -818,18 +825,12 @@ export class UserService {
 
   async getRating(
     paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
+    currentUserId?: number,
+  ): Promise<any> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const totalQuery = this.userRepository
-      .createQueryBuilder('user')
-      .where('user.image_path IS NOT NULL')
-      .andWhere("user.image_path != ''");
-
-    const total = await totalQuery.getCount();
-
-    const users = await this.userRepository
+    const allUsers = await this.userRepository
       .createQueryBuilder('user')
       .select([
         'user.id',
@@ -845,9 +846,11 @@ export class UserService {
       .andWhere("user.image_path != ''")
       .orderBy('(user.strength * 1000 + COALESCE(user.money, 0))', 'DESC')
       .addOrderBy('user.id', 'ASC')
-      .skip(skip)
-      .take(limit)
       .getMany();
+
+    const total = allUsers.length;
+
+    const users = allUsers.slice(skip, skip + limit);
 
     const userIds = users.map((user) => user.id);
     const [shieldBoostsMap, accessoriesMap] = await Promise.all([
@@ -859,19 +862,34 @@ export class UserService {
         : Promise.resolve(new Map<number, any[]>()),
     ]);
 
-    const data = users.map((user) =>
-      this.transformToUserRatingResponseDto(
-        user,
-        accessoriesMap.get(user.id) || [],
-        shieldBoostsMap,
-      ),
-    );
+    const userIndexMap = new Map<number, number>();
+    allUsers.forEach((user, index) => {
+      userIndexMap.set(user.id, index + 1);
+    });
+
+    let myRatingPlace: number | null = null;
+    if (currentUserId) {
+      myRatingPlace = userIndexMap.get(currentUserId) || null;
+    }
+
+    const data = users.map((user) => {
+      const ratingPlace = userIndexMap.get(user.id) || 0;
+      return {
+        ...this.transformToUserRatingResponseDto(
+          user,
+          accessoriesMap.get(user.id) || [],
+          shieldBoostsMap,
+        ),
+        rating_place: ratingPlace,
+      };
+    });
 
     return {
       data,
       total,
       page,
       limit,
+      my_rating_place: myRatingPlace,
     };
   }
 
@@ -1214,7 +1232,9 @@ export class UserService {
       const queryBuilder = this.userRepository
         .createQueryBuilder('user')
         .where('user.id != :userId', { userId })
-        .andWhere('user.guards_count > 1');
+        .andWhere('user.guards_count > 1')
+        .andWhere('user.image_path IS NOT NULL')
+        .andWhere("user.image_path != ''");
 
       if (currentUserClanId) {
         queryBuilder.andWhere(
@@ -1278,7 +1298,9 @@ export class UserService {
         .andWhere('user.strength <= :maxStrength', {
           maxStrength,
         })
-        .andWhere('user.referrals_count = 0');
+        .andWhere('user.referrals_count = 0')
+        .andWhere('user.image_path IS NOT NULL')
+        .andWhere("user.image_path != ''");
 
       if (currentUserClanId) {
         baseQueryBuilder.andWhere(
@@ -1294,13 +1316,19 @@ export class UserService {
         !currentUserIsInitialReferrer
       ) {
         initialReferrer = await this.userRepository.findOne({
-          where: { vk_id: Number(initialReferrerVkId) },
+          where: {
+            vk_id: Number(initialReferrerVkId),
+            image_path: Not(IsNull()),
+          },
         });
 
         if (initialReferrer) {
           if (
             initialReferrer.id === userId ||
-            (currentUserClanId && initialReferrer.clan_id === currentUserClanId)
+            (currentUserClanId &&
+              initialReferrer.clan_id === currentUserClanId) ||
+            !initialReferrer.image_path ||
+            initialReferrer.image_path === ''
           ) {
             initialReferrer = null;
           }
@@ -1458,7 +1486,8 @@ export class UserService {
       .filter(
         (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
       )
-      .filter((user) => (user.guards_count ?? 0) > 1);
+      .filter((user) => (user.guards_count ?? 0) > 1)
+      .filter((user) => user.image_path && user.image_path !== '');
 
     const userIds = filteredUsers.map((user) => user.id);
     const shieldBoostsMap =
@@ -1496,49 +1525,59 @@ export class UserService {
     userId: number,
     targetUserId: number,
   ): Promise<UserAttackPlayerResponseDto> {
-    const defender = await this.userRepository.findOne({
-      where: { id: targetUserId },
-      relations: ['clan', 'guards'],
-    });
+    if (userId === targetUserId) {
+      throw new BadRequestException('Нельзя атаковать себя');
+    }
+
+    const [defender, attackerForCheck] = await Promise.all([
+      this.userRepository.findOne({
+        where: { id: targetUserId },
+        relations: ['clan'],
+        select: ['id', 'vk_id', 'clan', 'strength', 'money'],
+      }),
+      this.userRepository.findOne({
+        where: { id: userId },
+        select: ['id', 'clan_id'],
+      }),
+    ]);
 
     if (!defender) {
       throw new NotFoundException('Защищающийся не найден');
     }
 
-    if (userId === targetUserId) {
-      throw new BadRequestException('Нельзя атаковать себя');
+    if (!attackerForCheck) {
+      throw new NotFoundException('Атакующий не найден');
     }
 
-    await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
-      targetUserId,
-    );
+    if (
+      attackerForCheck.clan_id &&
+      defender.clan &&
+      attackerForCheck.clan_id === defender.clan.id
+    ) {
+      throw new BadRequestException('Нельзя атаковать участника своего клана');
+    }
 
     const userIds = [targetUserId, userId];
-    const shieldBoostsMap =
-      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
-    const defenderShieldEndTime = shieldBoostsMap.get(targetUserId);
+    const [shieldBoostsMap, activeBoostsMap] = await Promise.all([
+      this.userBoostService.findActiveShieldBoostsByUserIds(userIds),
+      this.userBoostService.findActiveBoostsByUserIds(userIds),
+    ]);
 
+    const defenderShieldEndTime = shieldBoostsMap.get(targetUserId);
     if (defenderShieldEndTime) {
       throw new BadRequestException(
         'Нельзя атаковать пользователя с активным щитом',
       );
     }
 
-    const attackerShieldEndTime = shieldBoostsMap.get(userId);
-
-    if (attackerShieldEndTime) {
-      const attackerActiveBoosts =
-        await this.userBoostService.findActiveByUserId(userId);
-      const attackerShieldBoost = attackerActiveBoosts.find(
-        (b) => b.type === UserBoostType.SHIELD,
-      );
-      if (attackerShieldBoost) {
-        await this.userBoostService.complete(attackerShieldBoost.id);
-      }
+    const attackerActiveBoosts = activeBoostsMap.get(userId) || [];
+    const attackerShieldBoost = attackerActiveBoosts.find(
+      (b) => b.type === UserBoostType.SHIELD,
+    );
+    if (attackerShieldBoost) {
+      await this.userBoostService.complete(attackerShieldBoost.id);
     }
 
-    const attackerActiveBoosts =
-      await this.userBoostService.findActiveByUserId(userId);
     const cooldownHalvingBoost = attackerActiveBoosts.find(
       (b) => b.type === UserBoostType.COOLDOWN_HALVING,
     );
@@ -1553,32 +1592,42 @@ export class UserService {
     }
 
     return await this.dataSource.transaction(async (manager) => {
-      const attacker = await manager
-        .createQueryBuilder(User, 'user')
-        .where('user.id = :userId', { userId })
-        .select([
-          'user.id',
-          'user.vk_id',
-          'user.clan_id',
-          'user.strength',
-          'user.guards_count',
-          'user.last_attack_time',
-          'user.money',
-        ])
-        .getOne();
+      const [attacker, defenderWithGuards] = await Promise.all([
+        manager
+          .createQueryBuilder(User, 'user')
+          .where('user.id = :userId', { userId })
+          .select([
+            'user.id',
+            'user.vk_id',
+            'user.clan_id',
+            'user.strength',
+            'user.guards_count',
+            'user.last_attack_time',
+            'user.money',
+          ])
+          .getOne(),
+        manager
+          .createQueryBuilder(User, 'user')
+          .leftJoinAndSelect('user.guards', 'guard', 'guard.is_first = false')
+          .where('user.id = :targetUserId', { targetUserId })
+          .select([
+            'user.id',
+            'user.strength',
+            'user.money',
+            'user.guards_count',
+            'guard.id',
+            'guard.strength',
+            'guard.is_first',
+          ])
+          .getOne(),
+      ]);
 
       if (!attacker) {
         throw new NotFoundException('Атакующий не найден');
       }
 
-      if (
-        attacker.clan_id &&
-        defender.clan &&
-        attacker.clan_id === defender.clan.id
-      ) {
-        throw new BadRequestException(
-          'Нельзя атаковать участника своего клана',
-        );
+      if (!defenderWithGuards) {
+        throw new NotFoundException('Защищающийся не найден');
       }
 
       if (attacker.last_attack_time) {
@@ -1595,17 +1644,12 @@ export class UserService {
 
       const attacker_power = attacker.strength ?? 0;
       const attacker_guards = attacker.guards_count ?? 0;
-      const defender_power = defender.strength ?? 0;
-      const capturableDefenderGuards = defender.guards
-        ? defender.guards.filter((guard) => !guard.is_first)
-        : [];
+      const defender_power = defenderWithGuards.strength ?? 0;
+      const defender_guards_count = defenderWithGuards.guards_count ?? 0;
+      const capturableDefenderGuards = defenderWithGuards.guards || [];
       const defender_guards = capturableDefenderGuards.length;
 
-      if (
-        attacker_guards === 0 ||
-        !defender.guards ||
-        defender.guards.length === 0
-      ) {
+      if (attacker_guards === 0 || defender_guards_count === 0) {
         throw new BadRequestException(
           'У атакующего или защищающегося нет стражей',
         );
@@ -1641,38 +1685,28 @@ export class UserService {
 
       let initialReferrerGuardStolen = false;
 
-      if (
-        isAttackingInitialReferrer &&
-        defender.guards &&
-        defender.guards.length > 0
-      ) {
-        const capturableGuards = defender.guards.filter(
-          (guard) => !guard.is_first,
-        );
+      if (isAttackingInitialReferrer && capturableDefenderGuards.length > 0) {
+        const guardToSteal = capturableDefenderGuards[0];
+        const stolenGuardId = guardToSteal.id;
 
-        if (capturableGuards.length > 0) {
-          const guardToSteal = capturableGuards[0];
-          const stolenGuardId = guardToSteal.id;
+        guardToSteal.user = attacker;
+        await manager.save(UserGuard, guardToSteal);
 
-          guardToSteal.user = attacker;
-          await manager.save(UserGuard, guardToSteal);
+        await Promise.all([
+          this.updateUserGuardsStats(attacker.id, manager),
+          this.updateUserGuardsStats(defenderWithGuards.id, manager),
+        ]);
 
-          await Promise.all([
-            this.updateUserGuardsStats(attacker.id, manager),
-            this.updateUserGuardsStats(defender.id, manager),
-          ]);
-
-          const guardItem = manager.create(StolenItem, {
-            type: StolenItemType.GUARD,
-            value: stolenGuardId.toString(),
-            thief: attacker,
-            victim: defender,
-            clan_war_id: null,
-          });
-          await manager.save(StolenItem, guardItem);
-          stolen_items.push(guardItem);
-          initialReferrerGuardStolen = true;
-        }
+        const guardItem = manager.create(StolenItem, {
+          type: StolenItemType.GUARD,
+          value: stolenGuardId.toString(),
+          thief: attacker,
+          victim: defenderWithGuards,
+          clan_war_id: null,
+        });
+        await manager.save(StolenItem, guardItem);
+        stolen_items.push(guardItem);
+        initialReferrerGuardStolen = true;
       }
 
       if (isAttackingInitialReferrer) {
@@ -1694,10 +1728,10 @@ export class UserService {
               attacker.id,
               EventHistoryType.ATTACK,
               stolen_items,
-              defender.id,
+              defenderWithGuards.id,
             ),
             this.eventHistoryService.create(
-              defender.id,
+              defenderWithGuards.id,
               EventHistoryType.DEFENSE,
               stolen_items,
               attacker.id,
@@ -1715,18 +1749,21 @@ export class UserService {
         let captured_guards = 0;
 
         if (!isAttackingInitialReferrer) {
-          stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
+          stolen_money = Math.round(
+            defenderWithGuards.money * 0.15 * (win_chance / 100),
+          );
 
           if (stolen_money > 0) {
-            defender.money = Number(defender.money) - stolen_money;
+            defenderWithGuards.money =
+              Number(defenderWithGuards.money) - stolen_money;
             attacker.money = Number(attacker.money) + stolen_money;
-            await manager.save(User, [defender, attacker]);
+            await manager.save(User, [defenderWithGuards, attacker]);
 
             const moneyItem = manager.create(StolenItem, {
               type: StolenItemType.MONEY,
               value: stolen_money.toString(),
               thief: attacker,
-              victim: defender,
+              victim: defenderWithGuards,
               clan_war_id: null,
             });
             await manager.save(StolenItem, moneyItem);
@@ -1737,15 +1774,11 @@ export class UserService {
             defender_guards * 0.08 * (win_chance / 100),
           );
 
-          if (
-            captured_guards > 0 &&
-            defender.guards &&
-            defender.guards.length > 0
-          ) {
-            const capturableGuards = defender.guards.filter(
-              (guard) => !guard.is_first,
+          if (captured_guards > 0 && capturableDefenderGuards.length > 0) {
+            const guardsToCapture = capturableDefenderGuards.slice(
+              0,
+              captured_guards,
             );
-            const guardsToCapture = capturableGuards.slice(0, captured_guards);
 
             guardsToCapture.forEach((guard) => {
               guard.user = attacker;
@@ -1754,7 +1787,7 @@ export class UserService {
 
             await Promise.all([
               this.updateUserGuardsStats(attacker.id, manager),
-              this.updateUserGuardsStats(defender.id, manager),
+              this.updateUserGuardsStats(defenderWithGuards.id, manager),
             ]);
 
             const guardItems = guardsToCapture.map((guard) =>
@@ -1762,7 +1795,7 @@ export class UserService {
                 type: StolenItemType.GUARD,
                 value: guard.id.toString(),
                 thief: attacker,
-                victim: defender,
+                victim: defenderWithGuards,
                 clan_war_id: null,
               }),
             );
@@ -1793,10 +1826,10 @@ export class UserService {
               attacker.id,
               EventHistoryType.ATTACK,
               stolen_items,
-              defender.id,
+              defenderWithGuards.id,
             ),
             this.eventHistoryService.create(
-              defender.id,
+              defenderWithGuards.id,
               EventHistoryType.DEFENSE,
               stolen_items,
               attacker.id,
@@ -1827,10 +1860,10 @@ export class UserService {
           attacker.id,
           EventHistoryType.ATTACK,
           stolen_items,
-          defender.id,
+          defenderWithGuards.id,
         ),
         this.eventHistoryService.create(
-          defender.id,
+          defenderWithGuards.id,
           EventHistoryType.DEFENSE,
           stolen_items,
           attacker.id,

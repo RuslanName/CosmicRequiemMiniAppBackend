@@ -160,15 +160,15 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<UserRatingResponseDto>,
     description:
       'Рейтинг пользователей, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getRating(
+    @Request() req: AuthenticatedRequest,
     @Query() paginationDto: PaginationDto,
-  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
-    return this.userService.getRating(paginationDto);
+  ): Promise<any> {
+    return this.userService.getRating(paginationDto, req.user.id);
   }
 
   @Get('attackable')

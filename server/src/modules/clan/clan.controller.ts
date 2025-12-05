@@ -281,15 +281,15 @@ export class ClanController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    type: PaginatedResponseDto<ClanRatingResponseDto>,
     description:
       'Рейтинг кланов, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getClanRating(
+    @Request() req: AuthenticatedRequest,
     @Query() paginationDto?: PaginationDto,
-  ): Promise<PaginatedResponseDto<ClanRatingResponseDto>> {
-    return this.clanService.getClanRating(paginationDto);
+  ): Promise<any> {
+    return this.clanService.getClanRating(paginationDto, req.user.id);
   }
 
   @Get(':id/find')

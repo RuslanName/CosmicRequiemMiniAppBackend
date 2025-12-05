@@ -71,6 +71,38 @@ export class UserBoostService {
     return shieldMap;
   }
 
+  async findActiveBoostsByUserIds(
+    userIds: number[],
+  ): Promise<Map<number, UserBoost[]>> {
+    if (userIds.length === 0) {
+      return new Map();
+    }
+
+    const now = new Date();
+    const boosts = await this.userBoostRepository
+      .createQueryBuilder('boost')
+      .leftJoin('boost.user', 'user')
+      .select(['boost.id', 'boost.type', 'boost.end_time', 'boost.user_id'])
+      .where('boost.user_id IN (:...userIds)', { userIds })
+      .andWhere('boost.end_time > :now', { now })
+      .orderBy('boost.created_at', 'DESC')
+      .getMany();
+
+    const boostsMap = new Map<number, UserBoost[]>();
+    for (const userId of userIds) {
+      boostsMap.set(userId, []);
+    }
+
+    for (const boost of boosts) {
+      const userId = boost.user_id;
+      const userBoosts = boostsMap.get(userId) || [];
+      userBoosts.push(boost);
+      boostsMap.set(userId, userBoosts);
+    }
+
+    return boostsMap;
+  }
+
   async findLastByUserIdAndType(
     userId: number,
     type: UserBoostType,
