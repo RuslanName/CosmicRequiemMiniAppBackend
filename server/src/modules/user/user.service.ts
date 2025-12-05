@@ -1246,7 +1246,8 @@ export class UserService {
       total = await queryBuilder.getCount();
 
       users = await queryBuilder
-        .orderBy('user.strength * 1000 + user.guards_count', 'DESC')
+        .orderBy('(user.strength * 1000 + COALESCE(user.money, 0))', 'DESC')
+        .addOrderBy('user.id', 'ASC')
         .skip(skip)
         .take(limit)
         .getMany();
@@ -1355,10 +1356,11 @@ export class UserService {
 
       sortedQueryBuilder
         .addSelect(`ABS(user.strength - :currentStrength)`, 'distance')
-        .addSelect(`user.strength * 1000 + user.guards_count`, 'score')
+        .addSelect(`user.strength * 1000 + COALESCE(user.money, 0)`, 'score')
         .setParameter('currentStrength', Math.floor(currentStrength))
         .orderBy('distance', 'ASC')
         .addOrderBy('score', 'DESC')
+        .addOrderBy('user.id', 'ASC')
         .skip(skip)
         .take(limit);
 
@@ -1489,6 +1491,15 @@ export class UserService {
       .filter((user) => (user.guards_count ?? 0) > 1)
       .filter((user) => user.image_path && user.image_path !== '');
 
+    filteredUsers.sort((a, b) => {
+      const scoreA = (a.strength ?? 0) * 1000 + (Number(a.money) || 0);
+      const scoreB = (b.strength ?? 0) * 1000 + (Number(b.money) || 0);
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+      return a.id - b.id;
+    });
+
     const userIds = filteredUsers.map((user) => user.id);
     const shieldBoostsMap =
       await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
@@ -1502,12 +1513,6 @@ export class UserService {
         equippedAccessories,
         shieldBoostsMap,
       );
-    });
-
-    dataWithStrength.sort((a, b) => {
-      const scoreA = a.strength * 1000 + a.guards_count;
-      const scoreB = b.strength * 1000 + b.guards_count;
-      return scoreB - scoreA;
     });
 
     const total = dataWithStrength.length;
@@ -1689,7 +1694,7 @@ export class UserService {
         const guardToSteal = capturableDefenderGuards[0];
         const stolenGuardId = guardToSteal.id;
 
-        guardToSteal.user = attacker;
+        guardToSteal.user_id = attacker.id;
         await manager.save(UserGuard, guardToSteal);
 
         await Promise.all([
@@ -1781,7 +1786,7 @@ export class UserService {
             );
 
             guardsToCapture.forEach((guard) => {
-              guard.user = attacker;
+              guard.user_id = attacker.id;
             });
             await manager.save(UserGuard, guardsToCapture);
 

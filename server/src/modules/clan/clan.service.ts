@@ -1397,7 +1397,7 @@ export class ClanService {
           );
 
           guardsToCapture.forEach((guard) => {
-            guard.user = attacker;
+            guard.user_id = attacker.id;
           });
           await manager.save(UserGuard, guardsToCapture);
 
@@ -2072,10 +2072,6 @@ export class ClanService {
       .createQueryBuilder('clan')
       .where('clan.image_path IS NOT NULL')
       .andWhere("clan.image_path != ''")
-      .leftJoinAndSelect('clan.members', 'members')
-      .leftJoinAndSelect('members.guards', 'guards')
-      .leftJoinAndSelect('clan._wars_1', '_wars_1')
-      .leftJoinAndSelect('clan._wars_2', '_wars_2')
       .getMany();
 
     const clanIds = allClans.map((clan) => clan.id);
@@ -2144,7 +2140,7 @@ export class ClanService {
         image_path: clan.image_path,
         strength,
         guards_count: guardsCount,
-        members_count: clan.members_count ?? (clan.members?.length || 0),
+        members_count: clan.members_count ?? 0,
         vk_group_id: clan.vk_group_id,
       };
     });
@@ -2160,10 +2156,11 @@ export class ClanService {
 
     let myRatingPlace: number | null = null;
     if (currentUserId) {
-      const currentUser = await this.userRepository.findOne({
-        where: { id: currentUserId },
-        select: ['clan_id'],
-      });
+      const currentUser = await this.userRepository
+        .createQueryBuilder('user')
+        .where('user.id = :currentUserId', { currentUserId })
+        .select('user.clan_id', 'clan_id')
+        .getRawOne();
       if (currentUser?.clan_id) {
         const currentClanIndex = clansWithRating.findIndex(
           (c) => c.id === currentUser.clan_id,
