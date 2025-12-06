@@ -2087,87 +2087,44 @@ export class ClanService {
 
     const total = await baseQuery.getCount();
 
-    const allClans = await baseQuery.getMany();
+    const clans = await baseQuery
+      .orderBy(
+        '(clan.strength * 1000 + COALESCE(clan.guards_count, 0))',
+        'DESC',
+      )
+      .addOrderBy('clan.id', 'ASC')
+      .skip(skip)
+      .take(limit)
+      .getMany();
 
-    const clanIds = allClans.map((clan) => clan.id);
+    const paginatedData = await Promise.all(
+      clans.map(async (clan) => {
+        const guardsCount = clan.guards_count ?? 0;
+        const strength = clan.strength ?? 0;
+        const clanScore = strength * 1000 + guardsCount;
 
-    let warStats1: any[] = [];
-    let warStats2: any[] = [];
+        const ratingPlaceQuery = this.clanRepository
+          .createQueryBuilder('c')
+          .where('c.image_path IS NOT NULL')
+          .andWhere("c.image_path != ''")
+          .andWhere(
+            '(c.strength * 1000 + COALESCE(c.guards_count, 0)) > :clanScore OR ((c.strength * 1000 + COALESCE(c.guards_count, 0)) = :clanScore AND c.id < :clanId)',
+            { clanScore, clanId: clan.id },
+          );
+        const ratingPlace = (await ratingPlaceQuery.getCount()) + 1;
 
-    if (clanIds.length > 0) {
-      warStats1 = await this.clanWarRepository
-        .createQueryBuilder('war')
-        .select('war.clan_1_id', 'clan_id')
-        .addSelect('war.status', 'status')
-        .addSelect('COUNT(*)', 'count')
-        .where('war.clan_1_id IN (:...clanIds)', { clanIds })
-        .groupBy('war.clan_1_id')
-        .addGroupBy('war.status')
-        .getRawMany();
-
-      warStats2 = await this.clanWarRepository
-        .createQueryBuilder('war')
-        .select('war.clan_2_id', 'clan_id')
-        .addSelect('war.status', 'status')
-        .addSelect('COUNT(*)', 'count')
-        .where('war.clan_2_id IN (:...clanIds)', { clanIds })
-        .groupBy('war.clan_2_id')
-        .addGroupBy('war.status')
-        .getRawMany();
-    }
-
-    const statsMap = new Map<number, { wins: number; losses: number }>();
-    for (const clanId of clanIds) {
-      statsMap.set(clanId, { wins: 0, losses: 0 });
-    }
-
-    for (const stat of warStats1) {
-      const clanId = stat.clan_id;
-      const count = parseInt(stat.count, 10);
-      const current = statsMap.get(clanId) || { wins: 0, losses: 0 };
-      if (stat.status === ClanWarStatus.WON_BY_CLAN_1) {
-        current.wins += count;
-      } else if (stat.status === ClanWarStatus.WON_BY_CLAN_2) {
-        current.losses += count;
-      }
-      statsMap.set(clanId, current);
-    }
-
-    for (const stat of warStats2) {
-      const clanId = stat.clan_id;
-      const count = parseInt(stat.count, 10);
-      const current = statsMap.get(clanId) || { wins: 0, losses: 0 };
-      if (stat.status === ClanWarStatus.WON_BY_CLAN_2) {
-        current.wins += count;
-      } else if (stat.status === ClanWarStatus.WON_BY_CLAN_1) {
-        current.losses += count;
-      }
-      statsMap.set(clanId, current);
-    }
-
-    const clansWithRating = allClans.map((clan) => {
-      const guardsCount = clan.guards_count ?? 0;
-      const strength = clan.strength ?? 0;
-
-      return {
-        id: clan.id,
-        name: clan.name,
-        image_path: clan.image_path,
-        strength,
-        guards_count: guardsCount,
-        members_count: clan.members_count ?? 0,
-        vk_group_id: clan.vk_group_id,
-      };
-    });
-
-    clansWithRating.sort((a, b) => {
-      const scoreA = (a.strength || 0) * 1000 + (a.guards_count || 0);
-      const scoreB = (b.strength || 0) * 1000 + (b.guards_count || 0);
-      if (scoreB !== scoreA) {
-        return scoreB - scoreA;
-      }
-      return a.id - b.id;
-    });
+        return {
+          id: clan.id,
+          name: clan.name,
+          image_path: clan.image_path,
+          strength,
+          guards_count: guardsCount,
+          members_count: clan.members_count ?? 0,
+          vk_group_id: clan.vk_group_id,
+          rating_place: ratingPlace,
+        } as ClanRatingResponseDto;
+      }),
+    );
 
     let myRatingPlace: number | null = null;
     if (currentUserId) {
@@ -2176,30 +2133,29 @@ export class ClanService {
         .where('user.id = :currentUserId', { currentUserId })
         .select('user.clan_id', 'clan_id')
         .getRawOne();
+
       if (currentUser?.clan_id) {
-        const currentClanIndex = clansWithRating.findIndex(
-          (c) => c.id === currentUser.clan_id,
-        );
-        if (currentClanIndex !== -1) {
-          myRatingPlace = currentClanIndex + 1;
+        const currentClan = await this.clanRepository.findOne({
+          where: { id: currentUser.clan_id },
+          select: ['id', 'strength', 'guards_count', 'image_path'],
+        });
+
+        if (currentClan && currentClan.image_path) {
+          const currentClanScore =
+            (currentClan.strength || 0) * 1000 +
+            (currentClan.guards_count || 0);
+          const myRatingPlaceQuery = this.clanRepository
+            .createQueryBuilder('c')
+            .where('c.image_path IS NOT NULL')
+            .andWhere("c.image_path != ''")
+            .andWhere(
+              '(c.strength * 1000 + COALESCE(c.guards_count, 0)) > :clanScore OR ((c.strength * 1000 + COALESCE(c.guards_count, 0)) = :clanScore AND c.id < :clanId)',
+              { clanScore: currentClanScore, clanId: currentClan.id },
+            );
+          myRatingPlace = (await myRatingPlaceQuery.getCount()) + 1;
         }
       }
     }
-
-    const clanIndexMap = new Map<number, number>();
-    clansWithRating.forEach((clan, index) => {
-      clanIndexMap.set(clan.id, index + 1);
-    });
-
-    const paginatedData = clansWithRating
-      .slice(skip, skip + limit)
-      .map((clan) => {
-        const ratingPlace = clanIndexMap.get(clan.id) || 0;
-        return {
-          ...clan,
-          rating_place: ratingPlace,
-        } as ClanRatingResponseDto;
-      });
 
     return {
       data: paginatedData,
