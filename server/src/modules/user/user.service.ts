@@ -15,6 +15,7 @@ import {
 import * as fs from 'fs';
 import * as path from 'path';
 import { User } from './user.entity';
+import { Clan } from '../clan/entities/clan.entity';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { Settings } from '../../config/setting.config';
@@ -34,7 +35,6 @@ import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { UserBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
 import { CurrentUserResponseDto } from './dtos/responses/user-me-response.dto';
 import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
-import { UserRatingPaginatedResponseDto } from './dtos/responses/user-rating-paginated-response.dto';
 import { UserTrainingResponseDto } from './dtos/responses/training-response.dto';
 import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
 import { UserContractResponseDto } from './dtos/responses/contract-response.dto';
@@ -185,6 +185,8 @@ export class UserService {
     shieldBoostsMap?: Map<number, Date | null>,
     activeBoosts?: any[],
     shieldEndTime?: Date | null,
+    usersRatingPlace: number | null = null,
+    clansRatingPlace: number | null = null,
   ): Promise<CurrentUserResponseDto> {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = user.guards_count ?? 0;
@@ -260,6 +262,8 @@ export class UserService {
           : undefined,
       attack_end_time:
         attackEndTime && attackEndTime > new Date() ? attackEndTime : undefined,
+      users_rating_place: usersRatingPlace ?? null,
+      clans_rating_place: clansRatingPlace ?? null,
     };
   }
 
@@ -530,6 +534,11 @@ export class UserService {
     );
     const shieldEndTime = shieldBoost?.end_time || null;
 
+    const [usersRatingPlace, clansRatingPlace] = await Promise.all([
+      this.getUserRatingPlace(userId),
+      this.getUserClanRatingPlace(userId),
+    ]);
+
     return await this.transformToCurrentUserResponseDto(
       user,
       equippedAccessories,
@@ -539,6 +548,8 @@ export class UserService {
       undefined,
       activeBoosts,
       shieldEndTime,
+      usersRatingPlace,
+      clansRatingPlace,
     );
   }
 
@@ -840,10 +851,10 @@ export class UserService {
 
   async getRating(
     paginationDto: PaginationDto,
-    currentUserId?: number,
-  ): Promise<UserRatingPaginatedResponseDto> {
+  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
-    const skip = (page - 1) * limit;
+    const actualLimit = Math.min(limit, 150);
+    const skip = (page - 1) * actualLimit;
 
     const baseQuery = this.userRepository
       .createQueryBuilder('user')
@@ -866,7 +877,7 @@ export class UserService {
       .orderBy('(user.strength * 1000 + COALESCE(user.money, 0))', 'DESC')
       .addOrderBy('user.id', 'ASC')
       .skip(skip)
-      .take(limit)
+      .take(actualLimit)
       .getMany();
 
     const userIds = users.map((user) => user.id);
@@ -879,59 +890,81 @@ export class UserService {
         : Promise.resolve(new Map<number, any[]>()),
     ]);
 
-    const data = await Promise.all(
-      users.map(async (user) => {
-        const userScore = (user.strength || 0) * 1000 + (Number(user.money) || 0);
-        const ratingPlaceQuery = this.userRepository
-          .createQueryBuilder('u')
-          .where('u.image_path IS NOT NULL')
-          .andWhere("u.image_path != ''")
-          .andWhere(
-            '(u.strength * 1000 + COALESCE(u.money, 0)) > :userScore OR ((u.strength * 1000 + COALESCE(u.money, 0)) = :userScore AND u.id < :userId)',
-            { userScore, userId: user.id },
-          );
-        const ratingPlace = (await ratingPlaceQuery.getCount()) + 1;
-
-        return {
-          ...this.transformToUserRatingResponseDto(
-            user,
-            accessoriesMap.get(user.id) || [],
-            shieldBoostsMap,
-          ),
-          rating_place: ratingPlace,
-        };
-      }),
-    );
-
-    let myRatingPlace: number | null = null;
-    if (currentUserId) {
-      const currentUser = await this.userRepository.findOne({
-        where: { id: currentUserId },
-        select: ['id', 'strength', 'money', 'image_path'],
-      });
-
-      if (currentUser && currentUser.image_path) {
-        const currentUserScore =
-          (currentUser.strength || 0) * 1000 + (Number(currentUser.money) || 0);
-        const myRatingPlaceQuery = this.userRepository
-          .createQueryBuilder('u')
-          .where('u.image_path IS NOT NULL')
-          .andWhere("u.image_path != ''")
-          .andWhere(
-            '(u.strength * 1000 + COALESCE(u.money, 0)) > :userScore OR ((u.strength * 1000 + COALESCE(u.money, 0)) = :userScore AND u.id < :userId)',
-            { userScore: currentUserScore, userId: currentUserId },
-          );
-        myRatingPlace = (await myRatingPlaceQuery.getCount()) + 1;
-      }
-    }
+    const data = users.map((user) => {
+      return this.transformToUserRatingResponseDto(
+        user,
+        accessoriesMap.get(user.id) || [],
+        shieldBoostsMap,
+      );
+    });
 
     return {
       data,
       total: Number(total),
       page: Number(page),
-      limit: Number(limit),
-      my_rating_place: myRatingPlace,
+      limit: Number(actualLimit),
     };
+  }
+
+  async getUserRatingPlace(userId: number): Promise<number | null> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'strength', 'money', 'image_path'],
+    });
+
+    if (!user || !user.image_path) {
+      return null;
+    }
+
+    const userScore = (user.strength || 0) * 1000 + (Number(user.money) || 0);
+    const ratingPlaceQuery = this.userRepository
+      .createQueryBuilder('u')
+      .where('u.image_path IS NOT NULL')
+      .andWhere("u.image_path != ''")
+      .andWhere(
+        '(u.strength * 1000 + COALESCE(u.money, 0)) > :userScore OR ((u.strength * 1000 + COALESCE(u.money, 0)) = :userScore AND u.id < :userId)',
+        { userScore, userId: user.id },
+      );
+    return (await ratingPlaceQuery.getCount()) + 1;
+  }
+
+  async getUserClanRatingPlace(userId: number): Promise<number | null> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'clan_id'],
+    });
+
+    if (!user || !user.clan_id) {
+      return null;
+    }
+
+    const clan = await this.dataSource
+      .getRepository(Clan)
+      .createQueryBuilder('clan')
+      .where('clan.id = :clanId', { clanId: user.clan_id })
+      .select([
+        'clan.id',
+        'clan.strength',
+        'clan.guards_count',
+        'clan.image_path',
+      ])
+      .getOne();
+
+    if (!clan || !clan.image_path) {
+      return null;
+    }
+
+    const clanScore = (clan.strength || 0) * 1000 + (clan.guards_count || 0);
+    const ratingPlaceQuery = this.dataSource
+      .getRepository(Clan)
+      .createQueryBuilder('c')
+      .where('c.image_path IS NOT NULL')
+      .andWhere("c.image_path != ''")
+      .andWhere(
+        '(c.strength * 1000 + COALESCE(c.guards_count, 0)) > :clanScore OR ((c.strength * 1000 + COALESCE(c.guards_count, 0)) = :clanScore AND c.id < :clanId)',
+        { clanScore, clanId: clan.id },
+      );
+    return (await ratingPlaceQuery.getCount()) + 1;
   }
 
   async getUserBoosts(userId: number): Promise<UserBoost[]> {
@@ -1575,34 +1608,6 @@ export class UserService {
       throw new BadRequestException('Нельзя атаковать себя');
     }
 
-    const [defender, attackerForCheck] = await Promise.all([
-      this.userRepository.findOne({
-        where: { id: targetUserId },
-        relations: ['clan'],
-        select: ['id', 'vk_id', 'clan', 'strength', 'money'],
-      }),
-      this.userRepository.findOne({
-        where: { id: userId },
-        select: ['id', 'clan_id'],
-      }),
-    ]);
-
-    if (!defender) {
-      throw new NotFoundException('Защищающийся не найден');
-    }
-
-    if (!attackerForCheck) {
-      throw new NotFoundException('Атакующий не найден');
-    }
-
-    if (
-      attackerForCheck.clan_id &&
-      defender.clan &&
-      attackerForCheck.clan_id === defender.clan.id
-    ) {
-      throw new BadRequestException('Нельзя атаковать участника своего клана');
-    }
-
     const userIds = [targetUserId, userId];
     const [shieldBoostsMap, activeBoostsMap] = await Promise.all([
       this.userBoostService.findActiveShieldBoostsByUserIds(userIds),
@@ -1638,9 +1643,10 @@ export class UserService {
     }
 
     return await this.dataSource.transaction(async (manager) => {
-      const [attacker, defenderWithGuards] = await Promise.all([
+      const [attacker, defender, defenderGuards] = await Promise.all([
         manager
           .createQueryBuilder(User, 'user')
+          .leftJoinAndSelect('user.clan', 'clan')
           .where('user.id = :userId', { userId })
           .select([
             'user.id',
@@ -1654,26 +1660,40 @@ export class UserService {
           .getOne(),
         manager
           .createQueryBuilder(User, 'user')
-          .leftJoinAndSelect('user.guards', 'guard', 'guard.is_first = false')
+          .leftJoinAndSelect('user.clan', 'clan')
           .where('user.id = :targetUserId', { targetUserId })
           .select([
             'user.id',
+            'user.vk_id',
             'user.strength',
             'user.money',
             'user.guards_count',
-            'guard.id',
-            'guard.strength',
-            'guard.is_first',
           ])
           .getOne(),
+        manager
+          .createQueryBuilder(UserGuard, 'guard')
+          .where('guard.user_id = :targetUserId', { targetUserId })
+          .andWhere('guard.is_first = false')
+          .select(['guard.id', 'guard.strength', 'guard.is_first'])
+          .getMany(),
       ]);
 
       if (!attacker) {
         throw new NotFoundException('Атакующий не найден');
       }
 
-      if (!defenderWithGuards) {
+      if (!defender) {
         throw new NotFoundException('Защищающийся не найден');
+      }
+
+      if (
+        attacker.clan_id &&
+        defender.clan &&
+        attacker.clan_id === defender.clan.id
+      ) {
+        throw new BadRequestException(
+          'Нельзя атаковать участника своего клана',
+        );
       }
 
       if (attacker.last_attack_time) {
@@ -1690,9 +1710,9 @@ export class UserService {
 
       const attacker_power = attacker.strength ?? 0;
       const attacker_guards = attacker.guards_count ?? 0;
-      const defender_power = defenderWithGuards.strength ?? 0;
-      const defender_guards_count = defenderWithGuards.guards_count ?? 0;
-      const capturableDefenderGuards = defenderWithGuards.guards || [];
+      const defender_power = defender.strength ?? 0;
+      const defender_guards_count = defender.guards_count ?? 0;
+      const capturableDefenderGuards = defenderGuards || [];
       const defender_guards = capturableDefenderGuards.length;
 
       if (attacker_guards === 0 || defender_guards_count === 0) {
@@ -1747,14 +1767,14 @@ export class UserService {
 
         await Promise.all([
           this.updateUserGuardsStats(attacker.id, manager),
-          this.updateUserGuardsStats(defenderWithGuards.id, manager),
+          this.updateUserGuardsStats(defender.id, manager),
         ]);
 
         const guardItem = manager.create(StolenItem, {
           type: StolenItemType.GUARD,
           value: stolenGuardId.toString(),
           thief: attacker,
-          victim: defenderWithGuards,
+          victim: defender,
           clan_war_id: null,
         });
         await manager.save(StolenItem, guardItem);
@@ -1781,10 +1801,10 @@ export class UserService {
               attacker.id,
               EventHistoryType.ATTACK,
               stolen_items,
-              defenderWithGuards.id,
+              defender.id,
             ),
             this.eventHistoryService.create(
-              defenderWithGuards.id,
+              defender.id,
               EventHistoryType.DEFENSE,
               stolen_items,
               attacker.id,
@@ -1802,21 +1822,18 @@ export class UserService {
         let captured_guards = 0;
 
         if (!isAttackingInitialReferrer) {
-          stolen_money = Math.round(
-            defenderWithGuards.money * 0.15 * (win_chance / 100),
-          );
+          stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
 
           if (stolen_money > 0) {
-            defenderWithGuards.money =
-              Number(defenderWithGuards.money) - stolen_money;
+            defender.money = Number(defender.money) - stolen_money;
             attacker.money = Number(attacker.money) + stolen_money;
-            await manager.save(User, [defenderWithGuards, attacker]);
+            await manager.save(User, [defender, attacker]);
 
             const moneyItem = manager.create(StolenItem, {
               type: StolenItemType.MONEY,
               value: stolen_money.toString(),
               thief: attacker,
-              victim: defenderWithGuards,
+              victim: defender,
               clan_war_id: null,
             });
             await manager.save(StolenItem, moneyItem);
@@ -1840,7 +1857,7 @@ export class UserService {
 
             await Promise.all([
               this.updateUserGuardsStats(attacker.id, manager),
-              this.updateUserGuardsStats(defenderWithGuards.id, manager),
+              this.updateUserGuardsStats(defender.id, manager),
             ]);
 
             const guardItems = guardsToCapture.map((guard) =>
@@ -1848,7 +1865,7 @@ export class UserService {
                 type: StolenItemType.GUARD,
                 value: guard.id.toString(),
                 thief: attacker,
-                victim: defenderWithGuards,
+                victim: defender,
                 clan_war_id: null,
               }),
             );
@@ -1879,10 +1896,10 @@ export class UserService {
               attacker.id,
               EventHistoryType.ATTACK,
               stolen_items,
-              defenderWithGuards.id,
+              defender.id,
             ),
             this.eventHistoryService.create(
-              defenderWithGuards.id,
+              defender.id,
               EventHistoryType.DEFENSE,
               stolen_items,
               attacker.id,
@@ -1913,10 +1930,10 @@ export class UserService {
           attacker.id,
           EventHistoryType.ATTACK,
           stolen_items,
-          defenderWithGuards.id,
+          defender.id,
         ),
         this.eventHistoryService.create(
-          defenderWithGuards.id,
+          defender.id,
           EventHistoryType.DEFENSE,
           stolen_items,
           attacker.id,

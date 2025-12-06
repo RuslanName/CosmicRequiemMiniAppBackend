@@ -21,7 +21,4 @@ export class ClanRatingResponseDto {
 
   @ApiProperty()
   vk_group_id: number;
-
-  @ApiProperty({ required: false })
-  rating_place?: number;
 }

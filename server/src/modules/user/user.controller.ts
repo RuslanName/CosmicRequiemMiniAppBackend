@@ -34,7 +34,6 @@ import { ActivateShieldDto } from './dtos/activate-shield.dto';
 import { UserBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
 import { CurrentUserResponseDto } from './dtos/responses/user-me-response.dto';
 import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
-import { UserRatingPaginatedResponseDto } from './dtos/responses/user-rating-paginated-response.dto';
 import { UserGuardResponseDto } from '../user-guard/dtos/responses/user-guard-response.dto';
 import { UserTrainingResponseDto } from './dtos/responses/training-response.dto';
 import { UserContractResponseDto } from './dtos/responses/contract-response.dto';
@@ -168,15 +167,15 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
+    type: PaginatedResponseDto<UserRatingResponseDto>,
     description:
       'Рейтинг пользователей, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getRating(
-    @Request() req: AuthenticatedRequest,
     @Query() paginationDto: PaginationDto,
-  ): Promise<UserRatingPaginatedResponseDto> {
-    return this.userService.getRating(paginationDto, req.user.id);
+  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
+    return this.userService.getRating(paginationDto);
   }
 
   @Get('attackable')

@@ -23,9 +23,6 @@ export class UserRatingResponseDto {
   @ApiProperty()
   guards_count: number;
 
-  @ApiProperty({ required: false })
-  rating_place?: number;
-
   @ApiProperty({
     type: [UserAccessoryResponseDto],
     required: false,

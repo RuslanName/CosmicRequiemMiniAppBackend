@@ -64,4 +64,10 @@ export class CurrentUserResponseDto {
 
   @ApiProperty({ required: false, nullable: true })
   attack_end_time?: Date;
+
+  @ApiProperty({ required: false, nullable: true })
+  users_rating_place?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  clans_rating_place?: number | null;
 }

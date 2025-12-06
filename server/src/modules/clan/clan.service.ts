@@ -30,7 +30,6 @@ import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { ClanStatsResponseDto } from './dtos/responses/clan-with-stats-response.dto';
 import { ClanReferralResponseDto } from './dtos/responses/clan-with-referral-response.dto';
 import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto';
-import { ClanRatingPaginatedResponseDto } from './dtos/responses/clan-rating-paginated-response.dto';
 import { UserStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { ClanAttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
@@ -2075,10 +2074,10 @@ export class ClanService {
 
   async getClanRating(
     paginationDto?: PaginationDto,
-    currentUserId?: number,
-  ): Promise<ClanRatingPaginatedResponseDto> {
+  ): Promise<PaginatedResponseDto<ClanRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto || {};
-    const skip = (page - 1) * limit;
+    const actualLimit = Math.min(limit, 150);
+    const skip = (page - 1) * actualLimit;
 
     const baseQuery = this.clanRepository
       .createQueryBuilder('clan')
@@ -2094,75 +2093,29 @@ export class ClanService {
       )
       .addOrderBy('clan.id', 'ASC')
       .skip(skip)
-      .take(limit)
+      .take(actualLimit)
       .getMany();
 
-    const paginatedData = await Promise.all(
-      clans.map(async (clan) => {
-        const guardsCount = clan.guards_count ?? 0;
-        const strength = clan.strength ?? 0;
-        const clanScore = strength * 1000 + guardsCount;
+    const paginatedData = clans.map((clan) => {
+      const guardsCount = clan.guards_count ?? 0;
+      const strength = clan.strength ?? 0;
 
-        const ratingPlaceQuery = this.clanRepository
-          .createQueryBuilder('c')
-          .where('c.image_path IS NOT NULL')
-          .andWhere("c.image_path != ''")
-          .andWhere(
-            '(c.strength * 1000 + COALESCE(c.guards_count, 0)) > :clanScore OR ((c.strength * 1000 + COALESCE(c.guards_count, 0)) = :clanScore AND c.id < :clanId)',
-            { clanScore, clanId: clan.id },
-          );
-        const ratingPlace = (await ratingPlaceQuery.getCount()) + 1;
-
-        return {
-          id: clan.id,
-          name: clan.name,
-          image_path: clan.image_path,
-          strength,
-          guards_count: guardsCount,
-          members_count: clan.members_count ?? 0,
-          vk_group_id: clan.vk_group_id,
-          rating_place: ratingPlace,
-        } as ClanRatingResponseDto;
-      }),
-    );
-
-    let myRatingPlace: number | null = null;
-    if (currentUserId) {
-      const currentUser = await this.userRepository
-        .createQueryBuilder('user')
-        .where('user.id = :currentUserId', { currentUserId })
-        .select('user.clan_id', 'clan_id')
-        .getRawOne();
-
-      if (currentUser?.clan_id) {
-        const currentClan = await this.clanRepository.findOne({
-          where: { id: currentUser.clan_id },
-          select: ['id', 'strength', 'guards_count', 'image_path'],
-        });
-
-        if (currentClan && currentClan.image_path) {
-          const currentClanScore =
-            (currentClan.strength || 0) * 1000 +
-            (currentClan.guards_count || 0);
-          const myRatingPlaceQuery = this.clanRepository
-            .createQueryBuilder('c')
-            .where('c.image_path IS NOT NULL')
-            .andWhere("c.image_path != ''")
-            .andWhere(
-              '(c.strength * 1000 + COALESCE(c.guards_count, 0)) > :clanScore OR ((c.strength * 1000 + COALESCE(c.guards_count, 0)) = :clanScore AND c.id < :clanId)',
-              { clanScore: currentClanScore, clanId: currentClan.id },
-            );
-          myRatingPlace = (await myRatingPlaceQuery.getCount()) + 1;
-        }
-      }
-    }
+      return {
+        id: clan.id,
+        name: clan.name,
+        image_path: clan.image_path,
+        strength,
+        guards_count: guardsCount,
+        members_count: clan.members_count ?? 0,
+        vk_group_id: clan.vk_group_id,
+      } as ClanRatingResponseDto;
+    });
 
     return {
       data: paginatedData,
       total: Number(total),
       page: Number(page),
-      limit: Number(limit),
-      my_rating_place: myRatingPlace,
+      limit: Number(actualLimit),
     };
   }
 
