@@ -73,9 +73,6 @@ export class UserService {
     const userGuardRepo = manager
       ? manager.getRepository(UserGuard)
       : this.userGuardRepository;
-    const userRepo = manager
-      ? manager.getRepository(User)
-      : this.userRepository;
 
     const result = await userGuardRepo
       .createQueryBuilder('guard')
@@ -87,27 +84,16 @@ export class UserService {
     const guardsCount = parseInt(result.count, 10) || 0;
     const strength = parseInt(result.strength, 10) || 0;
 
-    const user = await userRepo.findOne({
-      where: { id: userId },
-      select: ['id', 'clan_id'],
-    });
-
-    await userRepo.update(userId, {
-      guards_count: guardsCount,
-      strength: strength,
-    });
-
-    if (user?.clan_id) {
-      const query = manager
-        ? manager.query.bind(manager)
-        : this.userRepository.manager.query.bind(this.userRepository.manager);
-      await query(
-        `UPDATE clan SET 
-          strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-          guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1)
-        WHERE id = $1`,
-        [user.clan_id],
-      );
+    if (manager) {
+      await manager.update(User, userId, {
+        guards_count: guardsCount,
+        strength: strength,
+      });
+    } else {
+      await this.userRepository.update(userId, {
+        guards_count: guardsCount,
+        strength: strength,
+      });
     }
   }
 

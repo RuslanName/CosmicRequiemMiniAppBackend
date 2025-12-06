@@ -77,9 +77,6 @@ export class ClanService {
     const userGuardRepo = manager
       ? manager.getRepository(UserGuard)
       : this.userGuardRepository;
-    const userRepo = manager
-      ? manager.getRepository(User)
-      : this.userRepository;
 
     const result = await userGuardRepo
       .createQueryBuilder('guard')
@@ -91,10 +88,17 @@ export class ClanService {
     const guardsCount = parseInt(result.count, 10) || 0;
     const strength = parseInt(result.strength, 10) || 0;
 
-    await userRepo.update(userId, {
-      guards_count: guardsCount,
-      strength: strength,
-    });
+    if (manager) {
+      await manager.update(User, userId, {
+        guards_count: guardsCount,
+        strength: strength,
+      });
+    } else {
+      await this.userRepository.update(userId, {
+        guards_count: guardsCount,
+        strength: strength,
+      });
+    }
   }
 
   private calculateClanMoney(members: User[]): number {
