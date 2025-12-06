@@ -177,12 +177,12 @@ export class AuthService {
               strength: referralGuardStrength,
               is_first: false,
               user: initialReferrer,
-              guard_as_user: dbUser,
+              guard_as_user_id: dbUser.id,
             });
             await this.userGuardRepository.save(referralGuard);
             await this.updateUserGuardsStats(initialReferrer.id);
 
-            dbUser.user_as_guard = referralGuard;
+            dbUser.user_as_guard_id = referralGuard.id;
             await this.userRepository.save(dbUser);
           }
         }
@@ -302,13 +302,13 @@ export class AuthService {
       strength: referralGuardStrength,
       is_first: false,
       user: referrerUser,
-      guard_as_user: dbUser,
+      guard_as_user_id: dbUser.id,
     });
     await this.userGuardRepository.save(referralGuard);
     await this.updateUserGuardsStats(referrerUser.id);
     await this.updateUserReferralsCount(referrerUser.id);
 
-    dbUser.user_as_guard = referralGuard;
+    dbUser.user_as_guard_id = referralGuard.id;
     await this.userRepository.save(dbUser);
 
     await this.userTaskService.updateTaskProgress(
