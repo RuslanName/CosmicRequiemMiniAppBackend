@@ -1782,10 +1782,37 @@ export class UserService {
         guardToSteal.user_id = attacker.id;
         await manager.save(UserGuard, guardToSteal);
 
-        await Promise.all([
+        const statsUpdates: Promise<void>[] = [
           this.updateUserGuardsStats(attacker.id, manager),
           this.updateUserGuardsStats(defender.id, manager),
-        ]);
+        ];
+
+        if (attacker.clan_id) {
+          statsUpdates.push(
+            manager.query(
+              `UPDATE clan SET 
+                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+              WHERE id = $1`,
+              [attacker.clan_id],
+            ),
+          );
+        }
+        if (defender.clan_id && defender.clan_id !== attacker.clan_id) {
+          statsUpdates.push(
+            manager.query(
+              `UPDATE clan SET 
+                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+              WHERE id = $1`,
+              [defender.clan_id],
+            ),
+          );
+        }
+
+        await Promise.all(statsUpdates);
 
         const guardItem = manager.create(StolenItem, {
           type: StolenItemType.GUARD,
@@ -1800,6 +1827,34 @@ export class UserService {
       }
 
       if (isAttackingInitialReferrer) {
+        if (!initialReferrerGuardStolen) {
+          await Promise.all([
+            this.updateUserGuardsStats(attacker.id, manager),
+            this.updateUserGuardsStats(defender.id, manager),
+          ]);
+
+          if (attacker.clan_id) {
+            await manager.query(
+              `UPDATE clan SET 
+                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+              WHERE id = $1`,
+              [attacker.clan_id],
+            );
+          }
+          if (defender.clan_id) {
+            await manager.query(
+              `UPDATE clan SET 
+                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+              WHERE id = $1`,
+              [defender.clan_id],
+            );
+          }
+        }
+
         await manager.update(User, attacker.id, {
           last_attack_time: new Date(),
         });
@@ -1872,11 +1927,6 @@ export class UserService {
             });
             await manager.save(UserGuard, guardsToCapture);
 
-            await Promise.all([
-              this.updateUserGuardsStats(attacker.id, manager),
-              this.updateUserGuardsStats(defender.id, manager),
-            ]);
-
             const guardItems = guardsToCapture.map((guard) =>
               manager.create(StolenItem, {
                 type: StolenItemType.GUARD,
@@ -1890,6 +1940,38 @@ export class UserService {
             stolen_items.push(...savedGuardItems);
           }
         }
+
+        const statsUpdates: Promise<void>[] = [
+          this.updateUserGuardsStats(attacker.id, manager),
+          this.updateUserGuardsStats(defender.id, manager),
+        ];
+
+        if (attacker.clan_id) {
+          statsUpdates.push(
+            manager.query(
+              `UPDATE clan SET 
+                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+              WHERE id = $1`,
+              [attacker.clan_id],
+            ),
+          );
+        }
+        if (defender.clan_id && defender.clan_id !== attacker.clan_id) {
+          statsUpdates.push(
+            manager.query(
+              `UPDATE clan SET 
+                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+              WHERE id = $1`,
+              [defender.clan_id],
+            ),
+          );
+        }
+
+        await Promise.all(statsUpdates);
 
         attacker.last_attack_time = new Date();
         await manager.save(User, attacker);
@@ -1928,6 +2010,38 @@ export class UserService {
 
         return result;
       }
+
+      const statsUpdates: Promise<void>[] = [
+        this.updateUserGuardsStats(attacker.id, manager),
+        this.updateUserGuardsStats(defender.id, manager),
+      ];
+
+      if (attacker.clan_id) {
+        statsUpdates.push(
+          manager.query(
+            `UPDATE clan SET 
+              strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+              guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+              members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+            WHERE id = $1`,
+            [attacker.clan_id],
+          ),
+        );
+      }
+      if (defender.clan_id && defender.clan_id !== attacker.clan_id) {
+        statsUpdates.push(
+          manager.query(
+            `UPDATE clan SET 
+              strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+              guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+              members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+            WHERE id = $1`,
+            [defender.clan_id],
+          ),
+        );
+      }
+
+      await Promise.all(statsUpdates);
 
       attacker.last_attack_time = new Date();
       await manager.save(User, attacker);

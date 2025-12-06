@@ -1412,26 +1412,6 @@ export class ClanService {
           });
           await manager.save(UserGuard, guardsToCapture);
 
-          await Promise.all([
-            this.updateUserGuardsStats(attacker.id, manager),
-            this.updateUserGuardsStats(defenderWithGuards.id, manager),
-          ]);
-
-          const clanStatsUpdates: Promise<void>[] = [];
-          if (attacker.clan_id) {
-            clanStatsUpdates.push(
-              this.updateClanStats(attacker.clan_id, manager),
-            );
-          }
-          if (defenderWithGuards.clan_id) {
-            clanStatsUpdates.push(
-              this.updateClanStats(defenderWithGuards.clan_id, manager),
-            );
-          }
-          if (clanStatsUpdates.length > 0) {
-            await Promise.all(clanStatsUpdates);
-          }
-
           const guardItems = guardsToCapture.map((guard) =>
             manager.create(StolenItem, {
               type: StolenItemType.GUARD,
@@ -1444,6 +1424,25 @@ export class ClanService {
           const savedGuardItems = await manager.save(StolenItem, guardItems);
           stolen_items.push(...savedGuardItems);
         }
+
+        const statsUpdates: Promise<void>[] = [
+          this.updateUserGuardsStats(attacker.id, manager),
+          this.updateUserGuardsStats(defenderWithGuards.id, manager),
+        ];
+
+        if (attacker.clan_id) {
+          statsUpdates.push(this.updateClanStats(attacker.clan_id, manager));
+        }
+        if (
+          defenderWithGuards.clan_id &&
+          defenderWithGuards.clan_id !== attacker.clan_id
+        ) {
+          statsUpdates.push(
+            this.updateClanStats(defenderWithGuards.clan_id, manager),
+          );
+        }
+
+        await Promise.all(statsUpdates);
 
         attacker.last_attack_time = new Date();
         await manager.save(User, attacker);
@@ -1480,6 +1479,25 @@ export class ClanService {
 
         return result;
       }
+
+      const statsUpdates: Promise<void>[] = [
+        this.updateUserGuardsStats(attacker.id, manager),
+        this.updateUserGuardsStats(defenderWithGuards.id, manager),
+      ];
+
+      if (attacker.clan_id) {
+        statsUpdates.push(this.updateClanStats(attacker.clan_id, manager));
+      }
+      if (
+        defenderWithGuards.clan_id &&
+        defenderWithGuards.clan_id !== attacker.clan_id
+      ) {
+        statsUpdates.push(
+          this.updateClanStats(defenderWithGuards.clan_id, manager),
+        );
+      }
+
+      await Promise.all(statsUpdates);
 
       attacker.last_attack_time = new Date();
       await manager.save(User, attacker);
