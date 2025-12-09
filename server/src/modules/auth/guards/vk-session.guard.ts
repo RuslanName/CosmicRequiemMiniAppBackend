@@ -5,10 +5,34 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { SessionService } from '../services/session.service';
+import { ENV } from '../../../config/constants';
 
 @Injectable()
 export class VKSessionGuard implements CanActivate {
   constructor(private readonly sessionService: SessionService) {}
+
+  private parseExpiresIn(expiresIn: string): number {
+    const match = expiresIn.match(/^(\d+)([smhd])$/);
+    if (!match) {
+      return 30 * 24 * 60 * 60;
+    }
+
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+
+    switch (unit) {
+      case 's':
+        return value;
+      case 'm':
+        return value * 60;
+      case 'h':
+        return value * 60 * 60;
+      case 'd':
+        return value * 24 * 60 * 60;
+      default:
+        return 30 * 24 * 60 * 60;
+    }
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -18,13 +42,22 @@ export class VKSessionGuard implements CanActivate {
       throw new UnauthorizedException('Сессия не найдена');
     }
 
-    const sessionData = await this.sessionService.validateSession(sessionId);
+    const expiresInSeconds = this.parseExpiresIn(ENV.SESSION_EXPIRES_IN);
+    const sessionData = await this.sessionService.validateSession(
+      sessionId,
+      expiresInSeconds,
+    );
 
     if (!sessionData) {
       throw new UnauthorizedException('Сессия недействительна или истекла');
     }
 
     request.user = { id: sessionData.userId };
+    // Сохраняем информацию о продлении сессии для interceptor
+    request.sessionExtended = sessionData.shouldExtend;
+    request.sessionId = sessionId;
+    request.sessionExpiresIn = expiresInSeconds;
+
     return true;
   }
 
@@ -35,10 +68,6 @@ export class VKSessionGuard implements CanActivate {
 
     if (request.cookies && request.cookies['session_id']) {
       return request.cookies['session_id'];
-    }
-
-    if (request.query && request.query.session_id) {
-      return request.query.session_id;
     }
 
     if (request.headers['cookie']) {

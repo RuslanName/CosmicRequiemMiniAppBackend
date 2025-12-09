@@ -5,6 +5,7 @@ import { UserService } from './user.service';
 import { User } from './user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
+import { ClanWar } from '../clan-war/entities/clan-war.entity';
 import { UserBoostModule } from '../user-boost/user-boost.module';
 import { UserAccessoryModule } from '../user-accessory/user-accessory.module';
 import { EventHistoryModule } from '../event-history/event-history.module';
@@ -13,7 +14,7 @@ import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserGuard, StolenItem]),
+    TypeOrmModule.forFeature([User, UserGuard, StolenItem, ClanWar]),
     UserBoostModule,
     forwardRef(() => UserAccessoryModule),
     EventHistoryModule,

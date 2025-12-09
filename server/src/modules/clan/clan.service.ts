@@ -42,6 +42,7 @@ import { EventHistoryService } from '../event-history/event-history.service';
 import { EventHistoryType } from '../event-history/enums/event-history-type.enum';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/enums/notification-type.enum';
+import { CacheService } from '../../common/services/cache.service';
 
 @Injectable()
 export class ClanService {
@@ -61,6 +62,7 @@ export class ClanService {
     private readonly userBoostService: UserBoostService,
     private readonly eventHistoryService: EventHistoryService,
     private readonly notificationService: NotificationService,
+    private readonly cacheService: CacheService,
   ) {}
 
   private async updateUserGuardsStats(
@@ -793,6 +795,8 @@ export class ClanService {
     const money = parseInt(moneyResult?.total || '0', 10);
     (clanWithRelations as any).money = money;
 
+    await this.cacheService.invalidateClanCaches(savedClan.id, userId);
+
     return this.transformToClanReferralResponseDto(clanWithRelations);
   }
 
@@ -952,6 +956,17 @@ export class ClanService {
 
     const money = parseInt(moneyResult?.total || '0', 10);
     (clanWithRelations as any).money = money;
+
+    const clanMembers = await this.userRepository.find({
+      where: { clan_id: savedClan.id },
+      select: ['id'],
+    });
+    await Promise.all([
+      this.cacheService.invalidateClanCaches(savedClan.id),
+      ...clanMembers.map((member) =>
+        this.cacheService.invalidateClanCaches(savedClan.id, member.id),
+      ),
+    ]);
 
     return this.transformToClanReferralResponseDto(clanWithRelations);
   }
@@ -2153,22 +2168,32 @@ export class ClanService {
     paginationDto?: PaginationDto,
   ): Promise<PaginatedResponseDto<ClanRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto || {};
-    const actualLimit = Math.min(limit, 150);
+    const MAX_RATING_LIMIT = Settings[SettingKey.RATING_LIMIT] as number;
+    const actualLimit = Math.min(limit, MAX_RATING_LIMIT);
     const skip = (page - 1) * actualLimit;
 
-    const baseQuery = this.clanRepository
-      .createQueryBuilder('clan')
-      .where('clan.image_path IS NOT NULL')
-      .andWhere("clan.image_path != ''");
+    const baseQuery = this.clanRepository.createQueryBuilder('clan');
 
-    const total = await baseQuery.getCount();
+    const totalCount = await baseQuery.getCount();
+    const total = Math.min(totalCount, MAX_RATING_LIMIT);
+
+    if (skip >= MAX_RATING_LIMIT) {
+      return {
+        data: [],
+        total: total,
+        page: Number(page),
+        limit: Number(actualLimit),
+      };
+    }
+
+    const remainingLimit = Math.min(actualLimit, MAX_RATING_LIMIT - skip);
 
     const clans = await baseQuery
       .orderBy('clan.strength', 'DESC')
       .addOrderBy('clan.guards_count', 'DESC')
       .addOrderBy('clan.id', 'ASC')
       .skip(skip)
-      .take(actualLimit)
+      .take(remainingLimit)
       .getMany();
 
     const paginatedData = clans.map((clan) => {
@@ -2190,7 +2215,7 @@ export class ClanService {
       data: paginatedData,
       total: Number(total),
       page: Number(page),
-      limit: Number(actualLimit),
+      limit: Number(remainingLimit),
     };
   }
 

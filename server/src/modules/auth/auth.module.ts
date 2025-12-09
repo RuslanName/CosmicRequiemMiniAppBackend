@@ -17,6 +17,7 @@ import { ENV } from '../../config/constants';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
 import { SessionService } from './services/session.service';
 import { VKSessionGuard } from './guards/vk-session.guard';
+import { SessionCookieInterceptor } from './interceptors/session-cookie.interceptor';
 import { TaskModule } from '../task/task.module';
 
 @Module({
@@ -45,7 +46,14 @@ import { TaskModule } from '../task/task.module';
     AdminJwtStrategy,
     SessionService,
     VKSessionGuard,
+    SessionCookieInterceptor,
   ],
-  exports: [JwtModule, AdminAuthService, SessionService, VKSessionGuard],
+  exports: [
+    JwtModule,
+    AdminAuthService,
+    SessionService,
+    VKSessionGuard,
+    SessionCookieInterceptor,
+  ],
 })
 export class AuthModule {}

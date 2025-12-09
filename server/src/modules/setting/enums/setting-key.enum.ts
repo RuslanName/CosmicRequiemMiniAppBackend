@@ -21,4 +21,5 @@ export enum SettingKey {
   REFERRER_MONEY_REWARD = 'referrer_money_reward',
   INITIAL_REFERRER_VK_ID = 'initial_referrer_vk_id',
   ADV_DISABLE_COST_VOICES_COUNT = 'adv_disable_cost_voices_count',
+  RATING_LIMIT = 'rating_limit',
 }

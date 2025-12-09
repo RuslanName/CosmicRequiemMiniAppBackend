@@ -13,14 +13,17 @@ import { initAdmin } from './config/admin.config';
 import { AdminService } from './modules/admin/admin.service';
 import { UserService } from './modules/user/user.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { SessionCookieInterceptor } from './modules/auth/interceptors/session-cookie.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const settingService = app.get(SettingService);
   const adminService = app.get(AdminService);
   const userService = app.get(UserService);
+  const sessionCookieInterceptor = app.get(SessionCookieInterceptor);
 
   app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalInterceptors(sessionCookieInterceptor);
   app.use(cookieParser());
   app.useStaticAssets(join(process.cwd(), 'data'), {
     prefix: '/data/',

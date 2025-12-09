@@ -30,6 +30,8 @@ import { EventHistoryService } from '../event-history/event-history.service';
 import { EventHistoryType } from '../event-history/enums/event-history-type.enum';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { StolenItemType } from '../clan-war/enums/stolen-item-type.enum';
+import { ClanWar } from '../clan-war/entities/clan-war.entity';
+import { ClanWarStatus } from '../clan-war/enums/clan-war-status.enum';
 import { EventHistoryItemResponseDto } from './dtos/responses/event-history-item-response.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { UserBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
@@ -48,6 +50,7 @@ import { UserAttackPlayerResponseDto } from './dtos/responses/attack-player-resp
 import { UserTaskService } from '../task/services/user-task.service';
 import { TaskType } from '../task/enums/task-type.enum';
 import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
+import { CacheService } from '../../common/services/cache.service';
 import { UserTaskResponseDto } from '../task/dtos/responses/user-task-response.dto';
 
 @Injectable()
@@ -57,12 +60,15 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
+    @InjectRepository(ClanWar)
+    private readonly clanWarRepository: Repository<ClanWar>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly userBoostService: UserBoostService,
     private readonly userAccessoryService: UserAccessoryService,
     private readonly eventHistoryService: EventHistoryService,
     private readonly userTaskService: UserTaskService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async updateUserGuardsStats(
@@ -569,6 +575,8 @@ export class UserService {
 
     Object.assign(user, updateUserDto);
     const updatedUser = await this.userRepository.save(user);
+    await this.cacheService.invalidateUserCaches(updatedUser.id);
+    await this.cacheService.invalidateClanCaches(undefined, updatedUser.id);
     return this.transformToUserBasicStatsResponseDto(updatedUser);
   }
 
@@ -854,15 +862,25 @@ export class UserService {
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
-    const actualLimit = Math.min(limit, 150);
+    const MAX_RATING_LIMIT = Settings[SettingKey.RATING_LIMIT] as number;
+    const actualLimit = Math.min(limit, MAX_RATING_LIMIT);
     const skip = (page - 1) * actualLimit;
 
-    const baseQuery = this.userRepository
-      .createQueryBuilder('user')
-      .where('user.image_path IS NOT NULL')
-      .andWhere("user.image_path != ''");
+    const baseQuery = this.userRepository.createQueryBuilder('user');
 
-    const total = await baseQuery.getCount();
+    const totalCount = await baseQuery.getCount();
+    const total = Math.min(totalCount, MAX_RATING_LIMIT);
+
+    if (skip >= MAX_RATING_LIMIT) {
+      return {
+        data: [],
+        total: total,
+        page: Number(page),
+        limit: Number(actualLimit),
+      };
+    }
+
+    const remainingLimit = Math.min(actualLimit, MAX_RATING_LIMIT - skip);
 
     const users = await baseQuery
       .select([
@@ -879,7 +897,7 @@ export class UserService {
       .addOrderBy('user.guards_count', 'DESC')
       .addOrderBy('user.id', 'ASC')
       .skip(skip)
-      .take(actualLimit)
+      .take(remainingLimit)
       .getMany();
 
     const userIds = users.map((user) => user.id);
@@ -898,9 +916,7 @@ export class UserService {
         const userGuardsCount = user.guards_count || 0;
         const ratingPlaceQuery = this.userRepository
           .createQueryBuilder('u')
-          .where('u.image_path IS NOT NULL')
-          .andWhere("u.image_path != ''")
-          .andWhere(
+          .where(
             '(u.strength > :userStrength OR (u.strength = :userStrength AND u.guards_count > :userGuardsCount) OR (u.strength = :userStrength AND u.guards_count = :userGuardsCount AND u.id < :userId))',
             { userStrength, userGuardsCount, userId: user.id },
           );
@@ -921,7 +937,7 @@ export class UserService {
       data,
       total: Number(total),
       page: Number(page),
-      limit: Number(actualLimit),
+      limit: Number(remainingLimit),
     };
   }
 
@@ -1640,7 +1656,6 @@ export class UserService {
       const [attacker, defender, defenderGuards] = await Promise.all([
         manager
           .createQueryBuilder(User, 'user')
-          .leftJoinAndSelect('user.clan', 'clan')
           .where('user.id = :userId', { userId })
           .select([
             'user.id',
@@ -1654,11 +1669,11 @@ export class UserService {
           .getOne(),
         manager
           .createQueryBuilder(User, 'user')
-          .leftJoinAndSelect('user.clan', 'clan')
           .where('user.id = :targetUserId', { targetUserId })
           .select([
             'user.id',
             'user.vk_id',
+            'user.clan_id',
             'user.strength',
             'user.money',
             'user.guards_count',
@@ -1682,12 +1697,40 @@ export class UserService {
 
       if (
         attacker.clan_id &&
-        defender.clan &&
-        attacker.clan_id === defender.clan.id
+        defender.clan_id &&
+        attacker.clan_id === defender.clan_id
       ) {
         throw new BadRequestException(
           'Нельзя атаковать участника своего клана',
         );
+      }
+
+      if (defender.clan_id) {
+        if (!attacker.clan_id) {
+          throw new BadRequestException(
+            'Нельзя атаковать игроков из кланов без клановой войны. Для атаки игроков из кланов необходимо состоять в клане и объявить клановую войну.',
+          );
+        }
+
+        const activeWar = await manager
+          .getRepository(ClanWar)
+          .createQueryBuilder('war')
+          .where('war.status = :status', { status: ClanWarStatus.IN_PROGRESS })
+          .andWhere(
+            '(war.clan_1_id = :attackerClanId AND war.clan_2_id = :defenderClanId) OR (war.clan_1_id = :defenderClanId AND war.clan_2_id = :attackerClanId)',
+            {
+              attackerClanId: attacker.clan_id,
+              defenderClanId: defender.clan_id,
+            },
+          )
+          .select(['war.id'])
+          .getOne();
+
+        if (!activeWar) {
+          throw new BadRequestException(
+            'Нельзя атаковать игроков из кланов без активной клановой войны. Для атаки необходимо объявить клановую войну.',
+          );
+        }
       }
 
       if (attacker.last_attack_time) {
