@@ -82,22 +82,33 @@ export class CacheInterceptor implements NestInterceptor {
 
     Object.keys(params).forEach((param) => {
       const beforeReplace = finalKey;
-      finalKey = finalKey.replace(`::${param}`, params[param]);
-      finalKey = finalKey.replace(`:${param}`, params[param]);
+      const paramValue = params[param] ?? '';
+      finalKey = finalKey.replace(`::${param}`, paramValue);
+      finalKey = finalKey.replace(`:${param}`, paramValue);
     });
 
     Object.keys(query).forEach((q) => {
       const beforeReplace = finalKey;
-      finalKey = finalKey.replace(`::${q}`, query[q]);
+      const queryValue = query[q] ?? '';
+      finalKey = finalKey.replace(`::${q}`, queryValue);
       if (finalKey !== beforeReplace) {
         processedQueryKeys.add(q);
       } else {
-        finalKey = finalKey.replace(`:${q}`, query[q]);
+        finalKey = finalKey.replace(`:${q}`, queryValue);
         if (finalKey !== beforeReplace) {
           processedQueryKeys.add(q);
         }
       }
     });
+
+    if (finalKey.includes('::page')) {
+      const pageValue = query.page ?? request.query?.page ?? '1';
+      finalKey = finalKey.replace('::page', String(pageValue));
+    }
+    if (finalKey.includes('::limit')) {
+      const limitValue = query.limit ?? request.query?.limit ?? '10';
+      finalKey = finalKey.replace('::limit', String(limitValue));
+    }
 
     if (user.id) {
       finalKey = finalKey.replace(`::user`, user.id);
@@ -111,7 +122,7 @@ export class CacheInterceptor implements NestInterceptor {
     if (remainingQueryKeys.length > 0) {
       const querySuffix = remainingQueryKeys
         .sort()
-        .map((q) => `${q}:${query[q]}`)
+        .map((q) => `${q}:${query[q] ?? ''}`)
         .join(':');
       finalKey += `:query:${querySuffix}`;
     }

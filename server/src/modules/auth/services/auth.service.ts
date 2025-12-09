@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
 import { createHmac, randomUUID } from 'crypto';
@@ -21,6 +21,8 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly userTaskService: UserTaskService,
     private readonly sessionService: SessionService,
   ) {}
@@ -35,7 +37,10 @@ export class AuthService {
     });
   }
 
-  private async updateUserGuardsStats(userId: number): Promise<void> {
+  private async updateUserGuardsStats(
+    userId: number,
+    updateClanStats: boolean = true,
+  ): Promise<void> {
     const guards = await this.userGuardRepository.find({
       where: { user_id: userId },
     });
@@ -49,6 +54,24 @@ export class AuthService {
       guards_count: guardsCount,
       strength: strength,
     });
+
+    if (updateClanStats) {
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['clan_id'],
+      });
+
+      if (user?.clan_id) {
+        await this.dataSource.query(
+          `UPDATE clan SET 
+            strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+            guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+            members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+          WHERE id = $1`,
+          [user.clan_id],
+        );
+      }
+    }
   }
 
   async validateAuth(
@@ -111,7 +134,7 @@ export class AuthService {
         user: dbUser,
       });
       await this.userGuardRepository.save(firstGuard);
-      await this.updateUserGuardsStats(dbUser.id);
+      await this.updateUserGuardsStats(dbUser.id, false);
 
       if (photoUrl) {
         try {

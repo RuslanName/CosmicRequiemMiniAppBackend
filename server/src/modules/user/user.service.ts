@@ -100,6 +100,19 @@ export class UserService {
         strength: strength,
       });
     }
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['clan_id'],
+    });
+
+    if (user?.clan_id) {
+      if (manager) {
+        await this.updateClanStatsInTransaction(user.clan_id, manager);
+      } else {
+        await this.updateClanStats(user.clan_id);
+      }
+    }
   }
 
   private async updateClanStatsInTransaction(
@@ -107,6 +120,17 @@ export class UserService {
     manager: EntityManager,
   ): Promise<void> {
     await manager.query(
+      `UPDATE clan SET 
+        strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+        guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+        members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+      WHERE id = $1`,
+      [clanId],
+    );
+  }
+
+  private async updateClanStats(clanId: number): Promise<void> {
+    await this.dataSource.query(
       `UPDATE clan SET 
         strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
         guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
