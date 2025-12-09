@@ -228,7 +228,7 @@ export class AuthService {
       const photoUrl = user.photo_max_orig || user.photo_200 || null;
       if (photoUrl) {
         if (!this.verifyVkImageUrl(photoUrl)) {
-                                                                                                                                                                                                                                                                                                                                                                                                                            console.warn(
+          console.warn(
             `Неверный URL аватара профиля для пользователя ${dbUser.id}, пропускаем загрузку`,
           );
         } else {

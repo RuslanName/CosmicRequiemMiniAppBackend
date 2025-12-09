@@ -1994,8 +1994,12 @@ export class ClanService {
       const transformed = this.transformToClanStatsResponseDto(clan);
       const war = warsMap.get(clan.id);
       if (war) {
-        (transformed as any).war_start_time = war.start_time;
-        (transformed as any).war_end_time = war.end_time;
+        (transformed as any).war_start_time = war.start_time
+          ? war.start_time.toISOString()
+          : undefined;
+        (transformed as any).war_end_time = war.end_time
+          ? war.end_time.toISOString()
+          : undefined;
       }
       return transformed;
     });
