@@ -75,20 +75,26 @@ export class UserService {
     userId: number,
     manager?: EntityManager,
   ): Promise<void> {
-    const userGuardRepo = manager
-      ? manager.getRepository(UserGuard)
-      : this.userGuardRepository;
+    let result: any[];
 
-    const guards = await userGuardRepo.find({
-      where: { user_id: userId },
-      select: ['strength'],
-    });
+    if (manager) {
+      result = await manager.query(
+        `SELECT COUNT(*)::int as count, COALESCE(SUM(strength), 0)::bigint as strength 
+         FROM user_guard 
+         WHERE user_id = $1`,
+        [userId],
+      );
+    } else {
+      result = await this.dataSource.query(
+        `SELECT COUNT(*)::int as count, COALESCE(SUM(strength), 0)::bigint as strength 
+         FROM user_guard 
+         WHERE user_id = $1`,
+        [userId],
+      );
+    }
 
-    const guardsCount = guards.length;
-    const strength = guards.reduce(
-      (sum, guard) => sum + Number(guard.strength),
-      0,
-    );
+    const guardsCount = result[0]?.count || 0;
+    const strength = Number(result[0]?.strength || 0);
 
     if (manager) {
       await manager.update(User, userId, {
