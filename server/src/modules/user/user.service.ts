@@ -75,26 +75,20 @@ export class UserService {
     userId: number,
     manager?: EntityManager,
   ): Promise<void> {
-    let result: any[];
+    const userGuardRepo = manager
+      ? manager.getRepository(UserGuard)
+      : this.userGuardRepository;
 
-    if (manager) {
-      result = await manager.query(
-        `SELECT COUNT(*)::int as count, COALESCE(SUM(strength), 0)::bigint as strength 
-         FROM user_guard 
-         WHERE user_id = $1`,
-        [userId],
-      );
-    } else {
-      result = await this.dataSource.query(
-        `SELECT COUNT(*)::int as count, COALESCE(SUM(strength), 0)::bigint as strength 
-         FROM user_guard 
-         WHERE user_id = $1`,
-        [userId],
-      );
-    }
+    const guards = await userGuardRepo.find({
+      where: { user_id: userId },
+      select: ['strength'],
+    });
 
-    const guardsCount = result[0]?.count || 0;
-    const strength = Number(result[0]?.strength || 0);
+    const guardsCount = guards.length;
+    const strength = guards.reduce(
+      (sum, guard) => sum + Number(guard.strength),
+      0,
+    );
 
     if (manager) {
       await manager.update(User, userId, {
@@ -108,10 +102,12 @@ export class UserService {
       });
     }
 
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ['clan_id'],
-    });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.id = :userId', { userId })
+      .select('user.clan_id', 'clan_id')
+      .getRawOne()
+      .then((result) => (result ? { clan_id: result.clan_id } : null));
 
     if (user?.clan_id) {
       if (manager) {
