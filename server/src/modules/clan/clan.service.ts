@@ -1463,10 +1463,15 @@ export class ClanService {
             captured_guards,
           );
 
-          guardsToCapture.forEach((guard) => {
-            guard.user_id = attacker.id;
-          });
-          await manager.save(UserGuard, guardsToCapture);
+          const guardIds = guardsToCapture
+            .map((guard) => guard.id)
+            .filter((id): id is number => id !== undefined && id !== null);
+
+          if (guardIds.length > 0) {
+            await manager.update(UserGuard, guardIds, {
+              user_id: attacker.id,
+            });
+          }
 
           const guardItems = guardsToCapture.map((guard) =>
             manager.create(StolenItem, {

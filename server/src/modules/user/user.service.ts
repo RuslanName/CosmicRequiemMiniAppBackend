@@ -1826,8 +1826,11 @@ export class UserService {
         const guardToSteal = capturableDefenderGuards[0];
         const stolenGuardId = guardToSteal.id;
 
-        guardToSteal.user_id = attacker.id;
-        await manager.save(UserGuard, guardToSteal);
+        if (stolenGuardId) {
+          await manager.update(UserGuard, stolenGuardId, {
+            user_id: attacker.id,
+          });
+        }
 
         const statsUpdates: Promise<void>[] = [
           this.updateUserGuardsStats(attacker.id, manager),
@@ -1944,10 +1947,15 @@ export class UserService {
               captured_guards,
             );
 
-            guardsToCapture.forEach((guard) => {
-              guard.user_id = attacker.id;
-            });
-            await manager.save(UserGuard, guardsToCapture);
+            const guardIds = guardsToCapture
+              .map((guard) => guard.id)
+              .filter((id): id is number => id !== undefined && id !== null);
+
+            if (guardIds.length > 0) {
+              await manager.update(UserGuard, guardIds, {
+                user_id: attacker.id,
+              });
+            }
 
             const guardItems = guardsToCapture.map((guard) =>
               manager.create(StolenItem, {
